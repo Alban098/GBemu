@@ -6,7 +6,7 @@ public class Register16 {
     private final Register8 low;
 
     public Register16(int data) {
-        high = new Register8((data & 0xFF00) << 8);
+        high = new Register8((data & 0xFF00) >> 8);
         low = new Register8(data & 0xFF);
     }
 
@@ -53,5 +53,10 @@ public class Register16 {
         low.dec();
         if (low.read() == 0xFF)
             high.dec();
+    }
+
+    @Override
+    public String toString() {
+        return "$" + Integer.toHexString(low.read() | (high.read() << 8));
     }
 }

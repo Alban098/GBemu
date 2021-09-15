@@ -4,6 +4,7 @@ import core.Memory;
 import core.cpu.register.Register16;
 import core.cpu.register.Register8;
 
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -14,6 +15,9 @@ import static core.BitUtils.signed8;
 
 public class LR35902 {
 
+    public static final boolean TRACE = false;
+
+    BufferedWriter bw;
     private final List<Instruction> opcodes;
     private final List<Instruction> cb_opcodes;
 
@@ -41,6 +45,9 @@ public class LR35902 {
 
     private boolean halted = false;
     private boolean enableIRQ = true;
+    private int timerCycles;
+    private int timerTotalCycles = 0xFF;
+    private int divider;
 
     public LR35902(Memory memory) {
         af = new Register16(0x01B0);
@@ -60,7 +67,7 @@ public class LR35902 {
         l = hl.getLow();
 
         sp = new Register16(0xFFFE);
-        pc = new Register16(0x0000);
+        pc = new Register16(0x0100);
 
         this.memory = memory;
 
@@ -579,7 +586,13 @@ public class LR35902 {
         cb_opcodes.add(new Instruction(0xFD, "SET 7,L", () -> set_b_R(l)));
         cb_opcodes.add(new Instruction(0xFE, "SET 7,(HL)", this::set_b_HL));
         cb_opcodes.add(new Instruction(0xFF, "SET 7,A", () -> set_b_R(a)));
-
+        File fout = new File("fout.txt");
+        try {
+            FileOutputStream fos = new FileOutputStream(fout);
+            bw = new BufferedWriter(new OutputStreamWriter(fos));
+        } catch (FileNotFoundException ex) {
+            ex.printStackTrace();
+        }
     }
 
     public void clock() {
@@ -590,19 +603,20 @@ public class LR35902 {
 
         if (remaining_cycle_until_op == 0) {
             int opcode = read8(pc.read());
+            System.out.println(Integer.toHexString(pc.read()));
             pc.inc();
-            remaining_cycle_until_op = opcodes.get(opcode).operate();
-
+            Instruction inst = opcodes.get(opcode);
+            remaining_cycle_until_op = inst.operate()/4;
             if (enable_interrupt_in_opcode > 0) {
                 enable_interrupt_in_opcode--;
-            } else {
+            } else if (enable_interrupt_in_opcode == 0){
                 enableIRQ = true;
                 enable_interrupt_in_opcode = -1;
             }
 
             if (disable_interrupt_in_opcode > 0) {
                 disable_interrupt_in_opcode--;
-            } else {
+            } else if (disable_interrupt_in_opcode == 0) {
                 enableIRQ = false;
                 disable_interrupt_in_opcode = -1;
             }
@@ -627,11 +641,11 @@ public class LR35902 {
     }
 
     private int read8(int addr) {
-        return memory.read(addr & 0xFFFF);
+        return memory.readByte(addr & 0xFFFF);
     }
 
     private void write8(int addr, int data) {
-        memory.write(addr & 0xFFFF, data & 0xFF);
+        memory.writeByteRdOnly(addr & 0xFFFF, data & 0xFF);
     }
 
     private int read16(int addr) {
@@ -652,7 +666,7 @@ public class LR35902 {
     }
 
     private int popStack() {
-        int data = (read8(sp.read()) << 8) | read8(sp.read() + 1);
+        int data = read8(sp.read()) | (read8(sp.read() + 1) << 8);
         sp.inc();
         sp.inc();
         return data;
@@ -989,7 +1003,8 @@ public class LR35902 {
     }
 
     public int and_n() {
-        int val = (a.read() & read8(hl.read()));
+        int val = (a.read() & read8(pc.read()));
+        pc.inc();
 
         setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
         setFlag(Flags.SUBTRACT, false);
@@ -1130,7 +1145,7 @@ public class LR35902 {
     }
 
     public int dec_r(Register8 reg) {
-        setFlag(Flags.ZERO, reg.read() == 0xFF);
+        setFlag(Flags.ZERO, reg.read() == 0x01);
         setFlag(Flags.SUBTRACT, false);
         setFlag(Flags.HALF_CARRY, (reg.read() & 0xF) == 0xF);
 
@@ -1654,6 +1669,11 @@ public class LR35902 {
 
         public int getOpcode() {
             return opcode;
+        }
+
+        @Override
+        public String toString() {
+            return "[$" + Integer.toHexString(opcode) + "] " + name;
         }
     }
 }

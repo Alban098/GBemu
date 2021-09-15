@@ -25,4 +25,9 @@ public class Register8 {
     public void dec() {
         data = (data - 1) & 0xFF;
     }
+
+    @Override
+    public String toString() {
+        return "$" + Integer.toHexString(data);
+    }
 }

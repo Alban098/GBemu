@@ -27,4 +27,17 @@ public class BitUtils {
     public static void main(String[] args) {
         System.out.println(0xFF);
     }
+
+    public static String padLeftZeros(String inputString, int length) {
+        if (inputString.length() >= length) {
+            return inputString;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(inputString);
+        while (sb.length() < length) {
+            sb.append('_');
+        }
+
+        return sb.toString();
+    }
 }
