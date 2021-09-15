@@ -28,6 +28,6 @@ public class Register8 {
 
     @Override
     public String toString() {
-        return "$" + Integer.toHexString(data);
+        return "$" + Integer.toHexString(data) + "(" + Integer.toBinaryString(data) + ")";
     }
 }

@@ -8,9 +8,11 @@ import java.nio.file.Paths;
 public class Cartridge {
 
     private final int[] rom;
+    private final int[] ram;
 
     public Cartridge(String file) {
         rom = new int[0x8000];
+        ram = new int[0x2000];
         Path path = Paths.get(file);
 
         byte[] bytes = new byte[0];
@@ -28,5 +30,13 @@ public class Cartridge {
     public int read(int addr) {
         //TODO implement real behavior
         return rom[addr & 0x7FFF];
+    }
+
+    public void writeSRAM(int addr, int data) {
+        ram[addr & 0x1FFF] = data & 0xFF;
+    }
+
+    public int readSRAM(int addr) {
+        return ram[addr & 0x1FFF];
     }
 }
