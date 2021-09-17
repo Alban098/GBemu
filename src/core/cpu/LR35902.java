@@ -37,7 +37,6 @@ public class LR35902 {
 
     private long cycle = 0;
     private int remaining_cycle_until_op = 0;
-    private int disable_interrupt_in_opcode = -1;
     private int enable_interrupt_in_opcode = -1;
 
     private boolean halted = false;
@@ -600,13 +599,6 @@ public class LR35902 {
                 IME = true;
                 enable_interrupt_in_opcode = -1;
             }
-
-            if (disable_interrupt_in_opcode > 0) {
-                disable_interrupt_in_opcode--;
-            } else if (disable_interrupt_in_opcode == 0) {
-                IME = false;
-                disable_interrupt_in_opcode = -1;
-            }
         } else {
             remaining_cycle_until_op--;
         }
@@ -623,7 +615,6 @@ public class LR35902 {
         pc.write(0x0000);
         cycle = 0;
         remaining_cycle_until_op = 0;
-        disable_interrupt_in_opcode = -1;
         enable_interrupt_in_opcode = -1;
     }
 
@@ -676,1015 +667,1206 @@ public class LR35902 {
         return 4 + cb_opcodes.get(opcode).operate();
     }
 
-    public int opcode_LD(Register8 reg) {
-        reg.write(read8(pc.read()));
-        pc.inc();
-        return 8;
-    }
+    //===============REG UTILS===============//
 
-    public int opcode_LD(Register16 reg) {
-        reg.write(read16(pc.read()));
-        pc.inc();
-        pc.inc();
-        return 12;
-    }
-
-    public int opcode_LD(Register8 reg, Register8 reg1) {
-        reg.write(reg1.read());
-        return 4;
-    }
-
-    public int opcode_LD_from_HL_addr(Register8 reg) {
-        reg.write(read8(hl.read()));
-        return 8;
-    }
-
-    public int opcode_LD_to_HL_addr(Register8 reg) {
-        write8(hl.read(), reg.read());
-        return 8;
-    }
-
-    public int opcode_LD_to_HL_addr() {
-        write8(hl.read(), read8(pc.read()));
-        pc.inc();
-        return 12;
-    }
-
-    public int opcode_LD_to_A_from_addr(Register16 reg) {
-        a.write(read8(reg.read()));
-        return 8;
-    }
-
-    public int opcode_LD_to_A_REL() {
-        a.write(read8(read16(pc.read())));
-        pc.inc();
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_LD_to_addr_from_A(Register16 reg) {
-        write8(reg.read(), a.read());
-        return 8;
-    }
-
-    public int opcode_LD_to_addr_from_A() {
-        write8(read16(pc.read()), a.read());
-        pc.inc();
-        pc.inc();
-        return 16;
-    }
-
-    public int opcode_LD_A_C() {
-        a.write(read8(0xFF00 | c.read()));
-        return 8;
-    }
-
-    public int opcode_LD_C_A() {
-        write8(0xFF00 | c.read(), a.read());
-        return 8;
-    }
-
-    public int opcode_LD_A_HLD() {
-        a.write(read8(hl.read()));
-        hl.dec();
-        return 8;
-    }
-
-    public int opcode_LD_HLD_A() {
-        write8(hl.read(), a.read());
-        hl.dec();
-        return 8;
-    }
-
-    public int opcode_LD_A_HLI() {
-        a.write(read8(hl.read()));
-        hl.inc();
-        return 8;
-    }
-
-    public int opcode_LD_HLI_A() {
-        write8(hl.read(), a.read());
-        hl.inc();
-        return 8;
-    }
-
-    public int opcode_LD_from_A_off() {
-        write8(0xFF00 | read8(pc.read()), a.read());
-        pc.inc();
-        return 12;
-    }
-
-    public int opcode_LD_from_off_A() {
-        a.write(read8(0xFF00 | read8(pc.read())));
-        pc.inc();
-        return 12;
-    }
-
-    public int opcode_LD_SP_HL() {
-        sp.write(hl.read());
-        return 8;
-    }
-
-    public int opcode_LD_HL_SP_off() {
-        hl.write(sp.read() + signed8(read8(pc.read())));
-        pc.inc();
-        return 12;
-    }
-
-    public int opcode_LD_from_SP() {
-        write16(read16(pc.read()), sp.read());
-        pc.inc();
-        pc.inc();
-        return 20;
-    }
-
-    public int opcode_PUSH(Register16 reg) {
-        pushStack(reg.read());
-        return 16;
-    }
-
-    public int opcode_POP(Register16 reg) {
-        reg.write(popStack());
-        return 12;
-    }
-
-    public int opcode_ADD(Register8 reg) {
-        int val = (a.read() + reg.read());
-
-        int carry = a.read() ^ reg.read() ^ val;
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (carry & 0x10) == 0x10);
-        setFlag(Flags.CARRY, (carry & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        return 4;
-    }
-
-    public int opcode_ADD() {
-        int read = read8(pc.read());
-        int val = (a.read() + read);
-        int carry = a.read() ^ read ^ val;
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (carry & 0x10) == 0x10);
-        setFlag(Flags.CARRY, (carry & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_ADD_HL() {
-        int read = read8(hl.read());
-        int val = (a.read() + read);
-        int carry = a.read() ^ read ^ val;
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (carry & 0x10) == 0x10);
-        setFlag(Flags.CARRY, (carry & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        return 8;
-    }
-
-    public int opcode_ADC(Register8 reg) {
-        int val = (a.read() + reg.read()) + (hasFlag(Flags.CARRY) ? 1 : 0);
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (((a.read() & 0xF) + (reg.read() & 0xF) + (hasFlag(Flags.CARRY) ? 1 : 0)) & 0xF0) == 0x00);
-        setFlag(Flags.CARRY, (val & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        return 4;
-    }
-
-    public int opcode_ADC() {
-        int read = read8(pc.read());
-        int val = (a.read() + read) + (hasFlag(Flags.CARRY) ? 1 : 0);
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (((a.read() & 0xF) + (read & 0xF) + (hasFlag(Flags.CARRY) ? 1 : 0)) & 0xF0) != 0x00);
-        setFlag(Flags.CARRY, (val & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_ADC_HL() {
-        int read = read8(hl.read());
-        int val = (a.read() + read) + (hasFlag(Flags.CARRY) ? 1 : 0);
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (((a.read() & 0xF) + (read & 0xF) + (hasFlag(Flags.CARRY) ? 1 : 0)) & 0xF0) == 0x00);
-        setFlag(Flags.CARRY, (val & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        return 8;
-    }
-
-    public int opcode_SUB(Register8 reg) {
-        int val = (a.read() - reg.read());
-        int carry = a.read() ^ reg.read() ^ val;
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (carry & 0x10) == 0x10);
-        setFlag(Flags.CARRY, (carry & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        return 4;
-    }
-
-    public int opcode_SUB() {
-        int read = read8(pc.read());
-        int val = (a.read() - read);
-        int carry = a.read() ^ read ^ val;
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (carry & 0x10) == 0x10);
-        setFlag(Flags.CARRY, (carry & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_SUB_HL() {
-        int read = read8(hl.read());
-        int val = (a.read() - read);
-        int carry = a.read() ^ read ^ val;
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (carry & 0x10) == 0x10);
-        setFlag(Flags.CARRY, (carry & 0x100) == 0x100);
-
-        a.write(val & 0xFF);
-        return 8;
-    }
-
-    public int opcode_SBC(Register8 reg) {
-        int val = (a.read() - (reg.read() + (hasFlag(Flags.CARRY) ? 1 : 0)));
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (a.read() & 0xF) - (reg.read() & 0xF) - (hasFlag(Flags.CARRY) ? 1 : 0) < 0);
-        setFlag(Flags.CARRY, a.read() < reg.read());
-
-        a.write(val & 0xFF);
-        return 4;
-    }
-
-    public int opcode_SBC() {
-        int read = read8(pc.read());
-        int val = (a.read() - (read + (hasFlag(Flags.CARRY) ? 1 : 0)));
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (a.read() & 0xF) - (read & 0xF) - (hasFlag(Flags.CARRY) ? 1 : 0) < 0);
-        setFlag(Flags.CARRY, a.read() < read);
-
-        a.write(val & 0xFF);
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_SBC_HL() {
-        int read = read8(hl.read());
-        int val = (a.read() - (read + (hasFlag(Flags.CARRY) ? 1 : 0)));
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (a.read() & 0xF) - (read & 0xF) - (hasFlag(Flags.CARRY) ? 1 : 0) < 0);
-        setFlag(Flags.CARRY, a.read() < read);
-
-        a.write(val & 0xFF);
-        return 8;
-    }
-
-    public int opcode_AND(Register8 reg) {
-        int val = (a.read() & reg.read());
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, true);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        return 4;
-    }
-
-    public int opcode_AND() {
-        int val = (a.read() & read8(pc.read()));
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, true);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_AND_HL() {
-        int val = (a.read() & read8(pc.read()));
-        pc.inc();
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, true);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        return 8;
-    }
-
-    public int opcode_OR(Register8 reg) {
-        int val = (a.read() | reg.read());
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        return 4;
-    }
-
-    public int opcode_OR() {
-        int val = (a.read() | read8(pc.read()));
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_OR_HL() {
-        int val = (a.read() | read8(hl.read()));
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        return 8;
-    }
-
-    public int opcode_XOR(Register8 reg) {
-        int val = (a.read() ^ reg.read());
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        return 4;
-    }
-
-    public int opcode_XOR() {
-        int val = (a.read() ^ read8(pc.read()));
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_XOR_HL() {
-        int val = (a.read() ^ read8(hl.read()));
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
-
-        a.write(val & 0xFF);
-        return 8;
-    }
-
-    public int opcode_CP(Register8 reg) {
-        int val = (a.read() - reg.read());
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, true);
-        setFlag(Flags.HALF_CARRY, (val & 0xF) > (a.read() & 0xF));
-        setFlag(Flags.CARRY, a.read() < reg.read());
-
-        return 4;
-    }
-
-    public int opcode_CP() {
-        int read = read8(pc.read());
-        int val = (a.read() - read);
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, true);
-        setFlag(Flags.HALF_CARRY, (val & 0xF) > (a.read() & 0xF));
-        setFlag(Flags.CARRY, a.read() < read);
-
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_CP_HL() {
-        int read = read8(hl.read());
-        int val = (a.read() - read);
-
-        setFlag(Flags.ZERO, (val & 0xFF) == 0x00);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (val & 0xF) > (a.read() & 0xF));
-        setFlag(Flags.CARRY, a.read() < read);
-
-        return 8;
-    }
-
-    public int opcode_INC(Register8 reg) {
-        setFlag(Flags.ZERO, reg.read() == 0xFF);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (reg.read() & 0xF) == 0xF);
-
+    public void inc_reg8(Register8 reg) {
         reg.inc();
-        return 4;
-    }
-
-    public int opcode_INC_HL() {
-        int val = read8(hl.read());
-        setFlag(Flags.ZERO, val == 0xFF);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, (val & 0xF) == 0xF);
-
-        write8(hl.read(), (val + 1) & 0xFF);
-        return 12;
-    }
-
-    public int opcode_DEC(Register8 reg) {
-        setFlag(Flags.ZERO, reg.read() == 0x01);
-        setFlag(Flags.SUBTRACT, false);
-        reg.dec();
-        setFlag(Flags.HALF_CARRY, (reg.read() & 0xF) == 0xF);
-
-        return 4;
-    }
-
-    public int opcode_DEC_HL() {
-        int val = read8(hl.read());
-        setFlag(Flags.ZERO, val == 0x01);
-        setFlag(Flags.SUBTRACT, true);
-        setFlag(Flags.HALF_CARRY, ((val - 1) & 0xF) == 0xF);
-
-        write8(hl.read(), (val - 1) & 0xFF);
-        return 12;
-    }
-
-    public int opcode_ADD_HL(Register16 reg) {
-        int val = hl.read() + reg.read();
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, ((hl.read() ^ reg.read() ^ (val & 0xFFFF)) & 0x1000) == 0x1000);
-        setFlag(Flags.CARRY, (val & 0x10000) == 0x10000);
-
-        hl.write(val);
-        return 8;
-    }
-
-    public int opcode_ADD_SP() {
-        int offset = signed8(read8(pc.read()));
-        int val = sp.read() + offset;
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, ((hl.read() ^ offset ^ (val & 0xFFFF)) & 0x1000) == 0x1000);
-        setFlag(Flags.CARRY, (val & 0x10000) == 0x10000);
-
-        sp.write(val);
-        pc.inc();
-        return 8;
-    }
-
-    public int opcode_INC(Register16 reg) {
-        reg.inc();
-        return 8;
-    }
-
-    public int opcode_DEC(Register16 reg) {
-        reg.dec();
-        return 8;
-    }
-
-    public int opcode_SWAP(Register8 reg) {
-        reg.write(((reg.read() >> 4) & 0xF) | (reg.read() << 4));
         setFlag(Flags.ZERO, reg.read() == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, (reg.read() & 0x0F) == 0x00);
+    }
+
+    public void dec_reg8(Register8 reg) {
+        reg.dec();
+        setFlag(Flags.ZERO, reg.read() == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, (reg.read() & 0x0F) == 0x00);
+    }
+
+    public void add_reg16(Register16 reg, int data) {
+        data &= 0xFFFF;
+        int result = reg.read() + data;
+
+        setFlag(Flags.HALF_CARRY, ((reg.read() ^ data ^ (result & 0xFFFF)) & 0x1000) == 0x1000);
+        setFlag(Flags.CARRY, (result & 0x10000) == 0x10000);
+        setFlag(Flags.SUBTRACT, false);
+
+        reg.write(result & 0xFFFF);
+    }
+
+    public void add_reg8(Register8 reg, int data) {
+        data &= 0xFF;
+        int result = reg.read() + data;
+
+        setFlag(Flags.HALF_CARRY, ((reg.read() & 0xF) + (data & 0xF)) > 0xF);
+        setFlag(Flags.CARRY, (result & 0x100) == 0x100);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.ZERO, result == 0x00);
+        reg.write(result & 0xFF);
+    }
+
+    public void adc_reg8(Register8 reg, int data) {
+        data &= 0xFF;
+        int result = reg.read() + data + (hasFlag(Flags.CARRY) ? 1 : 0);
+
+        setFlag(Flags.HALF_CARRY, ((reg.read() & 0xF) + (data & 0xF) + (hasFlag(Flags.CARRY) ? 1 : 0)) > 0xF);
+        setFlag(Flags.CARRY, (result & 0x100) == 0x100);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.ZERO, result == 0x00);
+        reg.write(result & 0xFF);
+    }
+
+    public void sub_reg8(Register8 reg, int data) {
+        data &= 0xFF;
+        int result = (reg.read() - data) & 0xFF;
+
+        setFlag(Flags.HALF_CARRY, (reg.read() & 0xF) - (data & 0xF) < 0);
+        setFlag(Flags.CARRY, reg.read() < data);
+        setFlag(Flags.SUBTRACT, true);
+        setFlag(Flags.ZERO, result == 0x0);
+
+        reg.write(result);
+    }
+
+    public void sbc_reg8(Register8 reg, int data) {
+        data &= 0xFF;
+        int result = (reg.read() - data - (hasFlag(Flags.CARRY) ? 1 : 0));
+
+        setFlag(Flags.ZERO, result == 0x0);
+        setFlag(Flags.SUBTRACT, true);
+        setFlag(Flags.HALF_CARRY, ((reg.read() & 0xF) - (data & 0xF) - (hasFlag(Flags.CARRY) ? 1 : 0) < 0));
+        setFlag(Flags.CARRY, result < 0);
+
+        reg.write(result & 0xFF);
+    }
+
+    public void and_reg8(Register8 reg, int data) {
+        data &= 0xFF;
+        reg.write(a.read() & data);
+
+        setFlag(Flags.ZERO, reg.read() == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, true);
+        setFlag(Flags.CARRY, false);
+    }
+
+    public void xor_reg8(Register8 reg, int data) {
+        data &= 0xFF;
+        reg.write(a.read() ^ data);
+
+        setFlag(Flags.ZERO, reg.read() == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, false);
+    }
+
+    public void or_reg8(Register8 reg, int data) {
+        data &= 0xFF;
+        reg.write(a.read() | data);
+
+        setFlag(Flags.ZERO, reg.read() == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, false);
+    }
+
+    public void cp_reg8(Register8 reg, int data) {
+        data &= 0xFF;
+        setFlag(Flags.ZERO, reg.read() == data);
+        setFlag(Flags.SUBTRACT, true);
+        setFlag(Flags.HALF_CARRY, (reg.read() & 0xF) - (data & 0xF) < 0);
+        setFlag(Flags.CARRY, reg.read() < data);
+    }
+
+    public void rlc_reg8(Register8 reg) {
+        int result = (reg.read() << 1) | ((reg.read() >> 7) & 0x01);
+        result &= 0xFF;
+
+        setFlag(Flags.ZERO, result == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, ((reg.read() >> 7) & 0x01) != 0x0);
+
+        reg.write(result);
+    }
+
+    public void rrc_reg8(Register8 reg) {
+        int result = ((reg.read() & 0x01) << 7) | (reg.read() >> 1);
+        result &= 0xFF;
+
+        setFlag(Flags.ZERO, result == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, (reg.read() & 0x01) != 0x0);
+
+        reg.write(result);
+    }
+
+    public void rl_reg8(Register8 reg) {
+        int result = (reg.read() << 1) | (hasFlag(Flags.CARRY) ? 1 : 0);
+        result &= 0xFF;
+
+        setFlag(Flags.ZERO, result == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, ((reg.read() >> 7) & 0x01) != 0x0);
+
+        reg.write(result);
+    }
+
+    public void rr_reg8(Register8 reg) {
+        int result = (hasFlag(Flags.CARRY) ? 0x80 : 0x00) | (reg.read() >> 1);
+        result &= 0xFF;
+
+        setFlag(Flags.ZERO, result == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, (reg.read() & 0x01) != 0x0);
+
+        reg.write(result);
+    }
+
+    public void sla_reg8(Register8 reg) {
+        int result = reg.read() << 1;
+        result &= 0xFF;
+
+        setFlag(Flags.ZERO, result == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, ((reg.read() >> 7) & 0x01) != 0x0);
+
+        reg.write(result);
+    }
+
+    public void sra_reg8(Register8 reg) {
+        int result = (reg.read() & 0x80) | (reg.read() >> 1);
+        result &= 0xFF;
+
+        setFlag(Flags.ZERO, result == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, (reg.read() & 0x01) != 0x0);
+
+        reg.write(result);
+    }
+
+    public void srl_reg8(Register8 reg) {
+        int result = reg.read() >> 1;
+        result &= 0xFF;
+
+        setFlag(Flags.ZERO, result == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, (reg.read() & 0x01) != 0x0);
+
+        reg.write(result);
+    }
+
+    public void swap_reg8(Register8 reg) {
+        reg.write(((reg.read() & 0x0F) << 4) |((reg.read() & 0xF0) >> 4));
+
+        setFlag(Flags.ZERO, reg.read() == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, false);
+    }
+
+
+
+    //=================OPCODE==================//
+    public int opcode_0x03_inc() {
+        //INC BC
+        bc.inc();
         return 8;
     }
 
-    public int opcode_SWAP_HL() {
-        int data = read8(hl.read());
-        write8(hl.read(), (data >> 4) | (data << 4));
-        setFlag(Flags.ZERO, data == 0x00);
-        return 16;
-    }
-
-    public int opcode_DAA() {
-        if (!hasFlag(Flags.SUBTRACT)) {
-            if (hasFlag(Flags.HALF_CARRY) || ((a.read() & 0xF) > 9))
-                a.write(a.read() + 0x06);
-            if (hasFlag(Flags.CARRY) || (a.read() > 0x9F))
-                a.write(a.read() + 0x60);
-        } else {
-            if (hasFlag(Flags.HALF_CARRY))
-                a.write((a.read() - 0x6) & 0xFF);
-            if (hasFlag(Flags.CARRY))
-                a.write(a.read() - 0x60);
-        }
-
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.ZERO, false);
-
-        if ((a.read() & 0x100) == 0x100)
-            setFlag(Flags.CARRY, true);
-        a.write(a.read() & 0xFF);
-        setFlag(Flags.ZERO, a.read() == 0x00);
+    public int opcode_0X04_inc() {
+        //INC B
+        inc_reg8(b);
         return 4;
     }
 
-    public int opcode_CPL() {
+    public int opcode_0x0C_inc() {
+        //INC C
+        inc_reg8(c);
+        return 4;
+    }
+
+    public int opcode_0x13_inc() {
+        //INC DE
+        de.inc();
+        return 8;
+    }
+
+    public int opcode_0x14_inc() {
+        //INC D
+        inc_reg8(d);
+        return 4;
+    }
+
+    public int opcode_0x1C_inc() {
+        //INC E
+        inc_reg8(e);
+        return 4;
+    }
+
+    public int opcode_0x23_inc() {
+        //INC HL
+        hl.inc();
+        return 8;
+    }
+
+    public int opcode_0x24_inc() {
+        //INC H
+        inc_reg8(h);
+        return 4;
+    }
+
+    public int opcode_0x2C_inc() {
+        //INC L
+        inc_reg8(l);
+        return 4;
+    }
+
+    public int opcode_0x33_inc() {
+        //INC SP
+        sp.inc();
+        return 8;
+    }
+
+    public int opcode_0x34_inc() {
+        //INC (HL)
+        int addr = read16(hl.read());
+        int data = (memory.readByte(addr) + 1) & 0xFF;
+        write8(addr, data);
+        setFlag(Flags.ZERO, data == 0x00);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.ZERO, (data & 0x0F) == 0x00);
+        return 12;
+    }
+
+    public int opcode_0x3C_inc() {
+        //INC A
+        inc_reg8(a);
+        return 4;
+    }
+
+    public int opcode_0x05_dec() {
+        //DEC B
+        dec_reg8(b);
+        return 4;
+    }
+
+    public int opcode_0x0B_dec() {
+        //DEC BC
+        bc.dec();
+        return 8;
+    }
+
+    public int opcode_0x0D_dec() {
+        //DEC C
+        dec_reg8(c);
+        return 4;
+    }
+
+    public int opcode_0x15_dec() {
+        //DEC D
+        dec_reg8(d);
+        return 4;
+    }
+
+    public int opcode_0x1B_dec() {
+        //DEC DE
+        de.dec();
+        return 8;
+    }
+
+    public int opcode_0x1D_dec() {
+        //DEC E
+        dec_reg8(e);
+        return 4;
+    }
+
+    public int opcode_0x25_dec() {
+        //DEC H
+        dec_reg8(h);
+        return 4;
+    }
+
+    public int opcode_0x2B_dec() {
+        //DEC HL
+        hl.dec();
+        return 8;
+    }
+
+    public int opcode_0x2D_dec() {
+        //DEC L
+        dec_reg8(l);
+        return 4;
+    }
+
+    public int opcode_0x35_dec() {
+        //DEC (HL)
+        int addr = read16(hl.read());
+        int data = (memory.readByte(addr) - 1) & 0xFF;
+        write8(addr, data);
+        setFlag(Flags.ZERO, data == 0x00);
+        setFlag(Flags.SUBTRACT, true);
+        setFlag(Flags.ZERO, (data & 0x0F) == 0x00);
+        return 12;
+    }
+
+    public int opcode_0x3B_dec() {
+        //DEC SP
+        sp.dec();
+        return 8;
+    }
+
+    public int opcode_0x3D_dec() {
+        //DEC A
+        dec_reg8(a);
+        return 4;
+    }
+
+    public int opcode_0x09_add() {
+        //ADD HL, BC
+        add_reg16(hl, bc.read());
+        return 8;
+    }
+
+    public int opcode_0x19_add() {
+        //ADD HL, DE
+        add_reg16(hl, de.read());
+        return 8;
+    }
+
+    public int opcode_0x29_add() {
+        //ADD HL, HL
+        add_reg16(hl, hl.read());
+        return 8;
+    }
+
+    public int opcode_0x39_add() {
+        //ADD HL, SP
+        add_reg16(hl, sp.read());
+        return 8;
+    }
+
+    public int opcode_0x80_add() {
+        //ADD A, B
+        add_reg8(a, b.read());
+        return 4;
+    }
+
+    public int opcode_0x81_add() {
+        //ADD A, C
+        add_reg8(a, c.read());
+        return 4;
+    }
+
+    public int opcode_0x82_add() {
+        //ADD A, D
+        add_reg8(a, d.read());
+        return 4;
+    }
+
+    public int opcode_0x83_add() {
+        //ADD A, E
+        add_reg8(a, e.read());
+        return 4;
+    }
+
+    public int opcode_0x84_add() {
+        //ADD A, H
+        add_reg8(a, h.read());
+        return 4;
+    }
+
+    public int opcode_0x85_add() {
+        //ADD A, L
+        add_reg8(a, l.read());
+        return 4;
+    }
+
+    public int opcode_0x86_add() {
+        //ADD A, (HL)
+        add_reg8(a, read8(hl.read()));
+        return 8;
+    }
+
+    public int opcode_0x87_add() {
+        //ADD A, A
+        add_reg8(a, a.read());
+        return 4;
+    }
+
+    public int opcode_C6_add() {
+        //ADD A, d8
+        add_reg8(a, read8(pc.read()));
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode0xE8_add() {
+        //ADD SP, r8
+        int data = signed8(read8(pc.read()));
+        pc.inc();
+        int result = sp.read() + data;
+
+        setFlag(Flags.ZERO, false);
+        setFlag(Flags.SUBTRACT, false);
+        setFlag(Flags.HALF_CARRY, ((sp.read() ^ data ^ (result & 0xFFFF)) & 0x10) == 0x10);
+        setFlag(Flags.CARRY, ((sp.read() ^ data ^ (result & 0xFFFF)) & 0x100) == 0x100);
+
+        sp.write(result & 0xFFFF);
+        return 16;
+    }
+
+    public int opcode_0x27_daa() {
+        //DAA
+        int result = a.read();
+        if (hasFlag(Flags.SUBTRACT)) {
+            if (hasFlag(Flags.HALF_CARRY))
+                result -= 6;
+            if (hasFlag(Flags.CARRY))
+                result -= 0x60;
+        } else {
+            if (hasFlag(Flags.HALF_CARRY) || (a.read() & 0xF) > 0x9)
+                result += 6;
+            if (hasFlag(Flags.CARRY) || result > 0x9F)
+                result += 60;
+        }
+        a.write(result & 0xFF);
+        setFlag(Flags.ZERO, a.read() == 0x00);
+        setFlag(Flags.HALF_CARRY, false);
+        return 4;
+    }
+
+    public int opcode_0x2F_cpl() {
+        //CPL
         a.write(~a.read());
         setFlag(Flags.SUBTRACT, true);
         setFlag(Flags.HALF_CARRY, true);
-
         return 4;
     }
 
-    public int opcode_CCF() {
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, !hasFlag(Flags.CARRY));
-
-        return 4;
-    }
-
-    public int opcode_SCF() {
+    public int opcode_0x37_scf() {
+        //SCF
         setFlag(Flags.SUBTRACT, false);
         setFlag(Flags.HALF_CARRY, false);
         setFlag(Flags.CARRY, true);
-
         return 4;
     }
 
-    public int opcode_NOP() {
-        return 4;
-    }
-
-    public int opcode_HALT() {
-        halted = true;
-        return 4;
-    }
-
-    public int opcode_STOP() {
-        halted = true;
-        pc.inc();
-        return 4;
-    }
-
-    public int opcode_DI() {
-        disable_interrupt_in_opcode = 1;
-        return 4;
-    }
-
-    public int opcode_EI() {
-        enable_interrupt_in_opcode = 1;
-        return 4;
-    }
-
-    public int opcode_RLCA() {
-        setFlag(Flags.CARRY, (a.read() & 0x80) == 0x80);
-        a.write((a.read() << 1) | ((a.read() >> 7) & 0x01));
-        setFlag(Flags.HALF_CARRY, false);
+    public int opcode_0x37_ccf() {
+        //CCF
         setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, a.read() == 0x00);
+        setFlag(Flags.HALF_CARRY, false);
+        setFlag(Flags.CARRY, !hasFlag(Flags.CARRY));
         return 4;
     }
 
-    public int opcode_RLA() {
-        int tmp = a.read();
-        a.write((a.read() << 1) | (hasFlag(Flags.CARRY) ? 0x01 : 0x00));
-
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, a.read() == 0x00);
-        setFlag(Flags.CARRY, (tmp & 0x80) == 0x80);
+    public int opcode_0x88_adc() {
+        //ADC A, B
+        adc_reg8(a, b.read());
         return 4;
     }
 
-    public int opcode_RRCA() {
-        setFlag(Flags.CARRY, (a.read() & 0x01) == 0x01);
-        a.write((a.read() >> 1) | ((a.read() & 0x01) << 7));
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, a.read() == 0x00);
+    public int opcode_0x89_adc() {
+        //ADC A, C
+        adc_reg8(a, c.read());
         return 4;
     }
 
-    public int opcode_RRA() {
-        int tmp = a.read();
-        a.write((a.read() >> 1) | (hasFlag(Flags.CARRY) ? 0x80 : 0x00));
-
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, a.read() == 0x00);
-        setFlag(Flags.CARRY, (tmp & 0x01) == 0x01);
+    public int opcode_0x8A_adc() {
+        //ADC A, D
+        adc_reg8(a, d.read());
         return 4;
     }
 
-    public int opcode_RLC(Register8 reg) {
-        setFlag(Flags.CARRY, (reg.read() & 0x80) == 0x80);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        reg.write((reg.read() << 1) | ((reg.read() >> 7) & 0x01));
-        setFlag(Flags.ZERO, reg.read() == 0x00);
+    public int opcode_0x8B_adc() {
+        //ADC A, E
+        adc_reg8(a, e.read());
+        return 4;
+    }
+
+    public int opcode_0x8C_adc() {
+        //ADC A, H
+        adc_reg8(a, h.read());
+        return 4;
+    }
+
+    public int opcode_0x8D_adc() {
+        //ADC A, L
+        adc_reg8(a, l.read());
+        return 4;
+    }
+
+    public int opcode_0x8E_adc() {
+        //ADD A, (HL)
+        adc_reg8(a, read8(hl.read()));
         return 8;
     }
 
-    public int opcode_RLC_HL() {
-        int tmp = read8(hl.read());
-        write8(hl.read(),(tmp << 1) | ((tmp >> 7) & 0x01));
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, tmp == 0x00);
-        setFlag(Flags.CARRY, (tmp & 0x80) == 0x80);
-        return 16;
+    public int opcode_0x8F_adc() {
+        //ADD A, A
+        adc_reg8(a, a.read());
+        return 4;
     }
 
-    public int opcode_RL(Register8 reg) {
-        int tmp = reg.read();
-        reg.write((reg.read() << 1) | (hasFlag(Flags.CARRY) ? 0x01 : 0x00));
-
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        setFlag(Flags.CARRY, (tmp & 0x80) == 0x80);
-        return 8;
-    }
-
-    public int opcode_RL_HL() {
-        int tmp = read8(hl.read());
-        write8(hl.read(), (tmp << 1) | (hasFlag(Flags.CARRY) ? 0x01 : 0x00));
-
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, read8(hl.read()) == 0x00);
-        setFlag(Flags.CARRY, (tmp & 0x80) == 0x80);
-        return 16;
-    }
-
-    public int opcode_RRC(Register8 reg) {
-        setFlag(Flags.CARRY, (reg.read() & 0x01) == 0x01);
-        reg.write((reg.read() >> 1) | ((reg.read() & 0x01) << 7));
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        return 8;
-    }
-
-    public int opcode_RRC_HL() {
-        int tmp = read8(hl.read());
-        write8(hl.read(),(tmp >> 1) | ((tmp & 0x01) << 7));
-
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, tmp == 0x00);
-        setFlag(Flags.CARRY, (tmp & 0x01) == 0x01);
-        return 16;
-    }
-
-    public int opcode_RR(Register8 reg) {
-        int tmp = reg.read();
-        reg.write((reg.read() >> 1) | (hasFlag(Flags.CARRY) ? 0x80 : 0x00));
-
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        setFlag(Flags.CARRY, (tmp & 0x80) == 0x80);
-        return 8;
-    }
-
-    public int opcode_RR_HL() {
-        int tmp = read8(hl.read());
-        write8(hl.read(), (tmp >> 1) | (hasFlag(Flags.CARRY) ? 0x80 : 0x00));
-
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, read8(hl.read()) == 0x00);
-        setFlag(Flags.CARRY, (tmp & 0x01) == 0x01);
-        return 16;
-    }
-
-    public int opcode_SLA(Register8 reg) {
-        setFlag(Flags.CARRY, (reg.read() & 0x80) == 0x80);
-        reg.write(reg.read() << 1);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        return 8;
-    }
-
-    public int opcode_SLA_HL() {
-        int tmp = read8(hl.read());
-        setFlag(Flags.CARRY, (tmp & 0x80) == 0x80);
-        write8(hl.read(), tmp << 1);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, (tmp << 1) == 0x00);
-        return 16;
-    }
-
-    public int opcode_SRA(Register8 reg) {
-        setFlag(Flags.CARRY, (reg.read() & 0x01) == 0x01);
-        reg.write((reg.read() >> 1) | (reg.read() & 0x80));
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        return 8;
-    }
-
-    public int opcode_SRA_HL() {
-        int tmp = read8(hl.read());
-        setFlag(Flags.CARRY, (tmp & 0x01) == 0x01);
-        write8(hl.read(), (tmp >> 1) | (tmp & 0x80));
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, ((tmp >> 1) | (tmp & 0x80)) == 0x00);
-        return 16;
-    }
-
-    public int opcode_SRL(Register8 reg) {
-        setFlag(Flags.CARRY, (reg.read() & 0x01) == 0x01);
-        reg.write((reg.read() >> 1));
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        return 8;
-    }
-
-    public int opcode_SRL_HL() {
-        int tmp = read8(hl.read());
-        setFlag(Flags.CARRY, (tmp & 0x01) == 0x01);
-        write8(hl.read(), (tmp >> 1));
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, (tmp >> 1) == 0x00);
-        return 16;
-    }
-
-    public int opcode_BIT(Register8 reg) {
-        int mask = (0x01 << read8(pc.read())) & 0x07;
-
-        setFlag(Flags.HALF_CARRY, true);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, (reg.read() & mask) == mask);
-        pc.inc();
-
-        return 8;
-    }
-
-    public int opcode_BIT_HL() {
-        int mask = (0x01 << read8(pc.read())) & 0x07;
-
-        setFlag(Flags.HALF_CARRY, true);
-        setFlag(Flags.SUBTRACT, false);
-        setFlag(Flags.ZERO, (read8(hl.read()) & mask) == mask);
-        pc.inc();
-
-        return 16;
-    }
-
-    public int opcode_SET(Register8 reg) {
-        int mask = (0x01 << read8(pc.read())) & 0x07;
-        reg.write(reg.read() | mask);
+    public int opcode_0xCE_adc() {
+        //ADC A, d8
+        adc_reg8(a, read8(pc.read()));
         pc.inc();
         return 8;
     }
 
-    public int opcode_SET_HL() {
-        int mask = (0x01 << read8(pc.read())) & 0x07;
-        write8(hl.read(), read8(hl.read()) | mask);
-        pc.inc();
-        return 16;
+    public int opcode_0x90_sub() {
+        //SUB B
+        sub_reg8(a, b.read());
+        return 4;
     }
 
-    public int opcode_RES(Register8 reg) {
-        int mask = (0x01 << read8(pc.read())) & 0x07;
-        reg.write(reg.read() & ~mask);
+    public int opcode_0x91_sub() {
+        //SUB C
+        sub_reg8(a, c.read());
+        return 4;
+    }
+
+    public int opcode_0x92_sub() {
+        //SUB D
+        sub_reg8(a, d.read());
+        return 4;
+    }
+
+    public int opcode_0x93_sub() {
+        //SUB E
+        sub_reg8(a, e.read());
+        return 4;
+    }
+
+    public int opcode_0x94_sub() {
+        //SUB H
+        sub_reg8(a, h.read());
+        return 4;
+    }
+
+    public int opcode_0x95_sub() {
+        //SUB L
+        sub_reg8(a, l.read());
+        return 4;
+    }
+
+    public int opcode_0x96_sub() {
+        //SUB (HL)
+        sub_reg8(a, read8(hl.read()));
+        return 8;
+    }
+
+    public int opcode_0x97_sub() {
+        //SUB A
+        sub_reg8(a, a.read());
+        return 4;
+    }
+
+    public int opcode_0xD6_sub() {
+        //SUB d8
+        sub_reg8(a, read8(pc.read()));
         pc.inc();
         return 8;
     }
 
-    public int opcode_RES_HL() {
-        int mask = (0x01 << read8(pc.read())) & 0x07;
-        write8(hl.read(), read8(hl.read()) & ~mask);
-        pc.inc();
-        return 16;
+    public int opcode_0x98_sbc() {
+        //SBC A, B
+        sbc_reg8(a, b.read());
+        return 4;
     }
 
-    public int opcode_JP() {
-        pc.write(read16(pc.read()));
+    public int opcode_0x99_sbc() {
+        //SBC A,C
+        sbc_reg8(a, c.read());
+        return 4;
+    }
+
+    public int opcode_0x9A_sbc() {
+        //SBC A, D
+        sbc_reg8(a, d.read());
+        return 4;
+    }
+
+    public int opcoce_0x9B_sbc() {
+        //SBC A, E
+        sbc_reg8(a, e.read());
+        return 4;
+    }
+
+    public int opcode_0x9C_sbc() {
+        //SBC A, H
+        sbc_reg8(a, h.read());
+        return 4;
+    }
+
+    public int opcode_0x9D_sbc() {
+        //SBC A, L
+        sbc_reg8(a, l.read());
+        return 4;
+    }
+
+    public int opcode_0x9E_sbc() {
+        //SBC A, (HL)
+        sbc_reg8(a, read8(hl.read()));
+        return 8;
+    }
+
+    public int opcode_0x9F_sbc() {
+        //SBC A, A
+        sbc_reg8(a, a.read());
+        return 4;
+    }
+
+    public int opcode_0xDE_sbc() {
+        //SBC A, d8
+        sbc_reg8(a, read8(pc.read()));
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode_0xA0_and() {
+        //AND B
+        and_reg8(a, b.read());
+        return 4;
+    }
+
+    public int opcode_0xA1_and() {
+        //AND C
+        and_reg8(a, c.read());
+        return 4;
+    }
+
+    public int opcode_0xA2_and() {
+        //AND D
+        and_reg8(a, d.read());
+        return 4;
+    }
+
+    public int opcode_0xA3_and() {
+        //AND E
+        and_reg8(a, e.read());
+        return 4;
+    }
+
+    public int opcode_0xA4_and() {
+        //AND H
+        and_reg8(a, h.read());
+        return 4;
+    }
+
+    public int opcode_0xA5_and() {
+        //AND L
+        and_reg8(a, l.read());
+        return 4;
+    }
+
+    public int opcode_0xA6_and() {
+        //AND (HL)
+        and_reg8(a, read8(hl.read()));
+        return 8;
+    }
+
+    public int opcode_0xA7_and() {
+        //AND A
+        and_reg8(a, a.read());
+        return 4;
+    }
+
+    public int opcode_0xE6_and() {
+        //AND d8
+        and_reg8(a, read8(pc.read()));
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode_0xA8_xor() {
+        //XOR B
+        xor_reg8(a, b.read());
+        return 4;
+    }
+
+    public int opcode_0xA9_xor() {
+        //XOR C
+        xor_reg8(a, c.read());
+        return 4;
+    }
+
+    public int opcode_0xAA_xor() {
+        //XOR D
+        xor_reg8(a, d.read());
+        return 4;
+    }
+
+    public int opcode_0xAB_xor() {
+        //XOR E
+        xor_reg8(a, e.read());
+        return 4;
+    }
+
+    public int opcode_0xAC_xor() {
+        //XOR H
+        xor_reg8(a, h.read());
+        return 4;
+    }
+
+    public int opcode_0xAD_xor() {
+        //XOR L
+        xor_reg8(a, l.read());
+        return 4;
+    }
+
+    public int opcode_0xAE_xor() {
+        //XOR (HL)
+        xor_reg8(a, read8(hl.read()));
+        return 8;
+    }
+
+    public int opcode_0xAF_xor() {
+        //XOR A
+        xor_reg8(a, a.read());
+        return 4;
+    }
+
+    public int opcode_0xEE_xor() {
+        //XOR d8
+        xor_reg8(a, read8(pc.read()));
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode_0xB0_or() {
+        //OR B
+        or_reg8(a, b.read());
+        return 4;
+    }
+
+    public int opcode_0xB1_or() {
+        //OR C
+        or_reg8(a, c.read());
+        return 4;
+    }
+
+    public int opcode_0xB2_or() {
+        //OR D
+        or_reg8(a, d.read());
+        return 4;
+    }
+
+    public int opcode_0xB3_or() {
+        //OR E
+        or_reg8(a, e.read());
+        return 4;
+    }
+
+    public int opcode_0xB4_or() {
+        //OR H
+        or_reg8(a, h.read());
+        return 4;
+    }
+
+    public int opcode_0xB5_or() {
+        //OR L
+        or_reg8(a, l.read());
+        return 4;
+    }
+
+    public int opcode_0xB6_or() {
+        //OR (HL)
+        or_reg8(a, read8(hl.read()));
+        return 8;
+    }
+
+    public int opcode_0xB7_or() {
+        //OR A
+        or_reg8(a, a.read());
+        return 4;
+    }
+
+    public int opcode_0xF6_or() {
+        //OR d8
+        or_reg8(a, read8(pc.read()));
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode_0xB8_cp() {
+        // CP B
+        cp_reg8(a, b.read());
+        return 4;
+    }
+
+    public int opcode_0xB9_cp() {
+        // CP C
+        cp_reg8(a, c.read());
+        return 4;
+    }
+
+    public int opcode_0xBA_cp() {
+        // CP D
+        cp_reg8(a, d.read());
+        return 4;
+    }
+
+    public int opcode_0xBB_cp() {
+        // CP E
+        cp_reg8(a, e.read());
+        return 4;
+    }
+
+    public int opcode_0xBC_cp() {
+        // CP H
+        cp_reg8(a, h.read());
+        return 4;
+    }
+
+    public int opcode_0xBD_cp() {
+        // CP L
+        cp_reg8(a, l.read());
+        return 4;
+    }
+
+    public int opcode_0xBE_cp() {
+        // CP (HL)
+        cp_reg8(a, read8(hl.read()));
+        return 8;
+    }
+
+    public int opcode_0xBF_cp() {
+        // CP A
+        cp_reg8(a, a.read());
+        return 4;
+    }
+
+    public int opcode_0xFE_cp() {
+        // CP d8
+        cp_reg8(a, read8(pc.read()));
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode_0x18_jr() {
+        //JR r8
+        pc.write(pc.read() + signed8(read8(pc.read())));
+        pc.inc();
         return 12;
     }
 
-    public int opcode_JP_NZ() {
+    public int opcode_0x20_jr() {
+        //JR NZ r8
+        if (!hasFlag(Flags.ZERO)) {
+            pc.write(pc.read() + signed8(read8(pc.read())));
+            pc.inc();
+            return 12;
+        }
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode_0x28_jr() {
+        //JR Z r8
+        if (hasFlag(Flags.ZERO)) {
+            pc.write(pc.read() + signed8(read8(pc.read())));
+            pc.inc();
+            return 12;
+        }
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode_0x30_jr() {
+        //JR NC r8
+        if (!hasFlag(Flags.CARRY)) {
+            pc.write(pc.read() + signed8(read8(pc.read())));
+            pc.inc();
+            return 12;
+        }
+        pc.inc();
+        return 8;
+    }
+
+    public int opcode_0x38_jr() {
+        //JR C r8
+        pc.inc();
+        if (hasFlag(Flags.CARRY)) {
+            pc.write(pc.read() + signed8(read8(pc.read())));
+            return 12;
+        }
+        return 8;
+    }
+
+    public int opcode_0xC0_ret() {
+        //RET NZ
+        if (!hasFlag(Flags.ZERO)) {
+            pc.write(popStack());
+            return 20;
+        }
+        return 8;
+    }
+
+    public int opcode_0xC8_ret() {
+        //RET Z
+        if (hasFlag(Flags.ZERO)) {
+            pc.write(popStack());
+            return 20;
+        }
+        return 8;
+    }
+
+    public int opcode_0xC9_ret() {
+        //RET
+        pc.write(popStack());
+        return 16;
+    }
+
+    public int opcode_0xD0_ret() {
+        //RET NC
+        if (!hasFlag(Flags.CARRY)) {
+            pc.write(popStack());
+            return 20;
+        }
+        return 8;
+    }
+
+    public int opcode_0xD8_ret() {
+        //RET C
+        if (hasFlag(Flags.CARRY)) {
+            pc.write(popStack());
+            return 20;
+        }
+        return 8;
+    }
+
+    public int opcode_0xC2_jp() {
+        //JP NZ a16
         if (!hasFlag(Flags.ZERO)) {
             pc.write(read16(pc.read()));
-        } else {
-            pc.inc();
-            pc.inc();
+            return 16;
         }
+        return 12;
+    }
+
+    public int opcode_0xC3_jp() {
+        //JP a16
+        pc.write(read16(pc.read()));
         return 16;
     }
 
-    public int opcode_JP_Z() {
+    public int opcode_0xCA_jp() {
+        //JP Z a16
         if (hasFlag(Flags.ZERO)) {
             pc.write(read16(pc.read()));
-        } else {
-            pc.inc();
-            pc.inc();
+            return 16;
         }
-        return 16;
+        return 12;
     }
 
-    public int opcode_JP_NC() {
+    public int opcode_0xD2_jp() {
+        //JP NC a16
         if (!hasFlag(Flags.CARRY)) {
             pc.write(read16(pc.read()));
-        } else {
-            pc.inc();
-            pc.inc();
+            return 16;
         }
-        return 16;
+        return 12;
     }
 
-    public int opcode_JP_C() {
-        if (hasFlag(Flags.CARRY)) {
+    public int opcode_0xDA_jp() {
+        //JP C a16
+        if (!hasFlag(Flags.CARRY)) {
             pc.write(read16(pc.read()));
-        } else {
-            pc.inc();
-            pc.inc();
+            return 16;
         }
-        return 16;
+        return 12;
     }
 
-    public int opcode_JP_HL() {
+    public int opcode_0xE9_jp() {
+        //JP (HL)
         pc.write(hl.read());
         return 4;
     }
 
-    public int opcode_JR() {
-        int offset = signed8(read8(pc.read()));
-        pc.inc();
-        pc.write(pc.read() + offset);
-        return 8;
-    }
-
-    public int opcode_JR_NZ() {
-        int offset = signed8(read8(pc.read()));
-        pc.inc();
-        if (!hasFlag(Flags.ZERO))
-            pc.write(pc.read() + offset);
-        return 8;
-    }
-
-    public int opcode_JR_Z() {
-        int offset = signed8(read8(pc.read()));
-        pc.inc();
-        if (hasFlag(Flags.ZERO))
-            pc.write(pc.read() + offset);
-        return 8;
-    }
-
-    public int opcode_JR_NC() {
-        int offset = signed8(read8(pc.read()));
-        pc.inc();
-        if (!hasFlag(Flags.CARRY))
-            pc.write(pc.read() + offset);
-        return 8;
-    }
-
-    public int opcode_JR_C() {
-        int offset = signed8(read8(pc.read()));
-        pc.inc();
-        if (hasFlag(Flags.CARRY))
-            pc.write(pc.read() + offset);
-        return 8;
-    }
-
-    public int opcode_CALL() {
-        int addr = read16(pc.read());
-        pc.inc();
-        pc.inc();
-        pushStack(pc.read());
-        pc.write(addr);
-        return 12;
-    }
-
-    public int opcode_CALL_NZ() {
-        int addr = read16(pc.read());
+    public int opcode_0xC4_call() {
+        //CALL NZ a16
         pc.inc();
         pc.inc();
         if (!hasFlag(Flags.ZERO)) {
             pushStack(pc.read());
-            pc.write(addr);
+            pc.write(read16(pc.read() - 2));
+            return 24;
         }
         return 12;
     }
 
-    public int opcode_CALL_Z() {
-        int addr = read16(pc.read());
+    public int opcode_0xCC_call() {
+        //CALL Z a16
         pc.inc();
         pc.inc();
         if (hasFlag(Flags.ZERO)) {
             pushStack(pc.read());
-            pc.write(addr);
+            pc.write(read16(pc.read() - 2));
+            return 24;
         }
         return 12;
     }
 
-    public int opcode_CALL_NC() {
-        int addr = read16(pc.read());
+    public int opcode_0xCD_call() {
+        //CALL a16
+        pc.inc();
+        pc.inc();
+        pushStack(pc.read());
+        pc.write(read16(pc.read() - 2));
+        return 24;
+    }
+
+    public int opcode_0xD4_call() {
+        //CALL NC a16
         pc.inc();
         pc.inc();
         if (!hasFlag(Flags.CARRY)) {
             pushStack(pc.read());
-            pc.write(addr);
+            pc.write(read16(pc.read() - 2));
+            return 24;
         }
         return 12;
     }
 
-    public int opcode_CALL_C() {
-        int addr = read16(pc.read());
+    public int opcode_0xDC_call() {
+        //CALL C a16
         pc.inc();
         pc.inc();
         if (hasFlag(Flags.CARRY)) {
             pushStack(pc.read());
-            pc.write(addr);
+            pc.write(read16(pc.read() - 2));
+            return 24;
         }
         return 12;
     }
 
-    public int opcode_RST(int offset) {
+    public int opcode_0xC7_rst() {
+        //RST 00H
         pushStack(pc.read());
-        pc.write(offset);
-        return 32;
+        pc.write(0x0000);
+        return 16;
     }
 
-    public int opcode_RET() {
-         pc.write(popStack());
-         return 8;
+    public int opcode_0xCF_rst() {
+        //RST 08H
+        pushStack(pc.read());
+        pc.write(0x0008);
+        return 16;
     }
 
-    public int opcode_RET_NZ() {
-        if (!hasFlag(Flags.ZERO))
-            pc.write(popStack());
-        return 8;
+    public int opcode_0xD7_rst() {
+        //RST 10H
+        pushStack(pc.read());
+        pc.write(0x0010);
+        return 16;
     }
 
-    public int opcode_RET_Z() {
-        if (hasFlag(Flags.ZERO))
-            pc.write(popStack());
-        return 8;
+    public int opcode_0xDF_rst() {
+        //RST 18H
+        pushStack(pc.read());
+        pc.write(0x0018);
+        return 16;
     }
 
-    public int opcode_RET_NC() {
-        if (!hasFlag(Flags.CARRY))
-            pc.write(popStack());
-        return 8;
+    public int opcode_0xE7_rst() {
+        //RST 20H
+        pushStack(pc.read());
+        pc.write(0x0020);
+        return 16;
     }
 
-    public int opcode_RET_C() {
-        if (hasFlag(Flags.CARRY))
-            pc.write(popStack());
-        return 8;
+    public int opcode_0xEF_rst() {
+        //RST 28H
+        pushStack(pc.read());
+        pc.write(0x0028);
+        return 16;
     }
 
-    public int opcode_RETI() {
+    public int opcode_0xF7_rst() {
+        //RST 30H
+        pushStack(pc.read());
+        pc.write(0x0030);
+        return 16;
+    }
+
+    public int opcode_0xFF_rst() {
+        //RST 38H
+        pushStack(pc.read());
+        pc.write(0x0038);
+        return 16;
+    }
+
+    public int opcode_0xD9_reti() {
+        //RETI
         pc.write(popStack());
         IME = true;
-        return 8;
+        return 16;
+    }
+
+    public int opcode_0x00_nop() {
+        //NOP
+        return 4;
+    }
+
+    public int opcode_0x07_rlca() {
+        //RLCA
+        rlc_reg8(a);
+        setFlag(Flags.ZERO, false);
+        return 4;
+    }
+
+    public int opcode_0x0F_rrca() {
+        //RRCA
+        rrc_reg8(a);
+        setFlag(Flags.ZERO, false);
+        return 4;
+    }
+
+    public int opcode_0x10_stop() {
+        //STOP 0
+        pc.inc();
+        halted = true;
+        return 4;
+    }
+
+    public int opcode_0x17_rla() {
+        //RLA
+        rl_reg8(a);
+        setFlag(Flags.ZERO, false);
+        return 4;
+    }
+
+    public int opcode_0x1F_rra() {
+        //RRA
+        rr_reg8(a);
+        setFlag(Flags.ZERO, false);
+        return 4;
+    }
+
+    public int opcode_0x76_halt() {
+        //HALT
+        halted = true;
+        return 4;
+    }
+
+    public int opcode_0xF3_di() {
+        //DI
+        IME = false;
+        return 4;
+    }
+
+    public int opcode_0xFB_ei() {
+        //EI
+        enable_interrupt_in_opcode = 2;
+        return 4;
     }
 
     public static class Instruction {
