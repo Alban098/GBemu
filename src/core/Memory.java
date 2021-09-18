@@ -124,6 +124,7 @@ public class Memory {
     }
 
     public void writeByte(int addr, int data, boolean force) {
+        addr &= 0xFFFF;
         data &= 0xFF;
         int d;
         if (addr == IO_SERIAL_CONTROL && data == 0x81) {

@@ -8,8 +8,6 @@ public class Register8 {
         this.data = data & 0xFF;
     }
 
-    public Register8() {}
-
     public void write(int data) {
         this.data = data & 0xFF;
     }

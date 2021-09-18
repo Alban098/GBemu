@@ -19,22 +19,6 @@ public class Register16 {
         return (high.read() << 8) | low.read();
     }
 
-    public void writeHigh(int data) {
-        high.write(data);
-    }
-
-    public void writeLow(int data) {
-        low.write(data);
-    }
-
-    public int msb() {
-        return high.read();
-    }
-
-    public int lsb() {
-        return low.read();
-    }
-
     public Register8 getHigh() {
         return high;
     }
