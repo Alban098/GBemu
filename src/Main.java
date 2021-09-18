@@ -4,7 +4,7 @@ import core.cpu.LR35902;
 public class Main {
 
     public static void main(String[] args) {
-        String rom = "01-special.gb";
+        String rom = "OK-06-ld r,r.gb";
         Memory memory = new Memory();
         LR35902 cpu = new LR35902(memory);
         memory.loadCart("E:\\Developpement\\Projets\\Java\\GBemu\\roms\\" + rom);

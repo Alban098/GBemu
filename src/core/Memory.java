@@ -50,7 +50,6 @@ public class Memory {
     public static final int INTERRUPT_REG        = 0xFFFF;
 
     public static final int ROM_ADDR             = 0x0000;
-    public static final int ROM_SBANK_ADDR       = 0x4000;
     public static final int VRAM_ADDR            = 0x8000;
     public static final int SRAM_ADDR            = 0xA000;
     public static final int GB_RAM               = 0xC000;
@@ -145,7 +144,7 @@ public class Memory {
                 if (force)
                     ioreg[addr & 0x7F] = data;
                 else
-                    ioreg[addr & 0x7F] = (ioreg[addr & 0x7F] & 0x07) | (data | 0xF8);
+                    ioreg[addr & 0x7F] = (ioreg[addr & 0x7F] & 0x03) | (data | 0x7C);
                 break;
 
             case IO_DMA:
@@ -159,6 +158,12 @@ public class Memory {
             case IO_DIVIDER:
                 if (force)
                     ioreg[addr & 0x7F] = data;
+                else
+                    ioreg[addr & 0x7F] = 0x00;
+                break;
+            case IO_LCD_Y:
+                if (force)
+                    ioreg[addr & 0x07f] = data;
                 else
                     ioreg[addr & 0x7F] = 0x00;
                 break;

@@ -1,13 +1,13 @@
 package core.cpu.register;
 
-public class Register16 {
+public class RegisterWord {
 
-    private final Register8 high;
-    private final Register8 low;
+    private final RegisterByte high;
+    private final RegisterByte low;
 
-    public Register16(int data) {
-        high = new Register8((data & 0xFF00) >> 8);
-        low = new Register8(data & 0xFF);
+    public RegisterWord(int data) {
+        high = new RegisterByte((data & 0xFF00) >> 8);
+        low = new RegisterByte(data & 0xFF);
     }
 
     public void write(int data) {
@@ -19,11 +19,17 @@ public class Register16 {
         return (high.read() << 8) | low.read();
     }
 
-    public Register8 getHigh() {
+    public int read(boolean increment) {
+        int r = (high.read() << 8) | low.read();
+        inc();
+        return r;
+    }
+
+    public RegisterByte getHigh() {
         return high;
     }
 
-    public Register8 getLow() {
+    public RegisterByte getLow() {
         return low;
     }
 

@@ -1,10 +1,10 @@
 package core.cpu.register;
 
-public class Register8 {
+public class RegisterByte {
 
     private int data = 0x00;
 
-    public Register8(int data) {
+    public RegisterByte(int data) {
         this.data = data & 0xFF;
     }
 
