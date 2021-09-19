@@ -1,15 +1,21 @@
-import core.Memory;
+import core.GameBoy;
+import core.MMU;
 import core.cpu.LR35902;
+import core.ppu.PPU;
+import gui.CPULayer;
+import gui.Window;
 
 public class Main {
 
-    public static void main(String[] args) {
-        String rom = "OK-06-ld r,r.gb";
-        Memory memory = new Memory();
-        LR35902 cpu = new LR35902(memory);
-        memory.loadCart("E:\\Developpement\\Projets\\Java\\GBemu\\roms\\" + rom);
 
-        while (true)
-            cpu.clock();
+    public static void main(String[] args) throws Exception {
+        String rom = "OK-06-ld r,r.gb";
+        GameBoy gb = new GameBoy();
+        gb.insertCartridge("E:\\Developpement\\Projets\\Java\\GBemu\\roms\\" + rom);
+
+        Window window = new Window(gb);
+        window.init();
+        window.run();
+        window.destroy();
     }
 }

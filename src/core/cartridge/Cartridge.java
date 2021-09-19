@@ -39,4 +39,8 @@ public class Cartridge {
     public int readSRAM(int addr) {
         return ram[addr & 0x1FFF];
     }
+
+    public void switchRomBank(int data) {
+        //TODO implement
+    }
 }

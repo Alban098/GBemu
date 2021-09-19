@@ -47,6 +47,6 @@ public class RegisterWord {
 
     @Override
     public String toString() {
-        return "$" + Integer.toHexString(low.read() | (high.read() << 8));
+        return "$" + String.format("%04X", low.read() | (high.read() << 8));
     }
 }

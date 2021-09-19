@@ -1,6 +1,6 @@
 package core.cpu;
 
-import core.Memory;
+import core.MMU;
 import core.cpu.register.RegisterWord;
 import core.cpu.register.RegisterByte;
 
@@ -35,7 +35,9 @@ public class LR35902 {
 
     private final RegisterByte tmp_reg;
 
-    private final Memory memory;
+    private final State cpuState;
+
+    private final MMU memory;
 
     private long cycle = 0;
     private long nb_instr = 0;
@@ -46,7 +48,7 @@ public class LR35902 {
     private boolean IME = true;
     private Instruction current_instr;
 
-    public LR35902(Memory memory) {
+    public LR35902(MMU memory) {
         af = new RegisterWord(0x01B0);
         a = af.getHigh();
         f = af.getLow();
@@ -67,8 +69,8 @@ public class LR35902 {
         pc = new RegisterWord(0x0100);
 
         tmp_reg = new RegisterByte(0x00);
-
         this.memory = memory;
+        cpuState = new State();
 
         opcodes = new ArrayList<>();
         opcodes.add(new Instruction(0x00, "NOP", 1, this::opcode_0x00_nop));
@@ -612,7 +614,8 @@ public class LR35902 {
 
             nb_instr++;
 
-            //System.out.println(current_instr);
+            //TODO Handle interrupts
+            cpuState.set(af, bc, de, hl, sp, pc, current_instr);
 
             remaining_cycle_until_op = current_instr.operate()/4;
             if (IME_delay > 0) {
@@ -626,6 +629,12 @@ public class LR35902 {
         }
 
         cycle++;
+
+
+    }
+
+    public State getCpuState() {
+        return cpuState;
     }
 
     public void reset() {
@@ -634,7 +643,7 @@ public class LR35902 {
         de.write(0x00D8);
         hl.write(0x014D);
         sp.write(0xFFFE);
-        pc.write(0x0000);
+        pc.write(0x0100);
         cycle = 0;
         remaining_cycle_until_op = 0;
         IME_delay = -1;
@@ -675,7 +684,7 @@ public class LR35902 {
             f.write(f.read() & ~flag.getMask());
     }
 
-    private boolean hasFlag(Flags flag) {
+    public boolean hasFlag(Flags flag) {
         return (f.read() & flag.getMask()) == flag.getMask();
     }
 
@@ -4130,18 +4139,18 @@ public class LR35902 {
             boolean d16 = name.contains("d16") && parameters != null;
             boolean a16 = name.contains("a16") && parameters != null;
             boolean r8 = name.contains("r8") && parameters != null;
-            String op = String.format("%04X", addr) + " - [" + String.format("%02X", opcode) + "] ";
+            String op = String.format("$%04X", addr) + " : " + String.format("%02X ", opcode);
             op = op.toUpperCase();
             if (d8)
-                op += name.replace("d8", String.format("%02X", parameters[0]));
+                op += String.format("%02X", parameters[0]) + " | " + name.replace("d8", String.format("%02X", parameters[0]));
             else if (d16)
-                op += name.replace("d16", String.format("%04X", parameters[0] | (parameters[1] << 8)));
+                op += String.format("%02X ", parameters[0]) + String.format("%02X", parameters[1]) + " | " + name.replace("d16", String.format("%04X", parameters[0] | (parameters[1] << 8)));
             else if (a16)
-                op += name.replace("a16", String.format("%04X", parameters[0] | (parameters[1] << 8)));
+                op += String.format("%02X ", parameters[0]) + String.format("%02X", parameters[1]) + " | " + name.replace("a16", String.format("%04X", parameters[0] | (parameters[1] << 8)));
             else if (r8)
-                op += name.replace("r8", String.format("%02X", addr + signedByte(parameters[0])));
+                op += String.format("%02X", parameters[0]) + " | " + name.replace("r8", String.format("%02X", addr + signedByte(parameters[0])));
             else
-                op += name;
+                op += "| " + name;
             return op;
         }
     }
