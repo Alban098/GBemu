@@ -11,16 +11,23 @@ public class MMU {
     public static final int IO_SERIAL_CONTROL     = 0xFF02;
     public static final int IO_INTERNAL_CLK_LOW   = 0xFF03;
     public static final int IO_DIVIDER            = 0xFF04;
+    public static final int IO_TIMA               = 0xFF05;
+    public static final int IO_TAC                = 0xFF07;
+    public static final int IO_LCD_CONTROL        = 0xFF40;
     public static final int IO_LCD_STAT           = 0xFF41;
     public static final int IO_LCD_Y              = 0xFF44;
+    public static final int IO_LCD_YC             = 0xFF45;
     public static final int IO_DMA                = 0xFF46;
+    public static final int IO_BG_PAL             = 0xFF47;
+    public static final int IO_OB_PAL0            = 0xFF48;
+    public static final int IO_OB_PAL1            = 0xFF49;
     public static final int IO_INTERRUPT_FLAG     = 0xFF0F;
     public static final int INTERRUPT_ENABLED     = 0xFFFF;
 
     public static final int IRQ_V_BLANK_VECTOR    = 0x40;
     public static final int IRQ_LCD_VECTOR        = 0x48;
     public static final int IRQ_TIMER_VECTOR      = 0x50;
-    public static final int IRQ_SERIAL_VECTOR      = 0x58;
+    public static final int IRQ_SERIAL_VECTOR     = 0x58;
     public static final int IRQ_INPUT_VECTOR      = 0x60;
 
 
@@ -44,9 +51,7 @@ public class MMU {
 
     public int readByte(int addr, boolean fromPPU) {
         addr &= 0xFFFF;
-        if(addr <= 0x3FFF)
-            return cartridge.read(addr);
-        else if(addr <= 0x7FFF)
+        if(addr <= 0x7FFF)
             return cartridge.read(addr);
         else if(addr <= 0x9FFF && !fromPPU && ppuMode == LCDMode.TRANSFER)
             return 0xFF;
@@ -116,13 +121,6 @@ public class MMU {
         writeIORegisterBit(IO_LCD_STAT, Flags.STATUS_MODE_HIGH.getMask(), ((lcdModeValue >> 1) & 0x1) == 0x1);
         writeIORegisterBit(IO_LCD_STAT, Flags.STATUS_MODE_LOW.getMask(), (lcdModeValue & 0x1) == 0x1);
         ppuMode = lcdMode;
-    }
-
-    public String toString(int highByte) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0x0; i <= 0xF; i++)
-            sb.append(String.format("%02X ", readByte((highByte << 4) | i, true)));
-        return sb.toString();
     }
 
     public String getSerialOutput() {

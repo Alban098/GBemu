@@ -18,7 +18,7 @@ public enum Flags {
     STATUS_MODE_HIGH(0x02),
     STATUS_MODE_LOW(0x01);
 
-    private int mask;
+    private final int mask;
 
     Flags(int mask) {
         this.mask = mask;

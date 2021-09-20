@@ -4,13 +4,13 @@ import core.cpu.register.RegisterWord;
 
 public class State {
 
-    private RegisterWord af;
-    private RegisterWord bc;
-    private RegisterWord de;
-    private RegisterWord hl;
-    private RegisterWord sp;
-    private RegisterWord pc;
-    private LR35902.Instruction instruction;
+    private final RegisterWord af;
+    private final RegisterWord bc;
+    private final RegisterWord de;
+    private final RegisterWord hl;
+    private final RegisterWord sp;
+    private final RegisterWord pc;
+    private final LR35902.Instruction instruction;
 
     public State() {
         af = new RegisterWord(0);

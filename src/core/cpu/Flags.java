@@ -9,9 +9,10 @@ public enum Flags {
     IRQ_LCD_STAT(0b00000010),
     IRQ_TIMER(0b00000100),
     IRQ_SERIAL(0b00001000),
-    IRQ_JOYPAD(0b00010000);
+    IRQ_JOYPAD(0b00010000),
+    TIMER_CLOCK_MODE(0b00000011);
 
-    private int mask;
+    private final int mask;
 
     Flags(int mask) {
         this.mask = mask;

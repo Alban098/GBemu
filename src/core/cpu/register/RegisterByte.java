@@ -2,7 +2,7 @@ package core.cpu.register;
 
 public class RegisterByte {
 
-    private int data = 0x00;
+    private int data;
 
     public RegisterByte(int data) {
         this.data = data & 0xFF;

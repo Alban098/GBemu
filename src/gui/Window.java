@@ -36,7 +36,7 @@ public class Window {
     private final GameBoy gameBoy;
 
 
-    public Window(GameBoy gameBoy) throws Exception {
+    public Window(GameBoy gameBoy) {
         cpuLayer = new CPULayer();
         gameRendererLayer = new GameRendererLayer();
         memoryLayer = new MemoryLayer();
@@ -45,7 +45,7 @@ public class Window {
         this.gameBoy = gameBoy;
     }
 
-    public void init() throws Exception {
+    public void init() {
         initWindow();
         initImGui();
         imGuiGlfw.init(windowPtr, true);
@@ -108,7 +108,7 @@ public class Window {
             if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
                 isSpacePressed = false;
             if(glfwGetKey(windowPtr, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-                gameBoy.executeInstruction(1000);
+                gameBoy.executeInstruction(10000);
 
             glClearColor(0.1f, 0.09f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);

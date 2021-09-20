@@ -1,8 +1,8 @@
 package core.cpu;
 
 import core.MMU;
-import core.cpu.register.RegisterWord;
 import core.cpu.register.RegisterByte;
+import core.cpu.register.RegisterWord;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,12 +10,17 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
 
-import static core.BitUtils.lsb;
-import static core.BitUtils.msb;
-import static core.BitUtils.signedByte;
+import static core.BitUtils.*;
+import static core.cpu.Flags.*;
 
 public class LR35902 {
 
+    public static final int CPU_CYCLES_PER_SEC = 4194304;
+    public static final int CPU_CYCLES_PER_FRAME = 70368;
+    public static final int CPU_CYCLES_PER_H_BLANK = 204;
+    public static final int CPU_CYCLES_PER_V_BLANK = 456;
+    public static final int CPU_CYCLES_PER_OAM = 80;
+    public static final int CPU_CYCLES_PER_TRANSFER = 80;
 
     private static final int DECOMPILE_SIZE = 0x20;
     private final List<Instruction> opcodes;
@@ -37,20 +42,14 @@ public class LR35902 {
     private final RegisterWord pc;
 
     private final RegisterByte tmp_reg;
-
     private final State cpuState;
-
     private final MMU memory;
+    private final Queue<Instruction> instructionQueue;
 
-    private long cycle = 0;
-    private long nb_instr = 0;
     private int remaining_cycle_until_op = 0;
-    private int IME_delay = -1;
-
     private boolean halted = false;
     private boolean IME = true;
     private Instruction next_instr;
-    private Queue<Instruction> instructionQueue;
 
     public LR35902(MMU memory) {
         af = new RegisterWord(0x01B0);
@@ -605,62 +604,64 @@ public class LR35902 {
     }
 
     public boolean clock() {
+        boolean returnVal = false;
+
         if (!halted) {
-            cycle++;
             if (remaining_cycle_until_op == 0) {
-                nb_instr++;
-                //TODO Handle interrupts
                 remaining_cycle_until_op = next_instr.operate() / 4;
-                if (IME_delay > 0) {
-                    IME_delay--;
-                } else if (IME_delay == 0) {
-                    IME = true;
-                    IME_delay = -1;
-                }
                 next_instr = fetchInstruction();
                 decompile();
                 cpuState.set(af, bc, de, hl, sp, pc, next_instr);
-                return true;
+                returnVal = true;
             } else {
                 remaining_cycle_until_op--;
-                return false;
             }
         }
         if (handleInterrupts()) {
             next_instr = fetchInstruction();
             decompile();
             cpuState.set(af, bc, de, hl, sp, pc, next_instr);
+            returnVal = true;
         }
-        cycle++;
-        return false;
+
+        return returnVal;
     }
 
     public boolean handleInterrupts() {
-        int irq_vector = 0x0000;
-        int irq_flag = 0x00;
-        if (memory.readIORegisterBit(MMU.INTERRUPT_ENABLED, Flags.IRQ_VBLANK.getMask(), false) && memory.readIORegisterBit(MMU.IO_INTERRUPT_FLAG, Flags.IRQ_VBLANK.getMask(), false)) {
-            irq_vector = MMU.IRQ_V_BLANK_VECTOR;
-            irq_flag = Flags.IRQ_VBLANK.getMask();
-        } else if (memory.readIORegisterBit(MMU.INTERRUPT_ENABLED, Flags.IRQ_LCD_STAT.getMask(), false) && memory.readIORegisterBit(MMU.IO_INTERRUPT_FLAG, Flags.IRQ_LCD_STAT.getMask(), false)) {
-            irq_vector = MMU.IRQ_LCD_VECTOR;
-            irq_flag = Flags.IRQ_LCD_STAT.getMask();
-        } else if (memory.readIORegisterBit(MMU.INTERRUPT_ENABLED, Flags.IRQ_TIMER.getMask(), false) && memory.readIORegisterBit(MMU.IO_INTERRUPT_FLAG, Flags.IRQ_TIMER.getMask(), false)) {
-            irq_vector = MMU.IRQ_TIMER_VECTOR;
-            irq_flag = Flags.IRQ_TIMER.getMask();
-        } else if (memory.readIORegisterBit(MMU.INTERRUPT_ENABLED, Flags.IRQ_SERIAL.getMask(), false) && memory.readIORegisterBit(MMU.IO_INTERRUPT_FLAG, Flags.IRQ_SERIAL.getMask(), false)) {
-            irq_vector = MMU.IRQ_SERIAL_VECTOR;
-            irq_flag = Flags.IRQ_SERIAL.getMask();
-        } else if (memory.readIORegisterBit(MMU.INTERRUPT_ENABLED, Flags.IRQ_JOYPAD.getMask(), false) && memory.readIORegisterBit(MMU.IO_INTERRUPT_FLAG, Flags.IRQ_JOYPAD.getMask(), false)) {
-            irq_vector = MMU.IRQ_INPUT_VECTOR;
-            irq_flag = Flags.IRQ_JOYPAD.getMask();
-        }
-        if (irq_vector != 0 && IME) {
-            IME = false;
-            halted = false;
-            memory.writeIORegisterBit(MMU.IO_INTERRUPT_FLAG, irq_flag, false);
-            pushStack(pc.read());
-            pc.write(irq_vector);
-            return true;
+        if (IME || halted) {
+            int interruptReg = readByte(MMU.IO_INTERRUPT_FLAG) & readByte(MMU.INTERRUPT_ENABLED) & 0x1F;
+            if (interruptReg != 0) {
+                if (IME && !halted) {
+                    IME = false;
+                    if ((interruptReg & IRQ_VBLANK.getMask()) == IRQ_VBLANK.getMask()) {
+                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_VBLANK.getMask()));
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_V_BLANK_VECTOR);
+                        return true;
+                    } else if ((interruptReg & IRQ_LCD_STAT.getMask()) == IRQ_LCD_STAT.getMask()) {
+                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_LCD_STAT.getMask()));
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_LCD_VECTOR);
+                        return true;
+                    } else if ((interruptReg & IRQ_TIMER.getMask()) == IRQ_TIMER.getMask()) {
+                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_TIMER.getMask()));
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_TIMER_VECTOR);
+                        return true;
+                    } else if ((interruptReg & IRQ_SERIAL.getMask()) == IRQ_SERIAL.getMask()) {
+                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_SERIAL.getMask()));
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_SERIAL_VECTOR);
+                        return true;
+                    } else if ((interruptReg & IRQ_JOYPAD.getMask()) == IRQ_JOYPAD.getMask()) {
+                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_JOYPAD.getMask()));
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_INPUT_VECTOR);
+                        return true;
+                    }
+                }
+                halted = false;
+            }
         }
         return false;
     }
@@ -728,9 +729,7 @@ public class LR35902 {
         hl.write(0x014D);
         sp.write(0xFFFE);
         pc.write(0x0100);
-        cycle = 0;
         remaining_cycle_until_op = 0;
-        IME_delay = -1;
     }
 
     private int readByte(int addr) {
@@ -788,10 +787,10 @@ public class LR35902 {
     }
 
     public void dec_regByte(RegisterByte reg) {
-        reg.dec();
-        setFlag(Flags.ZERO, reg.read() == 0x00);
+        setFlag(Flags.ZERO, reg.read() == 0x01);
         setFlag(Flags.SUBSTRACT, true);
         setFlag(Flags.HALF_CARRY, (reg.read() & 0x0F) == 0x00);
+        reg.dec();
     }
 
     public void add_regWord(RegisterWord reg, int data) {
@@ -974,7 +973,7 @@ public class LR35902 {
     }
 
     public void swap_regByte(RegisterByte reg) {
-        reg.write(((reg.read() & 0x0F) << 4) |((reg.read() & 0xF0) >> 4));
+        reg.write(((reg.read() & 0x0F) << 4) | ((reg.read() & 0xF0) >> 4));
 
         setFlag(Flags.ZERO, reg.read() == 0x00);
         setFlag(Flags.SUBSTRACT, false);
@@ -991,7 +990,7 @@ public class LR35902 {
     }
 
     public void bit_regByte(int bit, RegisterByte reg) {
-        setFlag(Flags.ZERO, ((reg.read() >> (bit & 0x07)) & 0x01) == 0x01);
+        setFlag(Flags.ZERO, ((reg.read() >> bit) & 0x01) == 0x00);
         setFlag(Flags.SUBSTRACT, false);
         setFlag(Flags.HALF_CARRY, true);
     }
@@ -1239,22 +1238,19 @@ public class LR35902 {
 
     public int opcode_0x27_daa() {
         //DAA
-        int result = a.read();
-        if (hasFlag(Flags.SUBSTRACT)) {
-            if (hasFlag(Flags.HALF_CARRY))
-                result -= 6;
-            if (hasFlag(Flags.CARRY))
-                result -= 0x60;
-        } else {
-            if (hasFlag(Flags.HALF_CARRY) || (a.read() & 0xF) > 0x9)
-                result += 6;
-            if (hasFlag(Flags.CARRY) || result > 0x9F)
-                result += 60;
+        int result = 0;
+        if (hasFlag(Flags.HALF_CARRY) || (!hasFlag(Flags.SUBSTRACT) && (a.read() & 0xF) > 0x9))
+            result = 6;
+
+        if (hasFlag(Flags.CARRY) || (!hasFlag(Flags.SUBSTRACT) && a.read() > 0x99)) {
+            result |= 0x60;
+            setFlag(Flags.CARRY, true);
         }
-        a.write(result & 0xFF);
-        setFlag(Flags.CARRY, (result & 0x100) == 0x100);
-        setFlag(Flags.ZERO, a.read() == 0x00);
+
+        a.write(a.read() + (hasFlag(Flags.SUBSTRACT) ? -result : result));
+        setFlag(Flags.ZERO, a.read() == 0);
         setFlag(Flags.HALF_CARRY, false);
+
         return 4;
     }
 
@@ -1956,7 +1952,7 @@ public class LR35902 {
 
     public int opcode_0xFB_ei() {
         //EI
-        IME_delay = 2;
+        IME = true;
         return 4;
     }
 
@@ -2458,7 +2454,7 @@ public class LR35902 {
 
     public int opcode_0x7E_ld() {
         //LD A,(HL)
-       a.write(readByte(hl.read()));
+        a.write(readByte(hl.read()));
         return 8;
     }
 
@@ -2713,7 +2709,7 @@ public class LR35902 {
         //RL (HL)
         tmp_reg.write(readByte(hl.read()));
         rl_regByte(tmp_reg);
-        writeByte(hl.read(), tmp_reg.read());        
+        writeByte(hl.read(), tmp_reg.read());
         return 16;
     }
 
@@ -4165,14 +4161,17 @@ public class LR35902 {
         return 8;
     }
 
+    public boolean getIME() {
+        return IME;
+    }
+
 
     public static class Instruction {
 
+        private final Supplier<Integer> fct_operate;
         //Const variables
         private String name;
         private int opcode;
-        private final Supplier<Integer> fct_operate;
-
         //Instruction instance variables
         private int length;
         private int[] parameters;
@@ -4207,7 +4206,7 @@ public class LR35902 {
             return 0x00;
         }
 
-        public void setParam(int ... params) {
+        public void setParam(int... params) {
             if (length > 1 && params.length > 0 && parameters != null)
                 parameters[0] = params[0];
             if (length > 2 && params.length > 1 && parameters != null)
@@ -4261,9 +4260,8 @@ public class LR35902 {
                 parameters = new int[1];
             else if (length == 3 && (parameters == null || parameters.length != 2))
                 parameters = new int[2];
-            if (parameters !=  null)
-                for (int i = 0; i < parameters.length; i++)
-                    parameters[i] = instruction.parameters[i];
+            if (parameters != null)
+                System.arraycopy(instruction.parameters, 0, parameters, 0, parameters.length);
         }
     }
 }

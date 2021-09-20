@@ -10,9 +10,9 @@ public class MemoryLayer {
     private static final int HIGHLIGH_DURATION = 64;
     private int highlight = -1;
     private int highlight_cooldown = 0;
-    private ImString goTo = new ImString();
-    private ImBoolean gradient = new ImBoolean();
-    private int[] currentPage = new int[1];
+    private final ImString goTo = new ImString();
+    private final ImBoolean gradient = new ImBoolean();
+    private final int[] currentPage = new int[1];
 
 
     public void imgui(GameBoy gameBoy) {
