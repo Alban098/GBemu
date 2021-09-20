@@ -1,8 +1,6 @@
 package gui;
 
 import core.GameBoy;
-import core.MMU;
-import core.cpu.LR35902;
 import core.ppu.PPU;
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -29,6 +27,9 @@ public class Window {
     private final CPULayer cpuLayer;
     private final GameRendererLayer gameRendererLayer;
     private final MemoryLayer memoryLayer;
+    private final SerialOutputLayer serialOutputLayer;
+
+    private boolean isSpacePressed = false;
 
     private Texture screen_texture;
 
@@ -39,6 +40,7 @@ public class Window {
         cpuLayer = new CPULayer();
         gameRendererLayer = new GameRendererLayer();
         memoryLayer = new MemoryLayer();
+        serialOutputLayer = new SerialOutputLayer();
 
         this.gameBoy = gameBoy;
     }
@@ -99,9 +101,14 @@ public class Window {
     public void run() {
         while (!glfwWindowShouldClose(windowPtr)) {
 
-            if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS) {
-                gameBoy.clock();
+            if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
+                gameBoy.executeInstruction(1);
+                isSpacePressed = true;
             }
+            if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
+                isSpacePressed = false;
+            if(glfwGetKey(windowPtr, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+                gameBoy.executeInstruction(1000);
 
             glClearColor(0.1f, 0.09f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
@@ -111,7 +118,8 @@ public class Window {
             ImGui.newFrame();
             gameRendererLayer.imgui(screen_texture);
             cpuLayer.imgui(gameBoy);
-            //memoryLayer.imgui(gameBoy);
+            memoryLayer.imgui(gameBoy);
+            serialOutputLayer.imgui(gameBoy);
 
             ImGui.render();
             imGuiGl3.renderDrawData(ImGui.getDrawData());

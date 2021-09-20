@@ -6,22 +6,32 @@ import core.ppu.LCDMode;
 
 public class MMU {
 
-    public static final int IO_P1                = 0xFF00;
-    public static final int IO_SERIAL_BUS        = 0xFF01;
-    public static final int IO_SERIAL_CONTROL    = 0xFF02;
-    public static final int IO_INTERNAL_CLK_LOW  = 0xFF03;
-    public static final int IO_DIVIDER           = 0xFF04;
-    public static final int IO_LCD_STAT          = 0xFF41;
-    public static final int IO_LCD_Y             = 0xFF44;
-    public static final int IO_DMA               = 0xFF46;
+    public static final int IO_P1                 = 0xFF00;
+    public static final int IO_SERIAL_BUS         = 0xFF01;
+    public static final int IO_SERIAL_CONTROL     = 0xFF02;
+    public static final int IO_INTERNAL_CLK_LOW   = 0xFF03;
+    public static final int IO_DIVIDER            = 0xFF04;
+    public static final int IO_LCD_STAT           = 0xFF41;
+    public static final int IO_LCD_Y              = 0xFF44;
+    public static final int IO_DMA                = 0xFF46;
+    public static final int IO_INTERRUPT_FLAG     = 0xFF0F;
+    public static final int INTERRUPT_ENABLED     = 0xFFFF;
+
+    public static final int IRQ_V_BLANK_VECTOR    = 0x40;
+    public static final int IRQ_LCD_VECTOR        = 0x48;
+    public static final int IRQ_TIMER_VECTOR      = 0x50;
+    public static final int IRQ_SERIAL_VECTOR      = 0x58;
+    public static final int IRQ_INPUT_VECTOR      = 0x60;
 
 
     private Cartridge cartridge;
     private LCDMode ppuMode = LCDMode.H_BLANK;
     private final int[] memory;
+    private StringBuilder serialOutput;
 
     public MMU() {
         memory = new int[0x10000];
+        serialOutput = new StringBuilder();
     }
 
     public void loadCart(String file) {
@@ -33,6 +43,7 @@ public class MMU {
     }
 
     public int readByte(int addr, boolean fromPPU) {
+        addr &= 0xFFFF;
         if(addr <= 0x3FFF)
             return cartridge.read(addr);
         else if(addr <= 0x7FFF)
@@ -51,7 +62,7 @@ public class MMU {
 
         if (addr == IO_SERIAL_CONTROL && data == 0x81) {
             char c = (char) readByte(IO_SERIAL_BUS);
-            System.out.print(c);
+            serialOutput.append(c);
             writeByte(IO_SERIAL_CONTROL, 0);
         }
 
@@ -112,5 +123,13 @@ public class MMU {
         for (int i = 0x0; i <= 0xF; i++)
             sb.append(String.format("%02X ", readByte((highByte << 4) | i, true)));
         return sb.toString();
+    }
+
+    public String getSerialOutput() {
+        return serialOutput.toString();
+    }
+
+    public void flushSerialOutput() {
+        serialOutput = new StringBuilder();
     }
 }

@@ -26,6 +26,6 @@ public class RegisterByte {
 
     @Override
     public String toString() {
-        return "$" + Integer.toHexString(data) + "(" + Integer.toBinaryString(data) + ")";
+        return "$" + String.format("%02X", data) + "(" + String.format("%8s", Integer.toBinaryString(data)).replace(" ", "0") + ")";
     }
 }

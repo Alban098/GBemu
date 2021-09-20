@@ -28,8 +28,8 @@ public class State {
         this.de.write(de.read());
         this.hl.write(hl.read());
         this.sp.write(sp.read());
-        this.pc.write(pc.read());
-        this.instruction = instruction;
+        this.pc.write(pc.read() - instruction.getLength());
+        this.instruction.copyMeta(instruction);
     }
 
     public RegisterWord getAf() {

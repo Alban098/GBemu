@@ -17,6 +17,7 @@ public class GameBoy {
 
     public void insertCartridge(String file) {
         memory.loadCart(file);
+        cpu.init();
         //TODO Reset
     }
 
@@ -35,5 +36,19 @@ public class GameBoy {
     public void clock() {
         cpu.clock();
         ppu.clock();
+    }
+
+    public void executeInstruction(int nb_instr) {
+        for (int i = 0; i < nb_instr; i++)
+            while (!cpu.clock())
+                ppu.clock();
+    }
+
+    public String getSerialOutput() {
+        return memory.getSerialOutput();
+    }
+
+    public void flushSerialOutput() {
+        memory.flushSerialOutput();
     }
 }
