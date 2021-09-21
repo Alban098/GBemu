@@ -22,6 +22,29 @@ public class MMU {
     public static final int IO_DIVIDER            = 0xFF04;
     public static final int IO_TIMA               = 0xFF05;
     public static final int IO_TAC                = 0xFF07;
+
+    public static final int NR10 = 0xFF10;
+    public static final int NR11 = 0xFF11;
+    public static final int NR12 = 0xFF12;
+    public static final int NR13 = 0xFF13;
+    public static final int NR14 = 0xFF14;
+    public static final int NR21 = 0xFF16;
+    public static final int NR22 = 0xFF17;
+    public static final int NR23 = 0xFF18;
+    public static final int NR24 = 0xFF19;
+    public static final int NR30 = 0xFF1A;
+    public static final int NR31 = 0xFF1B;
+    public static final int NR32 = 0xFF1C;
+    public static final int NR33 = 0xFF1D;
+    public static final int NR34 = 0xFF1E;
+    public static final int NR41 = 0xFF20;
+    public static final int NR42 = 0xFF21;
+    public static final int NR43 = 0xFF22;
+    public static final int NR44 = 0xFF23;
+    public static final int NR50 = 0xFF24;
+    public static final int NR51 = 0xFF25;
+    public static final int NR52 = 0xFF26;
+
     public static final int IO_LCD_CONTROL        = 0xFF40;
     public static final int IO_LCD_STAT           = 0xFF41;
     public static final int IO_SCROLL_Y           = 0xFF42;

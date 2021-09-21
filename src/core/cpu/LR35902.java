@@ -1,6 +1,7 @@
 package core.cpu;
 
 import core.MMU;
+import core.apu.APU;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
 
@@ -21,6 +22,10 @@ public class LR35902 {
     public static final int CPU_CYCLES_PER_V_BLANK = 456;
     public static final int CPU_CYCLES_PER_OAM = 80;
     public static final int CPU_CYCLES_PER_TRANSFER = 80;
+    public static final int CPU_CYCLES_256HZ = CPU_CYCLES_PER_SEC / 256;
+    public static final int CPU_CYCLES_128HZ = CPU_CYCLES_PER_SEC / 128;
+    public static final int CPU_CYCLES_64HZ = CPU_CYCLES_PER_SEC / 64;
+    public static final int CPU_CYCLES_PER_SAMPLE = CPU_CYCLES_PER_SEC / (APU.SAMPLE_RATE + 250);
 
     private static final int DECOMPILE_SIZE = 0x20;
     private final List<Instruction> opcodes;

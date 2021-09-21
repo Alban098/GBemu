@@ -25,6 +25,7 @@ public class PPU {
     private final TileCollection tileList;
 
     private long cycles = 0;
+    private boolean isFrameComplete;
 
 
     public PPU(MMU memory) {
@@ -65,6 +66,7 @@ public class PPU {
                         screen_buffer.put((byte) colorShade.getColor().getAlpha());
                     }
                 }
+                isFrameComplete = true;
                 screen_buffer.flip();
             }
 
@@ -166,5 +168,11 @@ public class PPU {
 
     public void reset() {
         //TODO
+    }
+
+    public boolean isFrameComplete() {
+        boolean result = isFrameComplete;
+        isFrameComplete = false;
+        return result;
     }
 }

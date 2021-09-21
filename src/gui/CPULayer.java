@@ -1,6 +1,7 @@
 package gui;
 
 import core.GameBoy;
+import core.GameBoyState;
 import core.MMU;
 import core.cpu.Flags;
 import core.cpu.LR35902;
@@ -21,10 +22,39 @@ public class CPULayer {
     private final RegisterByte irq_enable = new RegisterByte(0x00);
     private final RegisterByte irq_flags = new RegisterByte(0x00);
 
-
     public void imgui(GameBoy gameBoy) {
         ImGui.begin("Debug");
-        ImGui.setWindowSize(580, 480);
+        ImGui.setWindowSize(580, 500);
+
+        ImGui.separator();
+        ImGui.setNextItemOpen(true);
+        if (ImGui.treeNode("Controls")) {
+            ImGui.text("Current State :");
+            ImGui.sameLine();
+            switch (gameBoy.getState()) {
+                case RUNNING -> {
+                    ImGui.textColored(0, 255, 255, 255, "Running");
+                    if (ImGui.button("Pause"))
+                        gameBoy.setState(GameBoyState.PAUSED);
+                }
+                case PAUSED -> {
+                    ImGui.textColored(255, 0, 0, 255, "Paused");
+                    if (ImGui.button("Run"))
+                        gameBoy.setState(GameBoyState.RUNNING);
+                }
+                case DEBUG -> {
+                    ImGui.textColored(255, 255, 0, 255, "Debug Mode");
+                }
+            }
+            if (gameBoy.getState() == GameBoyState.DEBUG) {
+                if (ImGui.button("Exit Debug"))
+                    gameBoy.setState(GameBoyState.PAUSED);
+            } else {
+                if (ImGui.button("Enter Debug"))
+                    gameBoy.setState(GameBoyState.DEBUG);
+            }
+            ImGui.treePop();
+        }
 
         State cpuState = gameBoy.getCpu().getCpuState();
         ImGui.separator();

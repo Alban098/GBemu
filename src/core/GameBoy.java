@@ -1,19 +1,25 @@
 package core;
 
+import core.apu.APU;
 import core.cpu.LR35902;
 import core.ppu.PPU;
+
+import javax.sound.sampled.SourceDataLine;
 
 public class GameBoy {
 
     private final MMU memory;
     private final LR35902 cpu;
     private final PPU ppu;
+    private final APU apu;
     private final Timer timer;
+    private GameBoyState currentState = GameBoyState.PAUSED;
 
     public GameBoy(String bootstap) {
         memory = new MMU(bootstap);
         cpu = new LR35902(memory);
         ppu = new PPU(memory);
+        apu = new APU(memory);
         timer = new Timer(memory);
     }
 
@@ -74,9 +80,14 @@ public class GameBoy {
         return ppu;
     }
 
+    public APU getApu() {
+        return apu;
+    }
+
     public void clock() {
         cpu.clock();
         ppu.clock();
+        apu.clock();
         timer.clock();
     }
 
@@ -84,6 +95,7 @@ public class GameBoy {
         for (int i = 0; i < nb_instr; i++) {
             while (!cpu.clock()) {
                 ppu.clock();
+                apu.clock();
                 timer.clock();
             }
         }
@@ -95,5 +107,22 @@ public class GameBoy {
 
     public void flushSerialOutput() {
         memory.flushSerialOutput();
+    }
+
+    public void executeFrame() {
+        while(!ppu.isFrameComplete())
+            clock();
+    }
+
+    public GameBoyState getState() {
+        return currentState;
+    }
+
+    public void setState(GameBoyState state) {
+        this.currentState = state;
+    }
+
+    public float getLastSample() {
+        return apu.getNextSample();
     }
 }
