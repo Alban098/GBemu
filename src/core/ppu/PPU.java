@@ -1,6 +1,7 @@
 package core.ppu;
 
-import core.MMU;
+import core.Flags;
+import core.memory.MMU;
 import core.cpu.LR35902;
 import core.ppu.helper.BackgroundMaps;
 import core.ppu.helper.ColorPalettes;
@@ -42,7 +43,7 @@ public class PPU {
     }
 
     public void clock() {
-        if (!memory.readIORegisterBit(MMU.IO_LCD_CONTROL, Flags.CONTROL_LCD_ON.getMask(), true))
+        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON, true))
             return;
         cycles++;
         switch (memory.readLcdMode()) {
@@ -55,8 +56,8 @@ public class PPU {
 
     private void processVBlank() {
         if (cycles >= LR35902.CPU_CYCLES_PER_V_BLANK) {
-            if (memory.readByte(MMU.IO_LCD_Y, true) == SCREEN_HEIGHT) {
-                memory.writeIORegisterBit(MMU.IO_INTERRUPT_FLAG, core.cpu.Flags.IRQ_VBLANK.getMask(), true);
+            if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT) {
+                memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, true);
                 screen_buffer.clear();
                 for (ColorShade[] scanline : background_buffer) {
                     for (ColorShade colorShade : scanline) {
@@ -70,11 +71,11 @@ public class PPU {
                 screen_buffer.flip();
             }
 
-            if (memory.readByte(MMU.IO_LCD_Y, true) == 153) {
-                memory.writeRaw(MMU.IO_LCD_Y, 0);
+            if (memory.readByte(MMU.LY, true) == 153) {
+                memory.writeRaw(MMU.LY, 0);
                 memory.writeLcdMode(LCDMode.OAM);
             } else {
-                memory.writeRaw(MMU.IO_LCD_Y, memory.readByte(MMU.IO_LCD_Y, true) + 1);
+                memory.writeRaw(MMU.LY, memory.readByte(MMU.LY, true) + 1);
             }
             cycles -= LR35902.CPU_CYCLES_PER_V_BLANK;
         }
@@ -82,19 +83,19 @@ public class PPU {
 
     private void processHBlank() {
         if (cycles >= LR35902.CPU_CYCLES_PER_H_BLANK) {
-            if (memory.readIORegisterBit(MMU.IO_LCD_STAT, Flags.STATUS_H_BLANK_IRQ_ON.getMask(), true))
-                memory.writeIORegisterBit(MMU.IO_INTERRUPT_FLAG, core.cpu.Flags.IRQ_LCD_STAT.getMask(), true);
+            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_HBLANK_IRQ_ON, true))
+                memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
 
             fillBackgroundLayer();
             fillWindowLayer();
             fillSpriteLayer();
 
-            if (memory.readByte(MMU.IO_LCD_Y, true) == SCREEN_HEIGHT - 1)
+            if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT - 1)
                 memory.writeLcdMode(LCDMode.V_BLANK);
             else
                 memory.writeLcdMode(LCDMode.OAM);
 
-            memory.writeRaw(MMU.IO_LCD_Y, memory.readByte(MMU.IO_LCD_Y, true) + 1);
+            memory.writeRaw(MMU.LY, memory.readByte(MMU.LY, true) + 1);
             cycles -= LR35902.CPU_CYCLES_PER_H_BLANK;
         }
     }
@@ -108,18 +109,18 @@ public class PPU {
 
     private void processOam() {
         if (cycles >= LR35902.CPU_CYCLES_PER_OAM) {
-            if (memory.readIORegisterBit(MMU.IO_LCD_STAT, Flags.STATUS_OAM_IRQ_ON.getMask(), true))
-                memory.writeIORegisterBit(MMU.IO_INTERRUPT_FLAG, core.cpu.Flags.IRQ_LCD_STAT.getMask(), true);
+            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_OAM_IRQ_ON, true))
+                memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
 
-            int lcd_y = memory.readByte(MMU.IO_LCD_Y, true);
-            int lcd_yc = memory.readByte(MMU.IO_LCD_YC, true);
+            int lcd_y = memory.readByte(MMU.LY, true);
+            int lcd_yc = memory.readByte(MMU.LYC, true);
 
             if (lcd_y == lcd_yc) {
-                memory.writeIORegisterBit(MMU.IO_LCD_STAT, Flags.STATUS_COINCIDENCE.getMask(), true);
-                if (memory.readIORegisterBit(MMU.IO_LCD_STAT, Flags.STATUS_LCD_Y_IRQ_ON.getMask(), true))
-                    memory.writeIORegisterBit(MMU.IO_INTERRUPT_FLAG, core.cpu.Flags.IRQ_LCD_STAT.getMask(), true);
+                memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, true);
+                if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_IRQ, true))
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
             } else {
-                memory.writeIORegisterBit(MMU.IO_LCD_STAT, Flags.STATUS_COINCIDENCE.getMask(), false);
+                memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, false);
             }
             memory.writeLcdMode(LCDMode.TRANSFER);
             cycles -= LR35902.CPU_CYCLES_PER_OAM;
@@ -135,12 +136,12 @@ public class PPU {
     }
 
     private void fillBackgroundLayer() {
-        if (!memory.readIORegisterBit(MMU.IO_LCD_CONTROL, Flags.CONTROL_BG_ON.getMask(), true))
+        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_ON, true))
             return;
 
-        int lcdY = memory.readByte(MMU.IO_LCD_Y, true);
-        int scrollY = memory.readByte(MMU.IO_SCROLL_Y, true);
-        int scrollX = memory.readByte(MMU.IO_SCROLL_X, true);
+        int lcdY = memory.readByte(MMU.LY, true);
+        int scrollY = memory.readByte(MMU.SCY, true);
+        int scrollX = memory.readByte(MMU.SCX, true);
 
         int bgTileYStart = ((scrollY + lcdY) >> 3) >= 0x1F ? ((scrollY + lcdY) >> 3) & 0x1F : ((scrollY + lcdY) >> 3);
         int bgTileYOffset = (scrollY + lcdY) & 0x7;

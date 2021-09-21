@@ -1,7 +1,7 @@
 package core.ppu.helper;
 
-import core.MMU;
-import core.ppu.Flags;
+import core.Flags;
+import core.memory.MMU;
 
 import static core.BitUtils.signedByte;
 
@@ -18,10 +18,14 @@ public class TileCollection implements IMMUListener {
     public TileCollection(MMU memory) {
         this.memory = memory;
         memory.addListener(this);
+        for (int i = 0; i < 0x100; i++) {
+            tile0[i] = new Tile();
+            tile1[i] = new Tile();
+        }
     }
 
     public Tile getBGTile(int tileId) {
-        return memory.readIORegisterBit(MMU.IO_LCD_CONTROL, Flags.CONTROL_BG_DATA.getMask(), true) ? getTile(MMU.TILE_DATA1_START, tileId) : getTile(MMU.TILE_DATA0_START, signedByte(tileId) + 128);
+        return memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA, true) ? getTile(MMU.TILE_DATA1_START, tileId) : getTile(MMU.TILE_DATA0_START, signedByte(tileId) + 128);
     }
 
     public void onWriteToMMU(int addr, int data) {
@@ -31,27 +35,25 @@ public class TileCollection implements IMMUListener {
             tile1Updated = true;
     }
 
-    private Tile getTile(int addr, int tileNr) {
+    private Tile getTile(int addr, int tileId) {
         if (addr == MMU.TILE_DATA0_START) {
             if (tile0Updated) {
                 updateTile(tile0, addr);
                 tile0Updated = false;
             }
-            return tile0[tileNr];
+            return tile0[tileId];
         } else if (addr == MMU.TILE_DATA1_START) {
             if (tile1Updated) {
                 updateTile(tile1, addr);
                 tile1Updated = false;
             }
-            return tile1[tileNr];
+            return tile1[tileId];
         }
         return null;
     }
 
     private void updateTile(Tile[] tiles, int addr) {
         for (int i = 0; i < 0xFF; i++) {
-            if (tiles[i] == null)
-                tiles[i] = new Tile();
             tiles[i].id = i;
 
             int tileAddr = (addr | (i << 4)) & 0xFFFF;

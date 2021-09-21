@@ -1,7 +1,7 @@
 package core.ppu.helper;
 
-import core.MMU;
-import core.ppu.Flags;
+import core.Flags;
+import core.memory.MMU;
 
 public class BackgroundMaps implements IMMUListener {
 
@@ -28,15 +28,15 @@ public class BackgroundMaps implements IMMUListener {
     }
 
     public BackgroundMap getBGMap() {
-        return getMap(Flags.CONTROL_BG_MAP.getMask());
+        return getMap(Flags.LCDC_BG_TILE_MAP);
     }
 
     public BackgroundMap getWindowMap() {
-        return getMap(Flags.CONTROL_WINDOW_MAP.getMask());
+        return getMap(Flags.LCDC_WINDOW_MAP);
     }
 
     private BackgroundMap getMap(int flags) {
-        int addr = memory.readIORegisterBit(MMU.IO_LCD_CONTROL, flags, true) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START;
+        int addr = memory.readIORegisterBit(MMU.LCDC, flags, true) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START;
         if (addr == MMU.BG_MAP0_START) {
             if (map0Updated) {
                 loadMap(map0, addr);

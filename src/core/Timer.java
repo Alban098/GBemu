@@ -1,7 +1,7 @@
 package core;
 
-import core.cpu.Flags;
 import core.cpu.LR35902;
+import core.memory.MMU;
 
 public class Timer {
 
@@ -15,8 +15,8 @@ public class Timer {
     }
 
     public void clock() {
-        int clock = (((memory.readByte(MMU.IO_DIVIDER) << 8) | memory.readByte(MMU.IO_INTERNAL_CLK_LOW)) + 1) & 0xFFFF;
-        memory.writeRaw(MMU.IO_DIVIDER, (clock & 0xFF00) >> 8);
+        int clock = (((memory.readByte(MMU.DIV) << 8) | memory.readByte(MMU.IO_INTERNAL_CLK_LOW)) + 1) & 0xFFFF;
+        memory.writeRaw(MMU.DIV, (clock & 0xFF00) >> 8);
         memory.writeRaw(MMU.IO_INTERNAL_CLK_LOW, clock & 0x00FF);
 
         computeTIMA(clock);
@@ -30,15 +30,15 @@ public class Timer {
         triggerTimerOverflowIrq();
         boolean currentPulse = (clock & bit) != 0;
         if (lastPulse && !currentPulse) {
-            int timer = (memory.readByte(MMU.IO_TIMA) + 1) & 0xFF;
+            int timer = (memory.readByte(MMU.TIMA) + 1) & 0xFF;
             pendingIrq = timer == 0x00;
-            memory.writeByte(MMU.IO_TIMA, timer);
+            memory.writeByte(MMU.TIMA, timer);
         }
         lastPulse = currentPulse;
     }
 
     public int getTimerFreq() {
-        int freq = memory.readByte(MMU.IO_TAC) & Flags.TIMER_CLOCK_MODE.getMask();
+        int freq = memory.readByte(MMU.TAC) & Flags.TAC_CLOCK;
         return switch (freq) {
             case 0 -> 4096;
             case 1 -> 262144;
@@ -51,8 +51,8 @@ public class Timer {
     public void triggerTimerOverflowIrq() {
         if (pendingIrq) {
             pendingIrq = false;
-            memory.writeByte(MMU.IO_TIMA, memory.readByte(MMU.IO_TIMA));
-            memory.writeIORegisterBit(MMU.IO_INTERRUPT_FLAG, Flags.IRQ_TIMER.getMask(), true);
+            memory.writeByte(MMU.TIMA, memory.readByte(MMU.TIMA));
+            memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, true);
         }
     }
 }

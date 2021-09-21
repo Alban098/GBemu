@@ -7,7 +7,6 @@ import net.beadsproject.beads.ugens.Function;
 import net.beadsproject.beads.ugens.WaveShaper;
 
 import javax.sound.sampled.LineUnavailableException;
-import java.util.Random;
 
 public class Main {
 
@@ -15,7 +14,7 @@ public class Main {
     private static JavaSoundAudioIO jsaIO;
 
     public static void main(String[] args) throws LineUnavailableException {
-        String rom = "OK-01-special.gb";
+        String rom = "02-interrupts.gb";
         GameBoy gb = new GameBoy("roms\\DMG_ROM.bin");
         gb.insertCartridge("roms\\" + rom);
         launchSoundEngine(gb);
@@ -28,12 +27,13 @@ public class Main {
 
     public static void launchSoundEngine(GameBoy gameBoy) {
         jsaIO = new JavaSoundAudioIO();
-        jsaIO.selectMixer(2);
+        JavaSoundAudioIO.printMixerInfo();
+        jsaIO.selectMixer(10);
         ac = new AudioContext(jsaIO);
         Function audioProcessor = new Function(new WaveShaper(ac)) {
             public float calculate() {
                 if (gameBoy.getState() == GameBoyState.RUNNING)
-                    return gameBoy.getLastSample();
+                    return gameBoy.getNextSample();
                 return 0;
             }
         };

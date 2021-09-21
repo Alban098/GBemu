@@ -1,9 +1,9 @@
 package gui;
 
+import core.Flags;
 import core.GameBoy;
 import core.GameBoyState;
-import core.MMU;
-import core.cpu.Flags;
+import core.memory.MMU;
 import core.cpu.LR35902;
 import core.cpu.State;
 import core.cpu.register.RegisterByte;
@@ -53,6 +53,9 @@ public class CPULayer {
                 if (ImGui.button("Enter Debug"))
                     gameBoy.setState(GameBoyState.DEBUG);
             }
+            ImGui.sameLine();
+            if (ImGui.button("Reset"))
+                gameBoy.reset();
             ImGui.treePop();
         }
 
@@ -60,29 +63,29 @@ public class CPULayer {
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         if (ImGui.treeNode("Flags")) {
-            if (gameBoy.getCpu().hasFlag(Flags.ZERO)) ImGui.textColored(0, 255, 0, 255, "Z");
+            if (gameBoy.getCpu().hasFlag(Flags.Z)) ImGui.textColored(0, 255, 0, 255, "Z");
             else ImGui.textColored(255, 0, 0, 255, "Z");
             ImGui.sameLine();
-            if (gameBoy.getCpu().hasFlag(Flags.SUBSTRACT)) ImGui.textColored(0, 255, 0, 255, "N");
+            if (gameBoy.getCpu().hasFlag(Flags.N)) ImGui.textColored(0, 255, 0, 255, "N");
             else ImGui.textColored(255, 0, 0, 255, "N");
             ImGui.sameLine();
-            if (gameBoy.getCpu().hasFlag(Flags.HALF_CARRY)) ImGui.textColored(0, 255, 0, 255, "H");
+            if (gameBoy.getCpu().hasFlag(Flags.H)) ImGui.textColored(0, 255, 0, 255, "H");
             else ImGui.textColored(255, 0, 0, 255, "H");
             ImGui.sameLine();
-            if (gameBoy.getCpu().hasFlag(Flags.CARRY)) ImGui.textColored(0, 255, 0, 255, "C");
+            if (gameBoy.getCpu().hasFlag(Flags.C)) ImGui.textColored(0, 255, 0, 255, "C");
             else ImGui.textColored(255, 0, 0, 255, "C");
             ImGui.treePop();
         }
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         if (ImGui.treeNode("Registers")) {
-            lcdc.write(gameBoy.getMemory().readByte(MMU.IO_LCD_CONTROL));
-            stat.write(gameBoy.getMemory().readByte(MMU.IO_LCD_STAT));
-            lcdy.write(gameBoy.getMemory().readByte(MMU.IO_LCD_Y));
-            divider.write(gameBoy.getMemory().readByte(MMU.IO_DIVIDER));
-            tima.write(gameBoy.getMemory().readByte(MMU.IO_INTERNAL_CLK_LOW));
-            irq_enable.write(gameBoy.getMemory().readByte(MMU.INTERRUPT_ENABLED));
-            irq_flags.write(gameBoy.getMemory().readByte(MMU.IO_INTERRUPT_FLAG));
+            lcdc.write(gameBoy.getMemory().readByte(MMU.LCDC));
+            stat.write(gameBoy.getMemory().readByte(MMU.STAT));
+            lcdy.write(gameBoy.getMemory().readByte(MMU.LY));
+            divider.write(gameBoy.getMemory().readByte(MMU.DIV));
+            tima.write(gameBoy.getMemory().readByte(MMU.TIMA));
+            irq_enable.write(gameBoy.getMemory().readByte(MMU.IE));
+            irq_flags.write(gameBoy.getMemory().readByte(MMU.IF));
 
             printRegister(cpuState.getAf(), "AF", "A", "F");
             ImGui.sameLine(420);

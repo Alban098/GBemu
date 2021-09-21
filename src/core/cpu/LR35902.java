@@ -1,18 +1,18 @@
 package core.cpu;
 
-import core.MMU;
+import core.Flags;
+import core.GameBoy;
+import core.GameBoyState;
+import core.memory.MMU;
 import core.apu.APU;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
 
 import static core.BitUtils.*;
-import static core.cpu.Flags.*;
 
 public class LR35902 {
 
@@ -30,6 +30,8 @@ public class LR35902 {
     private static final int DECOMPILE_SIZE = 0x20;
     private final List<Instruction> opcodes;
     private final List<Instruction> cb_opcodes;
+
+    private final GameBoy gameBoy;
 
     private final RegisterWord af;
     private final RegisterWord bc;
@@ -53,10 +55,14 @@ public class LR35902 {
 
     private int remaining_cycle_until_op = 0;
     private boolean halted = false;
-    private boolean IME = true;
+    private boolean IME = false;
     private Instruction next_instr;
 
-    public LR35902(MMU memory) {
+    private final Set<Integer> breakpoints;
+
+    public LR35902(MMU memory, GameBoy gb) {
+        gameBoy = gb;
+        breakpoints = new HashSet<>();
         af = new RegisterWord(0x01B0);
         a = af.getHigh();
         f = af.getLow();
@@ -74,7 +80,7 @@ public class LR35902 {
         l = hl.getLow();
 
         sp = new RegisterWord(0xFFFE);
-        pc = new RegisterWord(0x0100);
+        pc = new RegisterWord(0x0000);
 
         tmp_reg = new RegisterByte(0x00);
         this.memory = memory;
@@ -608,6 +614,14 @@ public class LR35902 {
         decompile();
     }
 
+    public void addBreakpoint(int addr) {
+        breakpoints.add(addr);
+    }
+
+    public void removeBreakpoint(int addr) {
+        breakpoints.remove(addr);
+    }
+
     public boolean clock() {
         boolean returnVal = false;
 
@@ -615,6 +629,8 @@ public class LR35902 {
             if (remaining_cycle_until_op == 0) {
                 remaining_cycle_until_op = next_instr.operate() / 4;
                 next_instr = fetchInstruction();
+                if (breakpoints.contains(next_instr.addr))
+                    gameBoy.setState(GameBoyState.DEBUG);
                 decompile();
                 cpuState.set(af, bc, de, hl, sp, pc, next_instr);
                 returnVal = true;
@@ -633,39 +649,47 @@ public class LR35902 {
     }
 
     public boolean handleInterrupts() {
+
         if (IME || halted) {
-            int interruptReg = readByte(MMU.IO_INTERRUPT_FLAG) & readByte(MMU.INTERRUPT_ENABLED) & 0x1F;
-            if (interruptReg != 0) {
-                if (IME && !halted) {
-                    IME = false;
-                    if ((interruptReg & IRQ_VBLANK.getMask()) == IRQ_VBLANK.getMask()) {
-                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_VBLANK.getMask()));
-                        pushStack(pc.read());
-                        pc.write(MMU.IRQ_V_BLANK_VECTOR);
-                        return true;
-                    } else if ((interruptReg & IRQ_LCD_STAT.getMask()) == IRQ_LCD_STAT.getMask()) {
-                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_LCD_STAT.getMask()));
-                        pushStack(pc.read());
-                        pc.write(MMU.IRQ_LCD_VECTOR);
-                        return true;
-                    } else if ((interruptReg & IRQ_TIMER.getMask()) == IRQ_TIMER.getMask()) {
-                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_TIMER.getMask()));
-                        pushStack(pc.read());
-                        pc.write(MMU.IRQ_TIMER_VECTOR);
-                        return true;
-                    } else if ((interruptReg & IRQ_SERIAL.getMask()) == IRQ_SERIAL.getMask()) {
-                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_SERIAL.getMask()));
-                        pushStack(pc.read());
-                        pc.write(MMU.IRQ_SERIAL_VECTOR);
-                        return true;
-                    } else if ((interruptReg & IRQ_JOYPAD.getMask()) == IRQ_JOYPAD.getMask()) {
-                        writeByte(MMU.IO_INTERRUPT_FLAG, readByte(MMU.IO_INTERRUPT_FLAG) & (0xFF - IRQ_JOYPAD.getMask()));
-                        pushStack(pc.read());
-                        pc.write(MMU.IRQ_INPUT_VECTOR);
-                        return true;
-                    }
+            int interruptRequest = readByte(MMU.IF) & readByte(MMU.IE) & 0x1F;
+            if (interruptRequest != 0) {
+                IME = false;
+                if ((interruptRequest & Flags.IF_VBLANK_IRQ) == Flags.IF_VBLANK_IRQ) {
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, false);
+                    pushStack(pc.read());
+                    pc.write(MMU.IRQ_V_BLANK_VECTOR);
+                    halted = false;
+                    remaining_cycle_until_op = 8;
+                    return true;
+                } else if ((interruptRequest & Flags.IF_LCD_STAT_IRQ) == Flags.IF_LCD_STAT_IRQ) {
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, false);
+                    pushStack(pc.read());
+                    pc.write(MMU.IRQ_LCD_VECTOR);
+                    halted = false;
+                    remaining_cycle_until_op = 8;
+                    return true;
+                } else if ((interruptRequest & Flags.IF_TIMER_IRQ) == Flags.IF_TIMER_IRQ) {
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, false);
+                    pushStack(pc.read());
+                    pc.write(MMU.IRQ_TIMER_VECTOR);
+                    halted = false;
+                    remaining_cycle_until_op = 8;
+                    return true;
+                } else if ((interruptRequest & Flags.IF_SERIAL_IRQ) == Flags.IF_SERIAL_IRQ) {
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_SERIAL_IRQ, false);
+                    pushStack(pc.read());
+                    pc.write(MMU.IRQ_SERIAL_VECTOR);
+                    halted = false;
+                    remaining_cycle_until_op = 8;
+                    return true;
+                } else if ((interruptRequest & Flags.IF_JOYPAD_IRQ) == Flags.IF_JOYPAD_IRQ) {
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_JOYPAD_IRQ, false);
+                    pushStack(pc.read());
+                    pc.write(MMU.IRQ_INPUT_VECTOR);
+                    halted = false;
+                    remaining_cycle_until_op = 8;
+                    return true;
                 }
-                halted = false;
             }
         }
         return false;
@@ -734,7 +758,9 @@ public class LR35902 {
         hl.write(0x014D);
         sp.write(0xFFFE);
         pc.write(0x0000);
+        memory.writeRaw(MMU.BOOTSTRAP_CONTROL, 0);
         remaining_cycle_until_op = 0;
+        IME = false;
     }
 
     private int readByte(int addr) {
@@ -765,15 +791,15 @@ public class LR35902 {
         return data;
     }
 
-    private void setFlag(Flags flag, boolean state) {
+    private void setFlag(int flag, boolean state) {
         if (state)
-            f.write(f.read() | flag.getMask());
+            f.write(f.read() | flag);
         else
-            f.write(f.read() & ~flag.getMask());
+            f.write(f.read() & ~flag);
     }
 
-    public boolean hasFlag(Flags flag) {
-        return (f.read() & flag.getMask()) == flag.getMask();
+    public boolean hasFlag(int flag) {
+        return (f.read() & flag) == flag;
     }
 
     private int prefix() {
@@ -786,15 +812,15 @@ public class LR35902 {
 
     public void inc_regByte(RegisterByte reg) {
         reg.inc();
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, (reg.read() & 0x0F) == 0x00);
+        setFlag(Flags.Z, reg.read() == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, (reg.read() & 0x0F) == 0x00);
     }
 
     public void dec_regByte(RegisterByte reg) {
-        setFlag(Flags.ZERO, reg.read() == 0x01);
-        setFlag(Flags.SUBSTRACT, true);
-        setFlag(Flags.HALF_CARRY, (reg.read() & 0x0F) == 0x00);
+        setFlag(Flags.Z, reg.read() == 0x01);
+        setFlag(Flags.N, true);
+        setFlag(Flags.H, (reg.read() & 0x0F) == 0x00);
         reg.dec();
     }
 
@@ -802,9 +828,9 @@ public class LR35902 {
         data &= 0xFFFF;
         int result = reg.read() + data;
 
-        setFlag(Flags.HALF_CARRY, ((reg.read() ^ data ^ (result & 0xFFFF)) & 0x1000) == 0x1000);
-        setFlag(Flags.CARRY, (result & 0x10000) == 0x10000);
-        setFlag(Flags.SUBSTRACT, false);
+        setFlag(Flags.H, ((reg.read() ^ data ^ (result & 0xFFFF)) & 0x1000) == 0x1000);
+        setFlag(Flags.C, (result & 0x10000) == 0x10000);
+        setFlag(Flags.N, false);
 
         reg.write(result & 0xFFFF);
     }
@@ -813,21 +839,21 @@ public class LR35902 {
         data &= 0xFF;
         int result = reg.read() + data;
 
-        setFlag(Flags.HALF_CARRY, ((reg.read() & 0xF) + (data & 0xF)) > 0xF);
-        setFlag(Flags.CARRY, (result & 0x100) == 0x100);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.ZERO, (result & 0xFF) == 0x00);
+        setFlag(Flags.H, ((reg.read() & 0xF) + (data & 0xF)) > 0xF);
+        setFlag(Flags.C, (result & 0x100) == 0x100);
+        setFlag(Flags.N, false);
+        setFlag(Flags.Z, (result & 0xFF) == 0x00);
         reg.write(result & 0xFF);
     }
 
     public void adc_regByte(RegisterByte reg, int data) {
         data &= 0xFF;
-        int result = reg.read() + data + (hasFlag(Flags.CARRY) ? 1 : 0);
+        int result = reg.read() + data + (hasFlag(Flags.C) ? 1 : 0);
 
-        setFlag(Flags.HALF_CARRY, ((reg.read() & 0xF) + (data & 0xF) + (hasFlag(Flags.CARRY) ? 1 : 0)) > 0xF);
-        setFlag(Flags.CARRY, (result & 0x100) == 0x100);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.ZERO, (result & 0xFF) == 0x00);
+        setFlag(Flags.H, ((reg.read() & 0xF) + (data & 0xF) + (hasFlag(Flags.C) ? 1 : 0)) > 0xF);
+        setFlag(Flags.C, (result & 0x100) == 0x100);
+        setFlag(Flags.N, false);
+        setFlag(Flags.Z, (result & 0xFF) == 0x00);
         reg.write(result & 0xFF);
     }
 
@@ -835,22 +861,22 @@ public class LR35902 {
         data &= 0xFF;
         int result = (reg.read() - data) & 0xFF;
 
-        setFlag(Flags.HALF_CARRY, (reg.read() & 0xF) - (data & 0xF) < 0);
-        setFlag(Flags.CARRY, reg.read() < data);
-        setFlag(Flags.SUBSTRACT, true);
-        setFlag(Flags.ZERO, (result & 0xFF) == 0x0);
+        setFlag(Flags.H, (reg.read() & 0xF) - (data & 0xF) < 0);
+        setFlag(Flags.C, reg.read() < data);
+        setFlag(Flags.N, true);
+        setFlag(Flags.Z, (result & 0xFF) == 0x0);
 
         reg.write(result);
     }
 
     public void sbc_regByte(RegisterByte reg, int data) {
         data &= 0xFF;
-        int result = (reg.read() - data - (hasFlag(Flags.CARRY) ? 1 : 0));
+        int result = (reg.read() - data - (hasFlag(Flags.C) ? 1 : 0));
 
-        setFlag(Flags.ZERO, (result & 0xFF) == 0x0);
-        setFlag(Flags.SUBSTRACT, true);
-        setFlag(Flags.HALF_CARRY, ((reg.read() & 0xF) - (data & 0xF) - (hasFlag(Flags.CARRY) ? 1 : 0) < 0));
-        setFlag(Flags.CARRY, result < 0);
+        setFlag(Flags.Z, (result & 0xFF) == 0x0);
+        setFlag(Flags.N, true);
+        setFlag(Flags.H, ((reg.read() & 0xF) - (data & 0xF) - (hasFlag(Flags.C) ? 1 : 0) < 0));
+        setFlag(Flags.C, result < 0);
 
         reg.write(result & 0xFF);
     }
@@ -859,48 +885,48 @@ public class LR35902 {
         data &= 0xFF;
         reg.write(a.read() & data);
 
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, true);
-        setFlag(Flags.CARRY, false);
+        setFlag(Flags.Z, reg.read() == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, true);
+        setFlag(Flags.C, false);
     }
 
     public void xor_regByte(RegisterByte reg, int data) {
         data &= 0xFF;
         reg.write(a.read() ^ data);
 
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
+        setFlag(Flags.Z, reg.read() == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, false);
     }
 
     public void or_regByte(RegisterByte reg, int data) {
         data &= 0xFF;
         reg.write(a.read() | data);
 
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
+        setFlag(Flags.Z, reg.read() == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, false);
     }
 
     public void cp_regByte(RegisterByte reg, int data) {
         data &= 0xFF;
-        setFlag(Flags.ZERO, reg.read() == data);
-        setFlag(Flags.SUBSTRACT, true);
-        setFlag(Flags.HALF_CARRY, (reg.read() & 0xF) - (data & 0xF) < 0);
-        setFlag(Flags.CARRY, reg.read() < data);
+        setFlag(Flags.Z, reg.read() == data);
+        setFlag(Flags.N, true);
+        setFlag(Flags.H, (reg.read() & 0xF) - (data & 0xF) < 0);
+        setFlag(Flags.C, reg.read() < data);
     }
 
     public void rlc_regByte(RegisterByte reg) {
         int result = (reg.read() << 1) | ((reg.read() >> 7) & 0x01);
         result &= 0xFF;
 
-        setFlag(Flags.ZERO, result == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, ((reg.read() >> 7) & 0x01) != 0x0);
+        setFlag(Flags.Z, result == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, ((reg.read() >> 7) & 0x01) != 0x0);
 
         reg.write(result);
     }
@@ -909,34 +935,34 @@ public class LR35902 {
         int result = ((reg.read() & 0x01) << 7) | (reg.read() >> 1);
         result &= 0xFF;
 
-        setFlag(Flags.ZERO, result == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, (reg.read() & 0x01) != 0x0);
+        setFlag(Flags.Z, result == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, (reg.read() & 0x01) != 0x0);
 
         reg.write(result);
     }
 
     public void rl_regByte(RegisterByte reg) {
-        int result = (reg.read() << 1) | (hasFlag(Flags.CARRY) ? 1 : 0);
+        int result = (reg.read() << 1) | (hasFlag(Flags.C) ? 1 : 0);
         result &= 0xFF;
 
-        setFlag(Flags.ZERO, result == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, ((reg.read() >> 7) & 0x01) != 0x0);
+        setFlag(Flags.Z, result == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, ((reg.read() >> 7) & 0x01) != 0x0);
 
         reg.write(result);
     }
 
     public void rr_regByte(RegisterByte reg) {
-        int result = (hasFlag(Flags.CARRY) ? 0x80 : 0x00) | (reg.read() >> 1);
+        int result = (hasFlag(Flags.C) ? 0x80 : 0x00) | (reg.read() >> 1);
         result &= 0xFF;
 
-        setFlag(Flags.ZERO, result == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, (reg.read() & 0x01) != 0x0);
+        setFlag(Flags.Z, result == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, (reg.read() & 0x01) != 0x0);
 
         reg.write(result);
     }
@@ -945,10 +971,10 @@ public class LR35902 {
         int result = reg.read() << 1;
         result &= 0xFF;
 
-        setFlag(Flags.ZERO, result == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, ((reg.read() >> 7) & 0x01) != 0x0);
+        setFlag(Flags.Z, result == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, ((reg.read() >> 7) & 0x01) != 0x0);
 
         reg.write(result);
     }
@@ -957,10 +983,10 @@ public class LR35902 {
         int result = (reg.read() & 0x80) | (reg.read() >> 1);
         result &= 0xFF;
 
-        setFlag(Flags.ZERO, result == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, (reg.read() & 0x01) != 0x0);
+        setFlag(Flags.Z, result == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, (reg.read() & 0x01) != 0x0);
 
         reg.write(result);
     }
@@ -969,10 +995,10 @@ public class LR35902 {
         int result = reg.read() >> 1;
         result &= 0xFF;
 
-        setFlag(Flags.ZERO, result == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, (reg.read() & 0x01) != 0x0);
+        setFlag(Flags.Z, result == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, (reg.read() & 0x01) != 0x0);
 
         reg.write(result);
     }
@@ -980,10 +1006,10 @@ public class LR35902 {
     public void swap_regByte(RegisterByte reg) {
         reg.write(((reg.read() & 0x0F) << 4) | ((reg.read() & 0xF0) >> 4));
 
-        setFlag(Flags.ZERO, reg.read() == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, false);
+        setFlag(Flags.Z, reg.read() == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, false);
     }
 
     public void set_regByte(RegisterByte reg, int bit) {
@@ -995,9 +1021,9 @@ public class LR35902 {
     }
 
     public void bit_regByte(int bit, RegisterByte reg) {
-        setFlag(Flags.ZERO, ((reg.read() >> bit) & 0x01) == 0x00);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, true);
+        setFlag(Flags.Z, ((reg.read() >> bit) & 0x01) == 0x00);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, true);
     }
 
     //=================OPCODE==================//
@@ -1232,10 +1258,10 @@ public class LR35902 {
         int data = signedByte(next_instr.getParamByte());
         int result = sp.read() + data;
 
-        setFlag(Flags.ZERO, false);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, ((sp.read() ^ data ^ (result & 0xFFFF)) & 0x10) == 0x10);
-        setFlag(Flags.CARRY, ((sp.read() ^ data ^ (result & 0xFFFF)) & 0x100) == 0x100);
+        setFlag(Flags.Z, false);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, ((sp.read() ^ data ^ (result & 0xFFFF)) & 0x10) == 0x10);
+        setFlag(Flags.C, ((sp.read() ^ data ^ (result & 0xFFFF)) & 0x100) == 0x100);
 
         sp.write(result & 0xFFFF);
         return 16;
@@ -1244,17 +1270,17 @@ public class LR35902 {
     public int opcode_0x27_daa() {
         //DAA
         int result = 0;
-        if (hasFlag(Flags.HALF_CARRY) || (!hasFlag(Flags.SUBSTRACT) && (a.read() & 0xF) > 0x9))
+        if (hasFlag(Flags.H) || (!hasFlag(Flags.N) && (a.read() & 0xF) > 0x9))
             result = 6;
 
-        if (hasFlag(Flags.CARRY) || (!hasFlag(Flags.SUBSTRACT) && a.read() > 0x99)) {
+        if (hasFlag(Flags.C) || (!hasFlag(Flags.N) && a.read() > 0x99)) {
             result |= 0x60;
-            setFlag(Flags.CARRY, true);
+            setFlag(Flags.C, true);
         }
 
-        a.write(a.read() + (hasFlag(Flags.SUBSTRACT) ? -result : result));
-        setFlag(Flags.ZERO, a.read() == 0);
-        setFlag(Flags.HALF_CARRY, false);
+        a.write(a.read() + (hasFlag(Flags.N) ? -result : result));
+        setFlag(Flags.Z, a.read() == 0);
+        setFlag(Flags.H, false);
 
         return 4;
     }
@@ -1262,24 +1288,24 @@ public class LR35902 {
     public int opcode_0x2F_cpl() {
         //CPL
         a.write(~a.read());
-        setFlag(Flags.SUBSTRACT, true);
-        setFlag(Flags.HALF_CARRY, true);
+        setFlag(Flags.N, true);
+        setFlag(Flags.H, true);
         return 4;
     }
 
     public int opcode_0x37_scf() {
         //SCF
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, true);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, true);
         return 4;
     }
 
     public int opcode_0x3F_ccf() {
         //CCF
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, false);
-        setFlag(Flags.CARRY, !hasFlag(Flags.CARRY));
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, false);
+        setFlag(Flags.C, !hasFlag(Flags.C));
         return 4;
     }
 
@@ -1669,7 +1695,7 @@ public class LR35902 {
 
     public int opcode_0x20_jr() {
         //JR NZ r8
-        if (!hasFlag(Flags.ZERO)) {
+        if (!hasFlag(Flags.Z)) {
             pc.write(pc.read() + signedByte(next_instr.getParamByte()));
             return 12;
         }
@@ -1678,7 +1704,7 @@ public class LR35902 {
 
     public int opcode_0x28_jr() {
         //JR Z r8
-        if (hasFlag(Flags.ZERO)) {
+        if (hasFlag(Flags.Z)) {
             pc.write(pc.read() + signedByte(next_instr.getParamByte()));
             return 12;
         }
@@ -1687,7 +1713,7 @@ public class LR35902 {
 
     public int opcode_0x30_jr() {
         //JR NC r8
-        if (!hasFlag(Flags.CARRY)) {
+        if (!hasFlag(Flags.C)) {
             pc.write(pc.read() + signedByte(next_instr.getParamByte()));
             return 12;
         }
@@ -1696,7 +1722,7 @@ public class LR35902 {
 
     public int opcode_0x38_jr() {
         //JR C r8
-        if (hasFlag(Flags.CARRY)) {
+        if (hasFlag(Flags.C)) {
             pc.write(pc.read() + signedByte(next_instr.getParamByte()));
             return 12;
         }
@@ -1705,7 +1731,7 @@ public class LR35902 {
 
     public int opcode_0xC0_ret() {
         //RET NZ
-        if (!hasFlag(Flags.ZERO)) {
+        if (!hasFlag(Flags.Z)) {
             pc.write(popStack());
             return 20;
         }
@@ -1714,7 +1740,7 @@ public class LR35902 {
 
     public int opcode_0xC8_ret() {
         //RET Z
-        if (hasFlag(Flags.ZERO)) {
+        if (hasFlag(Flags.Z)) {
             pc.write(popStack());
             return 20;
         }
@@ -1729,7 +1755,7 @@ public class LR35902 {
 
     public int opcode_0xD0_ret() {
         //RET NC
-        if (!hasFlag(Flags.CARRY)) {
+        if (!hasFlag(Flags.C)) {
             pc.write(popStack());
             return 20;
         }
@@ -1738,7 +1764,7 @@ public class LR35902 {
 
     public int opcode_0xD8_ret() {
         //RET C
-        if (hasFlag(Flags.CARRY)) {
+        if (hasFlag(Flags.C)) {
             pc.write(popStack());
             return 20;
         }
@@ -1747,7 +1773,7 @@ public class LR35902 {
 
     public int opcode_0xC2_jp() {
         //JP NZ a16
-        if (!hasFlag(Flags.ZERO)) {
+        if (!hasFlag(Flags.Z)) {
             pc.write(next_instr.getParamWord());
             return 16;
         }
@@ -1762,7 +1788,7 @@ public class LR35902 {
 
     public int opcode_0xCA_jp() {
         //JP Z a16
-        if (hasFlag(Flags.ZERO)) {
+        if (hasFlag(Flags.Z)) {
             pc.write(next_instr.getParamWord());
             return 16;
         }
@@ -1771,7 +1797,7 @@ public class LR35902 {
 
     public int opcode_0xD2_jp() {
         //JP NC a16
-        if (!hasFlag(Flags.CARRY)) {
+        if (!hasFlag(Flags.C)) {
             pc.write(next_instr.getParamWord());
             return 16;
         }
@@ -1780,7 +1806,7 @@ public class LR35902 {
 
     public int opcode_0xDA_jp() {
         //JP C a16
-        if (hasFlag(Flags.CARRY)) {
+        if (hasFlag(Flags.C)) {
             pc.write(next_instr.getParamWord());
             return 16;
         }
@@ -1795,7 +1821,7 @@ public class LR35902 {
 
     public int opcode_0xC4_call() {
         //CALL NZ a16
-        if (!hasFlag(Flags.ZERO)) {
+        if (!hasFlag(Flags.Z)) {
             pushStack(pc.read());
             pc.write(next_instr.getParamWord());
             return 24;
@@ -1805,7 +1831,7 @@ public class LR35902 {
 
     public int opcode_0xCC_call() {
         //CALL Z a16
-        if (hasFlag(Flags.ZERO)) {
+        if (hasFlag(Flags.Z)) {
             pushStack(pc.read());
             pc.write(next_instr.getParamWord());
             return 24;
@@ -1822,7 +1848,7 @@ public class LR35902 {
 
     public int opcode_0xD4_call() {
         //CALL NC a16
-        if (!hasFlag(Flags.CARRY)) {
+        if (!hasFlag(Flags.C)) {
             pushStack(pc.read());
             pc.write(next_instr.getParamWord());
             return 24;
@@ -1832,7 +1858,7 @@ public class LR35902 {
 
     public int opcode_0xDC_call() {
         //CALL C a16
-        if (hasFlag(Flags.CARRY)) {
+        if (hasFlag(Flags.C)) {
             pushStack(pc.read());
             pc.write(next_instr.getParamWord());
             return 24;
@@ -1911,14 +1937,14 @@ public class LR35902 {
     public int opcode_0x07_rlca() {
         //RLCA
         rlc_regByte(a);
-        setFlag(Flags.ZERO, false);
+        setFlag(Flags.Z, false);
         return 4;
     }
 
     public int opcode_0x0F_rrca() {
         //RRCA
         rrc_regByte(a);
-        setFlag(Flags.ZERO, false);
+        setFlag(Flags.Z, false);
         return 4;
     }
 
@@ -1932,14 +1958,14 @@ public class LR35902 {
     public int opcode_0x17_rla() {
         //RLA
         rl_regByte(a);
-        setFlag(Flags.ZERO, false);
+        setFlag(Flags.Z, false);
         return 4;
     }
 
     public int opcode_0x1F_rra() {
         //RRA
         rr_regByte(a);
-        setFlag(Flags.ZERO, false);
+        setFlag(Flags.Z, false);
         return 4;
     }
 
@@ -2492,10 +2518,10 @@ public class LR35902 {
         int signedValue = signedByte(next_instr.getParamByte());
         int result = sp.read() + signedValue;
 
-        setFlag(Flags.ZERO, false);
-        setFlag(Flags.SUBSTRACT, false);
-        setFlag(Flags.HALF_CARRY, ((sp.read() ^ signedValue ^ (result & 0xFFFF)) & 0x10) == 0x10);
-        setFlag(Flags.CARRY, ((sp.read() ^ signedValue ^ (result & 0xFFFF)) & 0x100) == 0x100);
+        setFlag(Flags.Z, false);
+        setFlag(Flags.N, false);
+        setFlag(Flags.H, ((sp.read() ^ signedValue ^ (result & 0xFFFF)) & 0x10) == 0x10);
+        setFlag(Flags.C, ((sp.read() ^ signedValue ^ (result & 0xFFFF)) & 0x100) == 0x100);
 
         hl.write(result & 0xFFFF);
         return 12;

@@ -1,6 +1,6 @@
 package core.ppu.helper;
 
-import core.MMU;
+import core.memory.MMU;
 
 public class ColorPalettes implements IMMUListener {
 
@@ -29,9 +29,9 @@ public class ColorPalettes implements IMMUListener {
 
     public void onWriteToMMU(int addr, int data) {
         switch (addr) {
-            case MMU.IO_BG_PAL -> updatePalette(bgPalette, data, false);
-            case MMU.IO_OBJ_PAL0 -> updatePalette(objPalette0, data, true);
-            case MMU.IO_OBJ_PAL1 -> updatePalette(objPalette1, data, true);
+            case MMU.BGP -> updatePalette(bgPalette, data, false);
+            case MMU.OBP0 -> updatePalette(objPalette0, data, true);
+            case MMU.OBP1 -> updatePalette(objPalette1, data, true);
         }
     }
 

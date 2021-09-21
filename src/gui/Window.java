@@ -32,6 +32,7 @@ public class Window {
     private final GameRendererLayer gameRendererLayer;
     private final MemoryLayer memoryLayer;
     private final SerialOutputLayer serialOutputLayer;
+    private final ConsoleLayer consoleLayer;
 
     private boolean isSpacePressed = false;
     private boolean isFPressed = false;
@@ -46,6 +47,7 @@ public class Window {
         gameRendererLayer = new GameRendererLayer();
         memoryLayer = new MemoryLayer();
         serialOutputLayer = new SerialOutputLayer();
+        consoleLayer = new ConsoleLayer();
 
         this.gameBoy = gameBoy;
     }
@@ -116,7 +118,7 @@ public class Window {
                 if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
                     isSpacePressed = false;
                 if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_PRESS && !isFPressed) {
-                    gameBoy.executeFrame();
+                    gameBoy.forceFrame();
                     isFPressed = true;
                 }
                 if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_RELEASE && isFPressed)
@@ -135,6 +137,7 @@ public class Window {
             cpuLayer.imgui(gameBoy);
             memoryLayer.imgui(gameBoy);
             serialOutputLayer.imgui(gameBoy);
+            consoleLayer.imgui(gameBoy);
 
             ImGui.render();
             imGuiGl3.renderDrawData(ImGui.getDrawData());
