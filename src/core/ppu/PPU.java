@@ -2,6 +2,10 @@ package core.ppu;
 
 import core.MMU;
 import core.cpu.LR35902;
+import core.ppu.helper.BackgroundMaps;
+import core.ppu.helper.ColorPalettes;
+import core.ppu.helper.ColorShade;
+import core.ppu.helper.TileCollection;
 import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
@@ -12,14 +16,23 @@ public class PPU {
     public static final int SCREEN_HEIGHT = 144;
 
     private final ByteBuffer screen_buffer;
-    private final ByteBuffer screen_buffer_tmp;
+    private final ColorShade[][] background_buffer;
     private final MMU memory;
+
+    private final ColorPalettes palettes;
+    private ColorPalettes.ColorPalette bgPal;
+    private final BackgroundMaps bgMaps;
+    private final TileCollection tileList;
 
     private long cycles = 0;
 
+
     public PPU(MMU memory) {
         screen_buffer = BufferUtils.createByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
-        screen_buffer_tmp = BufferUtils.createByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
+        background_buffer = new ColorShade[SCREEN_HEIGHT][SCREEN_WIDTH];
+        palettes = new ColorPalettes(memory);
+        bgMaps = new BackgroundMaps(memory);
+        tileList = new TileCollection(memory);
         this.memory = memory;
     }
 
@@ -41,13 +54,18 @@ public class PPU {
 
     private void processVBlank() {
         if (cycles >= LR35902.CPU_CYCLES_PER_V_BLANK) {
-            if (memory.readByte(MMU.IO_LCD_Y, true) == 144) {
+            if (memory.readByte(MMU.IO_LCD_Y, true) == SCREEN_HEIGHT) {
                 memory.writeIORegisterBit(MMU.IO_INTERRUPT_FLAG, core.cpu.Flags.IRQ_VBLANK.getMask(), true);
-                screen_buffer_tmp.flip();
                 screen_buffer.clear();
-                screen_buffer.put(screen_buffer_tmp);
+                for (ColorShade[] scanline : background_buffer) {
+                    for (ColorShade colorShade : scanline) {
+                        screen_buffer.put((byte) colorShade.getColor().getRed());
+                        screen_buffer.put((byte) colorShade.getColor().getGreen());
+                        screen_buffer.put((byte) colorShade.getColor().getBlue());
+                        screen_buffer.put((byte) colorShade.getColor().getAlpha());
+                    }
+                }
                 screen_buffer.flip();
-                //Ready to be displayed
             }
 
             if (memory.readByte(MMU.IO_LCD_Y, true) == 153) {
@@ -69,7 +87,7 @@ public class PPU {
             fillWindowLayer();
             fillSpriteLayer();
 
-            if (memory.readByte(MMU.IO_LCD_Y, true) == 143)
+            if (memory.readByte(MMU.IO_LCD_Y, true) == SCREEN_HEIGHT - 1)
                 memory.writeLcdMode(LCDMode.V_BLANK);
             else
                 memory.writeLcdMode(LCDMode.OAM);
@@ -115,7 +133,35 @@ public class PPU {
     }
 
     private void fillBackgroundLayer() {
-        //TODO
+        if (!memory.readIORegisterBit(MMU.IO_LCD_CONTROL, Flags.CONTROL_BG_ON.getMask(), true))
+            return;
+
+        int lcdY = memory.readByte(MMU.IO_LCD_Y, true);
+        int scrollY = memory.readByte(MMU.IO_SCROLL_Y, true);
+        int scrollX = memory.readByte(MMU.IO_SCROLL_X, true);
+
+        int bgTileYStart = ((scrollY + lcdY) >> 3) >= 0x1F ? ((scrollY + lcdY) >> 3) & 0x1F : ((scrollY + lcdY) >> 3);
+        int bgTileYOffset = (scrollY + lcdY) & 0x7;
+
+        int bgTileXStart = scrollX >> 3;
+        int bgTileXOffset = scrollX & 0x7;
+
+        bgPal = palettes.getBgPalette();
+        BackgroundMaps.BackgroundMap currentBGMap = bgMaps.getBGMap();
+
+        for (int i = 0; i <= 20; i++) {
+            int tileId = bgTileXStart + i >= 0x1F ? (bgTileXStart + i) & 0x1F : bgTileXStart + i;
+            int currentTileId = currentBGMap.data[bgTileYStart][tileId];
+            TileCollection.Tile currentTile = tileList.getBGTile(currentTileId);
+
+            for (int j = 0; j < 8; j++) {
+                if (i == 0 && j < bgTileXOffset) continue;
+                if (i == 20 && j >= bgTileXOffset) continue;
+
+                ColorShade color = bgPal.colors[currentTile.data[bgTileYOffset][j]];
+                background_buffer[lcdY][(i << 3) + j - bgTileXOffset] = color;
+            }
+        }
     }
 
     public void reset() {

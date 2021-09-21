@@ -728,7 +728,7 @@ public class LR35902 {
         de.write(0x00D8);
         hl.write(0x014D);
         sp.write(0xFFFE);
-        pc.write(0x0100);
+        pc.write(0x0000);
         remaining_cycle_until_op = 0;
     }
 

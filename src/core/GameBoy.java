@@ -10,8 +10,8 @@ public class GameBoy {
     private final PPU ppu;
     private final Timer timer;
 
-    public GameBoy() {
-        memory = new MMU();
+    public GameBoy(String bootstap) {
+        memory = new MMU(bootstap);
         cpu = new LR35902(memory);
         ppu = new PPU(memory);
         timer = new Timer(memory);

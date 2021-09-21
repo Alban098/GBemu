@@ -3,6 +3,15 @@ package core;
 import core.cartridge.Cartridge;
 import core.ppu.Flags;
 import core.ppu.LCDMode;
+import core.ppu.helper.IMMUListener;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
 
 public class MMU {
 
@@ -15,12 +24,14 @@ public class MMU {
     public static final int IO_TAC                = 0xFF07;
     public static final int IO_LCD_CONTROL        = 0xFF40;
     public static final int IO_LCD_STAT           = 0xFF41;
+    public static final int IO_SCROLL_Y           = 0xFF42;
+    public static final int IO_SCROLL_X           = 0xFF43;
     public static final int IO_LCD_Y              = 0xFF44;
     public static final int IO_LCD_YC             = 0xFF45;
     public static final int IO_DMA                = 0xFF46;
     public static final int IO_BG_PAL             = 0xFF47;
-    public static final int IO_OB_PAL0            = 0xFF48;
-    public static final int IO_OB_PAL1            = 0xFF49;
+    public static final int IO_OBJ_PAL0           = 0xFF48;
+    public static final int IO_OBJ_PAL1           = 0xFF49;
     public static final int IO_INTERRUPT_FLAG     = 0xFF0F;
     public static final int INTERRUPT_ENABLED     = 0xFFFF;
 
@@ -30,19 +41,47 @@ public class MMU {
     public static final int IRQ_SERIAL_VECTOR     = 0x58;
     public static final int IRQ_INPUT_VECTOR      = 0x60;
 
+    public static final int TILE_DATA0_START      = 0x8800;
+    public static final int TILE_DATA0_END        = 0x97FF;
+    public static final int TILE_DATA1_START      = 0x8000;
+    public static final int TILE_DATA1_END        = 0x8FFF;
+    public static final int BG_MAP0_START         = 0x9800;
+    public static final int BG_MAP0_END           = 0x9BFF;
+    public static final int BG_MAP1_START         = 0x9C00;
+    public static final int BG_MAP1_END           = 0x9FFF;
+    public static final int OAM_START             = 0xFE00;
+    public static final int OAM_END               = 0xFE9F;
+
+    private final List<IMMUListener> listeners;
+
 
     private Cartridge cartridge;
     private LCDMode ppuMode = LCDMode.H_BLANK;
     private final int[] memory;
     private StringBuilder serialOutput;
 
-    public MMU() {
+    public MMU(String bootstrap) {
         memory = new int[0x10000];
         serialOutput = new StringBuilder();
+        listeners = new ArrayList<>();
+        loadBootstrap(bootstrap);
+    }
+
+    public void addListener(IMMUListener listener) {
+        listeners.add(listener);
     }
 
     public void loadCart(String file) {
         cartridge = new Cartridge(file);
+    }
+
+    private void loadBootstrap(String file) {
+        Path path = Paths.get(file);
+
+        byte[] bytes = new byte[0];
+        try { bytes = Files.readAllBytes(path); } catch (IOException e) { e.printStackTrace(); }
+        for (int i = 0; i < 0x0100; i++)
+            writeRaw(i, (int)bytes[i] & 0xFF);
     }
 
     public int readByte(int addr) {
@@ -51,7 +90,9 @@ public class MMU {
 
     public int readByte(int addr, boolean fromPPU) {
         addr &= 0xFFFF;
-        if(addr <= 0x7FFF)
+        if (addr <= 0x00FF)
+            return memory[addr];
+        else if(addr <= 0x7FFF)
             return cartridge.read(addr);
         else if(addr <= 0x9FFF && !fromPPU && ppuMode == LCDMode.TRANSFER)
             return 0xFF;
@@ -87,6 +128,9 @@ public class MMU {
             cartridge.switchRomBank(data);
         else
             memory[addr] = data;
+
+        for (IMMUListener listener : listeners)
+            listener.onWriteToMMU(addr, data);
     }
 
     private void executeDmaTransfer(int data) {
