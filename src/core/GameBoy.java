@@ -4,8 +4,13 @@ import core.apu.APU;
 import core.cpu.LR35902;
 import core.memory.MMU;
 import core.ppu.PPU;
+import main.Main;
 
 public class GameBoy {
+
+    public static final boolean DEBUG = true;
+    public static final boolean ENABLE_BOOTSTRAP = true;
+
 
     private final MMU memory;
     private final LR35902 cpu;
@@ -20,7 +25,8 @@ public class GameBoy {
         ppu = new PPU(memory);
         apu = new APU(memory);
         timer = new Timer(memory);
-        reset();
+        if (!GameBoy.DEBUG)
+            currentState = GameBoyState.RUNNING;
     }
 
     public void insertCartridge(String file) {
@@ -34,6 +40,8 @@ public class GameBoy {
         memory.writeRaw(MMU.IF, 0xE1);
         memory.writeRaw(MMU.IE, 0x00);
         memory.writeRaw(MMU.STAT, 0x81);
+        memory.writeRaw(MMU.DIV, 0x18);
+        memory.writeRaw(MMU.TAC, 0xF8);
     }
 
     public MMU getMemory() {
@@ -52,20 +60,17 @@ public class GameBoy {
         return apu;
     }
 
-    public void clock() {
-        cpu.clock();
+    public boolean clock() {
+        boolean instr_complete = cpu.clock();
         ppu.clock();
         apu.clock();
         timer.clock();
+        return instr_complete;
     }
 
-    public void executeInstruction(int nb_instr) {
-        for (int i = 0; i < nb_instr; i++) {
-            while (!cpu.clock()) {
-                ppu.clock();
-                apu.clock();
-                timer.clock();
-            }
+    public void executeInstruction(int nb_instr, boolean force) {
+        for (int i = 0; i < nb_instr && (currentState == GameBoyState.RUNNING || force); i++) {
+            while (!clock());
         }
     }
 

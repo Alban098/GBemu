@@ -1,6 +1,5 @@
 package core.apu.channels;
 
-import core.Flags;
 import core.apu.APU;
 import core.apu.channels.component.Envelope;
 import core.apu.channels.component.LengthCounter;
@@ -70,7 +69,7 @@ public class SquareChannel {
         selectedDuty = (memory.readByte(nrX1_register) & nrX1_patternDutyFlag) >> 6;
 
         int length = 64 - (memory.readByte(nrX1_register) & nrX1_soundLengthFlag);
-        boolean lengthStop = memory.readIORegisterBit(nrX4_register, nrX4_loopFlag, true);
+        boolean lengthStop = memory.readIORegisterBit(nrX4_register, nrX4_loopFlag);
         lengthCounter.setLength(length, lengthStop);
 
         int envelopeData = memory.readByte(nrX2_register);

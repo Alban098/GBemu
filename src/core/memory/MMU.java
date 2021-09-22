@@ -6,6 +6,7 @@ import core.GameBoyState;
 import core.cartridge.Cartridge;
 import core.ppu.LCDMode;
 import core.ppu.helper.IMMUListener;
+import main.Main;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -138,7 +139,7 @@ public class MMU {
     public void writeByte(int addr, int data) {
         addr &= 0xFFFF;
         data &= 0xFF;
-        if (breakpoints.contains(addr))
+        if (GameBoy.DEBUG && breakpoints.contains(addr))
             gameBoy.setState(GameBoyState.DEBUG);
         if (addr == SC && data == 0x81) {
             char c = (char) readByte(SB);
@@ -148,10 +149,8 @@ public class MMU {
 
         if(addr == LY)
             memory[addr] = 0;
-        else if(addr == DIV) {
-            memory[IO_INTERNAL_CLK_LOW] = 0;
+        else if(addr == DIV)
             memory[addr] = 0;
-        }
         else if(addr == DMA)
             executeDmaTransfer(data);
         else if(addr == P1)
@@ -179,8 +178,8 @@ public class MMU {
         memory[addr] = data & 0xFF;
     }
 
-    public boolean readIORegisterBit(int reg, int flag, boolean ppuAccess) {
-        return (readByte(reg, ppuAccess) & flag) == flag;
+    public boolean readIORegisterBit(int reg, int flag) {
+        return (readByte(reg) & flag) == flag;
     }
 
     public void writeIORegisterBit(int register, int flag, boolean value) {

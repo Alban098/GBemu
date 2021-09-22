@@ -36,7 +36,7 @@ public class BackgroundMaps implements IMMUListener {
     }
 
     private BackgroundMap getMap(int flags) {
-        int addr = memory.readIORegisterBit(MMU.LCDC, flags, true) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START;
+        int addr = memory.readIORegisterBit(MMU.LCDC, flags) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START;
         if (addr == MMU.BG_MAP0_START) {
             if (map0Updated) {
                 loadMap(map0, addr);

@@ -9,6 +9,7 @@ import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
+import main.Main;
 import openGL.Texture;
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
@@ -52,7 +53,7 @@ public class Window {
         this.gameBoy = gameBoy;
     }
 
-    public void init() throws LineUnavailableException {
+    public void init() {
         initWindow();
         initImGui();
         imGuiGlfw.init(windowPtr, true);
@@ -108,23 +109,28 @@ public class Window {
     public void run() {
         while (!glfwWindowShouldClose(windowPtr)) {
 
-            if (gameBoy.getState() == GameBoyState.RUNNING)
+            if (GameBoy.DEBUG) {
+                if (gameBoy.getState() == GameBoyState.RUNNING)
+                    //gameBoy.executeInstruction(1000, false);
+                    gameBoy.executeFrame();
+                if (gameBoy.getState() == GameBoyState.DEBUG) {
+                    if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
+                        gameBoy.executeInstruction(1, true);
+                        isSpacePressed = true;
+                    }
+                    if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
+                        isSpacePressed = false;
+                    if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_PRESS && !isFPressed) {
+                        gameBoy.forceFrame();
+                        isFPressed = true;
+                    }
+                    if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_RELEASE && isFPressed)
+                        isFPressed = false;
+                    if (glfwGetKey(windowPtr, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
+                        gameBoy.executeInstruction(1000, false);
+                }
+            } else {
                 gameBoy.executeFrame();
-            if (gameBoy.getState() == GameBoyState.DEBUG) {
-                if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
-                    gameBoy.executeInstruction(1);
-                    isSpacePressed = true;
-                }
-                if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
-                    isSpacePressed = false;
-                if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_PRESS && !isFPressed) {
-                    gameBoy.forceFrame();
-                    isFPressed = true;
-                }
-                if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_RELEASE && isFPressed)
-                    isFPressed = false;
-                if (glfwGetKey(windowPtr, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
-                    gameBoy.executeInstruction(1000);
             }
 
             glClearColor(0.1f, 0.09f, 0.1f, 1.0f);
@@ -134,10 +140,13 @@ public class Window {
             imGuiGlfw.newFrame();
             ImGui.newFrame();
             gameRendererLayer.imgui(screen_texture);
-            cpuLayer.imgui(gameBoy);
-            memoryLayer.imgui(gameBoy);
-            serialOutputLayer.imgui(gameBoy);
-            consoleLayer.imgui(gameBoy);
+
+            if (GameBoy.DEBUG) {
+                cpuLayer.imgui(gameBoy);
+                memoryLayer.imgui(gameBoy);
+                serialOutputLayer.imgui(gameBoy);
+                consoleLayer.imgui(gameBoy);
+            }
 
             ImGui.render();
             imGuiGl3.renderDrawData(ImGui.getDrawData());

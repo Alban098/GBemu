@@ -5,54 +5,55 @@ import core.memory.MMU;
 
 public class Timer {
 
+    //C36F halt
+
     private final MMU memory;
-    private boolean timaStarted = false;
-    private boolean lastPulse = false;
-    private boolean pendingIrq = false;
+    private int clockDiv = 0;
+    private int clockTima = 0;
+    private int pendingOverflow = -1;
 
     public Timer(MMU memory) {
         this.memory = memory;
     }
 
     public void clock() {
-        int clock = (((memory.readByte(MMU.DIV) << 8) | memory.readByte(MMU.IO_INTERNAL_CLK_LOW)) + 1) & 0xFFFF;
-        memory.writeRaw(MMU.DIV, (clock & 0xFF00) >> 8);
-        memory.writeRaw(MMU.IO_INTERNAL_CLK_LOW, clock & 0x00FF);
-
-        computeTIMA(clock);
-    }
-
-    public void computeTIMA(int clock) {
-        if (!timaStarted)
-            timaStarted = true;
-
-        int bit = (LR35902.CPU_CYCLES_PER_SEC / getTimerFreq()) >> 1;
-        triggerTimerOverflowIrq();
-        boolean currentPulse = (clock & bit) != 0;
-        if (lastPulse && !currentPulse) {
-            int timer = (memory.readByte(MMU.TIMA) + 1) & 0xFF;
-            pendingIrq = timer == 0x00;
-            memory.writeByte(MMU.TIMA, timer);
+        clockDiv++;
+        clockTima++;
+        if (pendingOverflow >= 0)
+            triggerInterrupt();
+        if (clockDiv > 256) {//16384Hz
+            memory.writeRaw(MMU.DIV, (memory.readByte(MMU.DIV) + 1) & 0xFF);
+            clockDiv = 0;
         }
-        lastPulse = currentPulse;
+        if (memory.readIORegisterBit(MMU.TAC, Flags.TAC_ENABLED)) {
+            int clockLength = getTimerFreqDivider();
+            if (clockTima >= clockLength) {
+                int tima = memory.readByte(MMU.TIMA);
+                tima = (tima + 1) & 0xFF;
+                memory.writeRaw(MMU.TIMA, tima);
+                if (tima == 0x00)
+                    pendingOverflow = 4;
+                clockTima = 0;
+            }
+        }
     }
 
-    public int getTimerFreq() {
+    public int getTimerFreqDivider() {
         int freq = memory.readByte(MMU.TAC) & Flags.TAC_CLOCK;
         return switch (freq) {
-            case 0 -> 4096;
-            case 1 -> 262144;
-            case 2 -> 65536;
-            case 3 -> 16384;
-            default -> 0;
+            case 0 -> 1024;
+            case 1 -> 16;
+            case 2 -> 64;
+            case 3 -> 256;
+            default -> 1;
         };
     }
 
-    public void triggerTimerOverflowIrq() {
-        if (pendingIrq) {
-            pendingIrq = false;
-            memory.writeByte(MMU.TIMA, memory.readByte(MMU.TIMA));
+    public void triggerInterrupt() {
+        if (pendingOverflow == 0) {
+            memory.writeByte(MMU.TIMA, memory.readByte(MMU.TMA));
             memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, true);
         }
+        pendingOverflow--;
     }
 }

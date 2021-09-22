@@ -1,3 +1,5 @@
+package main;
+
 import core.GameBoy;
 import core.GameBoyState;
 import gui.Window;
@@ -11,10 +13,9 @@ import javax.sound.sampled.LineUnavailableException;
 public class Main {
 
     private static AudioContext ac;
-    private static JavaSoundAudioIO jsaIO;
 
     public static void main(String[] args) throws LineUnavailableException {
-        String rom = "02-interrupts.gb";
+        String rom = "OK-03-op sp,hl.gb";
         GameBoy gb = new GameBoy("roms\\DMG_ROM.bin");
         gb.insertCartridge("roms\\" + rom);
         launchSoundEngine(gb);
@@ -22,13 +23,14 @@ public class Main {
         window.init();
         window.run();
         window.destroy();
-        ac.stop();
+        if (ac != null)
+            ac.stop();
     }
 
     public static void launchSoundEngine(GameBoy gameBoy) {
-        jsaIO = new JavaSoundAudioIO();
+        JavaSoundAudioIO jsaIO = new JavaSoundAudioIO();
         JavaSoundAudioIO.printMixerInfo();
-        jsaIO.selectMixer(10);
+        jsaIO.selectMixer(3);
         ac = new AudioContext(jsaIO);
         Function audioProcessor = new Function(new WaveShaper(ac)) {
             public float calculate() {

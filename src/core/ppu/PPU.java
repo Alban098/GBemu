@@ -43,7 +43,7 @@ public class PPU {
     }
 
     public void clock() {
-        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON, true))
+        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
             return;
         cycles++;
         switch (memory.readLcdMode()) {
@@ -83,7 +83,7 @@ public class PPU {
 
     private void processHBlank() {
         if (cycles >= LR35902.CPU_CYCLES_PER_H_BLANK) {
-            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_HBLANK_IRQ_ON, true))
+            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_HBLANK_IRQ_ON))
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
 
             fillBackgroundLayer();
@@ -109,7 +109,7 @@ public class PPU {
 
     private void processOam() {
         if (cycles >= LR35902.CPU_CYCLES_PER_OAM) {
-            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_OAM_IRQ_ON, true))
+            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_OAM_IRQ_ON))
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
 
             int lcd_y = memory.readByte(MMU.LY, true);
@@ -117,7 +117,7 @@ public class PPU {
 
             if (lcd_y == lcd_yc) {
                 memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, true);
-                if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_IRQ, true))
+                if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_IRQ))
                     memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
             } else {
                 memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, false);
@@ -136,7 +136,7 @@ public class PPU {
     }
 
     private void fillBackgroundLayer() {
-        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_ON, true))
+        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_ON))
             return;
 
         int lcdY = memory.readByte(MMU.LY, true);

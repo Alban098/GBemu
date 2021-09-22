@@ -7,6 +7,7 @@ import core.memory.MMU;
 import core.apu.APU;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
+import main.Main;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -80,7 +81,7 @@ public class LR35902 {
         l = hl.getLow();
 
         sp = new RegisterWord(0xFFFE);
-        pc = new RegisterWord(0x0000);
+        pc = new RegisterWord(GameBoy.ENABLE_BOOTSTRAP ? 0 : 0x0100);
 
         tmp_reg = new RegisterByte(0x00);
         this.memory = memory;
@@ -623,29 +624,38 @@ public class LR35902 {
     }
 
     public boolean clock() {
-        boolean returnVal = false;
-
         if (!halted) {
             if (remaining_cycle_until_op == 0) {
-                remaining_cycle_until_op = next_instr.operate() / 4;
+                remaining_cycle_until_op = next_instr.operate();
+                if (handleInterrupts()) {
+                    next_instr = fetchInstruction();
+                    createDebugInfo();
+                    return true;
+                }
                 next_instr = fetchInstruction();
-                if (breakpoints.contains(next_instr.addr))
+                if (GameBoy.DEBUG && breakpoints.contains(next_instr.addr))
                     gameBoy.setState(GameBoyState.DEBUG);
                 decompile();
                 cpuState.set(af, bc, de, hl, sp, pc, next_instr);
-                returnVal = true;
+                return true;
             } else {
                 remaining_cycle_until_op--;
             }
+            return false;
         }
         if (handleInterrupts()) {
             next_instr = fetchInstruction();
+            createDebugInfo();
+            return true;
+        }
+        return false;
+    }
+
+    private void createDebugInfo() {
+        if (GameBoy.DEBUG) {
             decompile();
             cpuState.set(af, bc, de, hl, sp, pc, next_instr);
-            returnVal = true;
         }
-
-        return returnVal;
     }
 
     public boolean handleInterrupts() {
@@ -653,43 +663,41 @@ public class LR35902 {
         if (IME || halted) {
             int interruptRequest = readByte(MMU.IF) & readByte(MMU.IE) & 0x1F;
             if (interruptRequest != 0) {
-                IME = false;
-                if ((interruptRequest & Flags.IF_VBLANK_IRQ) == Flags.IF_VBLANK_IRQ) {
-                    memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, false);
-                    pushStack(pc.read());
-                    pc.write(MMU.IRQ_V_BLANK_VECTOR);
-                    halted = false;
-                    remaining_cycle_until_op = 8;
-                    return true;
-                } else if ((interruptRequest & Flags.IF_LCD_STAT_IRQ) == Flags.IF_LCD_STAT_IRQ) {
-                    memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, false);
-                    pushStack(pc.read());
-                    pc.write(MMU.IRQ_LCD_VECTOR);
-                    halted = false;
-                    remaining_cycle_until_op = 8;
-                    return true;
-                } else if ((interruptRequest & Flags.IF_TIMER_IRQ) == Flags.IF_TIMER_IRQ) {
-                    memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, false);
-                    pushStack(pc.read());
-                    pc.write(MMU.IRQ_TIMER_VECTOR);
-                    halted = false;
-                    remaining_cycle_until_op = 8;
-                    return true;
-                } else if ((interruptRequest & Flags.IF_SERIAL_IRQ) == Flags.IF_SERIAL_IRQ) {
-                    memory.writeIORegisterBit(MMU.IF, Flags.IF_SERIAL_IRQ, false);
-                    pushStack(pc.read());
-                    pc.write(MMU.IRQ_SERIAL_VECTOR);
-                    halted = false;
-                    remaining_cycle_until_op = 8;
-                    return true;
-                } else if ((interruptRequest & Flags.IF_JOYPAD_IRQ) == Flags.IF_JOYPAD_IRQ) {
-                    memory.writeIORegisterBit(MMU.IF, Flags.IF_JOYPAD_IRQ, false);
-                    pushStack(pc.read());
-                    pc.write(MMU.IRQ_INPUT_VECTOR);
-                    halted = false;
-                    remaining_cycle_until_op = 8;
-                    return true;
+                if (IME && !halted) {
+                    IME = false;
+                    if ((interruptRequest & Flags.IF_VBLANK_IRQ) == Flags.IF_VBLANK_IRQ) {
+                        memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, false);
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_V_BLANK_VECTOR);
+                        remaining_cycle_until_op = 8;
+                        return true;
+                    } else if ((interruptRequest & Flags.IF_LCD_STAT_IRQ) == Flags.IF_LCD_STAT_IRQ) {
+                        memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, false);
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_LCD_VECTOR);
+                        remaining_cycle_until_op = 8;
+                        return true;
+                    } else if ((interruptRequest & Flags.IF_TIMER_IRQ) == Flags.IF_TIMER_IRQ) {
+                        memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, false);
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_TIMER_VECTOR);
+                        remaining_cycle_until_op = 8;
+                        return true;
+                    } else if ((interruptRequest & Flags.IF_SERIAL_IRQ) == Flags.IF_SERIAL_IRQ) {
+                        memory.writeIORegisterBit(MMU.IF, Flags.IF_SERIAL_IRQ, false);
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_SERIAL_VECTOR);
+                        remaining_cycle_until_op = 8;
+                        return true;
+                    } else if ((interruptRequest & Flags.IF_JOYPAD_IRQ) == Flags.IF_JOYPAD_IRQ) {
+                        memory.writeIORegisterBit(MMU.IF, Flags.IF_JOYPAD_IRQ, false);
+                        pushStack(pc.read());
+                        pc.write(MMU.IRQ_INPUT_VECTOR);
+                        remaining_cycle_until_op = 8;
+                        return true;
+                    }
                 }
+                halted = false;
             }
         }
         return false;
@@ -757,8 +765,8 @@ public class LR35902 {
         de.write(0x00D8);
         hl.write(0x014D);
         sp.write(0xFFFE);
-        pc.write(0x0000);
-        memory.writeRaw(MMU.BOOTSTRAP_CONTROL, 0);
+        pc.write(GameBoy.ENABLE_BOOTSTRAP ? 0 : 0x0100);
+        memory.writeRaw(MMU.BOOTSTRAP_CONTROL, GameBoy.ENABLE_BOOTSTRAP ? 0 : 1);
         remaining_cycle_until_op = 0;
         IME = false;
     }

@@ -4,21 +4,24 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 
 public class Cartridge {
 
     private final int[] rom;
     private final int[] ram;
 
+    private int selectedBank = 1;
+
     public Cartridge(String file) {
-        rom = new int[0x8000];
-        ram = new int[0x2000];
         Path path = Paths.get(file);
 
         byte[] bytes = new byte[0];
         try { bytes = Files.readAllBytes(path); } catch (IOException e) { e.printStackTrace(); }
-        for (int i = 0; i < 0x8000; i++) {
+
+        rom = new int[bytes.length];
+        ram = new int[0x2000];
+
+        for (int i = 0; i < bytes.length; i++) {
             rom[i] = ((int)bytes[i]) & 0xFF;
         }
     }

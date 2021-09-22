@@ -25,7 +25,7 @@ public class TileCollection implements IMMUListener {
     }
 
     public Tile getBGTile(int tileId) {
-        return memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA, true) ? getTile(MMU.TILE_DATA1_START, tileId) : getTile(MMU.TILE_DATA0_START, signedByte(tileId) + 128);
+        return memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA) ? getTile(MMU.TILE_DATA1_START, tileId) : getTile(MMU.TILE_DATA0_START, signedByte(tileId) + 128);
     }
 
     public void onWriteToMMU(int addr, int data) {
