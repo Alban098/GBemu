@@ -108,14 +108,12 @@ public class Window {
 
     public void run() {
         while (!glfwWindowShouldClose(windowPtr)) {
-
             if (GameBoy.DEBUG) {
                 if (gameBoy.getState() == GameBoyState.RUNNING)
-                    //gameBoy.executeInstruction(1000, false);
                     gameBoy.executeFrame();
                 if (gameBoy.getState() == GameBoyState.DEBUG) {
                     if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
-                        gameBoy.executeInstruction(1, true);
+                        gameBoy.executeInstructions(1, true);
                         isSpacePressed = true;
                     }
                     if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
@@ -127,7 +125,7 @@ public class Window {
                     if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_RELEASE && isFPressed)
                         isFPressed = false;
                     if (glfwGetKey(windowPtr, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
-                        gameBoy.executeInstruction(1000, false);
+                        gameBoy.executeInstructions(1000, false);
                 }
             } else {
                 gameBoy.executeFrame();
@@ -157,7 +155,6 @@ public class Window {
                 ImGui.renderPlatformWindowsDefault();
                 GLFW.glfwMakeContextCurrent(backupWindowPtr);
             }
-
             GLFW.glfwSwapBuffers(windowPtr);
             GLFW.glfwPollEvents();
         }

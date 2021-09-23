@@ -14,8 +14,8 @@ public class Main {
 
     private static AudioContext ac;
 
-    public static void main(String[] args) throws LineUnavailableException {
-        String rom = "OK-03-op sp,hl.gb";
+    public static void main(String[] args) throws Exception {
+        String rom = "OK-01-special.gb";
         GameBoy gb = new GameBoy("roms\\DMG_ROM.bin");
         gb.insertCartridge("roms\\" + rom);
         launchSoundEngine(gb);
@@ -30,7 +30,7 @@ public class Main {
     public static void launchSoundEngine(GameBoy gameBoy) {
         JavaSoundAudioIO jsaIO = new JavaSoundAudioIO();
         JavaSoundAudioIO.printMixerInfo();
-        jsaIO.selectMixer(3);
+        jsaIO.selectMixer(10);
         ac = new AudioContext(jsaIO);
         Function audioProcessor = new Function(new WaveShaper(ac)) {
             public float calculate() {

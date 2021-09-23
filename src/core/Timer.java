@@ -1,11 +1,8 @@
 package core;
 
-import core.cpu.LR35902;
 import core.memory.MMU;
 
 public class Timer {
-
-    //C36F halt
 
     private final MMU memory;
     private int clockDiv = 0;
@@ -16,24 +13,24 @@ public class Timer {
         this.memory = memory;
     }
 
-    public void clock() {
-        clockDiv++;
-        clockTima++;
+    public void clock(int mcycles) {
+        clockDiv += mcycles;
+        clockTima += mcycles;
         if (pendingOverflow >= 0)
-            triggerInterrupt();
-        if (clockDiv > 256) {//16384Hz
+            triggerInterrupt(mcycles);
+        if (clockDiv > 256) {
             memory.writeRaw(MMU.DIV, (memory.readByte(MMU.DIV) + 1) & 0xFF);
-            clockDiv = 0;
+            clockDiv -= 256;
         }
         if (memory.readIORegisterBit(MMU.TAC, Flags.TAC_ENABLED)) {
             int clockLength = getTimerFreqDivider();
-            if (clockTima >= clockLength) {
+            while (clockTima >= clockLength) {
                 int tima = memory.readByte(MMU.TIMA);
                 tima = (tima + 1) & 0xFF;
                 memory.writeRaw(MMU.TIMA, tima);
                 if (tima == 0x00)
                     pendingOverflow = 4;
-                clockTima = 0;
+                clockTima -= clockLength;
             }
         }
     }
@@ -49,11 +46,11 @@ public class Timer {
         };
     }
 
-    public void triggerInterrupt() {
-        if (pendingOverflow == 0) {
+    public void triggerInterrupt(int mcycles) {
+        if (pendingOverflow <= 0) {
             memory.writeByte(MMU.TIMA, memory.readByte(MMU.TMA));
             memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, true);
         }
-        pendingOverflow--;
+        pendingOverflow -= mcycles;
     }
 }

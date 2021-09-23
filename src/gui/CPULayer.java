@@ -24,7 +24,7 @@ public class CPULayer {
 
     public void imgui(GameBoy gameBoy) {
         ImGui.begin("Debug");
-        ImGui.setWindowSize(580, 500);
+        ImGui.setWindowSize(580, 450);
 
         ImGui.separator();
         ImGui.setNextItemOpen(true);
@@ -134,12 +134,10 @@ public class CPULayer {
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         if (ImGui.treeNode("Code Execution")) {
-            ImGui.beginChild("Scrolling", 530, 256);
             Queue<LR35902.Instruction> instructions = gameBoy.getCpu().getInstructionQueue();
             ImGui.textColored(255, 255, 0, 255, cpuState.getInstruction().toString());
             for (LR35902.Instruction instruction : instructions)
                 ImGui.text(instruction.toString());
-            ImGui.endChild();
             ImGui.treePop();
         }
 

@@ -27,6 +27,7 @@ public class PPU {
 
     private long cycles = 0;
     private boolean isFrameComplete;
+    private int off_cycles = 0;
 
 
     public PPU(MMU memory) {
@@ -42,10 +43,18 @@ public class PPU {
         return screen_buffer;
     }
 
-    public void clock() {
-        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
+    public void clock(int mcycles) {
+        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON)) {
+            //prevent rendering routine from getting stuck when LCD is off
+            off_cycles+= mcycles;
+            if (off_cycles >= LR35902.CPU_CYCLES_PER_FRAME) {
+                screen_buffer.clear();
+                isFrameComplete = true;
+                off_cycles -= LR35902.CPU_CYCLES_PER_FRAME;
+            }
             return;
-        cycles++;
+        }
+        cycles += mcycles;
         switch (memory.readLcdMode()) {
             case OAM -> processOam();
             case TRANSFER -> processTransfer();

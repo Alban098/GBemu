@@ -7,7 +7,7 @@ import core.memory.MMU;
 import core.apu.APU;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
-import main.Main;
+import debug.Logger;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -18,7 +18,7 @@ import static core.BitUtils.*;
 public class LR35902 {
 
     public static final int CPU_CYCLES_PER_SEC = 4194304;
-    public static final int CPU_CYCLES_PER_FRAME = 70368;
+    public static final int CPU_CYCLES_PER_FRAME = CPU_CYCLES_PER_SEC/60;
     public static final int CPU_CYCLES_PER_H_BLANK = 204;
     public static final int CPU_CYCLES_PER_V_BLANK = 456;
     public static final int CPU_CYCLES_PER_OAM = 80;
@@ -28,7 +28,7 @@ public class LR35902 {
     public static final int CPU_CYCLES_64HZ = CPU_CYCLES_PER_SEC / 64;
     public static final int CPU_CYCLES_PER_SAMPLE = CPU_CYCLES_PER_SEC / (APU.SAMPLE_RATE + 250);
 
-    private static final int DECOMPILE_SIZE = 0x20;
+    private static final int DECOMPILE_SIZE = 0x08;
     private final List<Instruction> opcodes;
     private final List<Instruction> cb_opcodes;
 
@@ -54,7 +54,7 @@ public class LR35902 {
     private final MMU memory;
     private final Queue<Instruction> instructionQueue;
 
-    private int remaining_cycle_until_op = 0;
+    private int opcode_mcycle = 0;
     private boolean halted = false;
     private boolean IME = false;
     private Instruction next_instr;
@@ -623,32 +623,21 @@ public class LR35902 {
         breakpoints.remove(addr);
     }
 
-    public boolean clock() {
+    public int execute() {
         if (!halted) {
-            if (remaining_cycle_until_op == 0) {
-                remaining_cycle_until_op = next_instr.operate();
-                if (handleInterrupts()) {
-                    next_instr = fetchInstruction();
-                    createDebugInfo();
-                    return true;
-                }
-                next_instr = fetchInstruction();
-                if (GameBoy.DEBUG && breakpoints.contains(next_instr.addr))
-                    gameBoy.setState(GameBoyState.DEBUG);
-                decompile();
-                cpuState.set(af, bc, de, hl, sp, pc, next_instr);
-                return true;
-            } else {
-                remaining_cycle_until_op--;
+            opcode_mcycle = next_instr.operate();
+            handleInterrupts();
+            next_instr = fetchInstruction();
+            if (GameBoy.DEBUG && breakpoints.contains(next_instr.addr)) {
+                gameBoy.setState(GameBoyState.DEBUG);
+                Logger.log(Logger.Type.WARNING, "Beakpoint $" + String.format("%04X", next_instr.addr) + " reached");
             }
-            return false;
-        }
-        if (handleInterrupts()) {
+            createDebugInfo();
+        } else if (handleInterrupts()) {
             next_instr = fetchInstruction();
             createDebugInfo();
-            return true;
         }
-        return false;
+        return opcode_mcycle;
     }
 
     private void createDebugInfo() {
@@ -659,7 +648,6 @@ public class LR35902 {
     }
 
     public boolean handleInterrupts() {
-
         if (IME || halted) {
             int interruptRequest = readByte(MMU.IF) & readByte(MMU.IE) & 0x1F;
             if (interruptRequest != 0) {
@@ -669,31 +657,31 @@ public class LR35902 {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_V_BLANK_VECTOR);
-                        remaining_cycle_until_op = 8;
+                        opcode_mcycle = 8;
                         return true;
                     } else if ((interruptRequest & Flags.IF_LCD_STAT_IRQ) == Flags.IF_LCD_STAT_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_LCD_VECTOR);
-                        remaining_cycle_until_op = 8;
+                        opcode_mcycle = 8;
                         return true;
                     } else if ((interruptRequest & Flags.IF_TIMER_IRQ) == Flags.IF_TIMER_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_TIMER_VECTOR);
-                        remaining_cycle_until_op = 8;
+                        opcode_mcycle = 8;
                         return true;
                     } else if ((interruptRequest & Flags.IF_SERIAL_IRQ) == Flags.IF_SERIAL_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_SERIAL_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_SERIAL_VECTOR);
-                        remaining_cycle_until_op = 8;
+                        opcode_mcycle = 8;
                         return true;
                     } else if ((interruptRequest & Flags.IF_JOYPAD_IRQ) == Flags.IF_JOYPAD_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_JOYPAD_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_INPUT_VECTOR);
-                        remaining_cycle_until_op = 8;
+                        opcode_mcycle = 8;
                         return true;
                     }
                 }
@@ -767,7 +755,7 @@ public class LR35902 {
         sp.write(0xFFFE);
         pc.write(GameBoy.ENABLE_BOOTSTRAP ? 0 : 0x0100);
         memory.writeRaw(MMU.BOOTSTRAP_CONTROL, GameBoy.ENABLE_BOOTSTRAP ? 0 : 1);
-        remaining_cycle_until_op = 0;
+        opcode_mcycle = 0;
         IME = false;
     }
 
@@ -1958,8 +1946,6 @@ public class LR35902 {
 
     public int opcode_0x10_stop() {
         //STOP 0
-        pc.inc();
-        halted = true;
         return 4;
     }
 

@@ -6,6 +6,7 @@ import core.GameBoyState;
 import core.cartridge.Cartridge;
 import core.ppu.LCDMode;
 import core.ppu.helper.IMMUListener;
+import debug.Logger;
 import main.Main;
 
 import java.io.IOException;
@@ -81,6 +82,10 @@ public class MMU {
     public static final int OAM_START           = 0xFE00;
     public static final int OAM_END             = 0xFE9F;
 
+    public static final int TILE_BLOCK_0        = 0x8000;
+    public static final int TILE_BLOCK_1        = 0x8800;
+    public static final int TILE_BLOCK_2        = 0x9000;
+
     private final List<IMMUListener> listeners;
     private final GameBoy gameBoy;
 
@@ -90,7 +95,7 @@ public class MMU {
     private StringBuilder serialOutput;
 
     private final Set<Integer> breakpoints;
-
+    private int dma_remaining_cycles = 0;
 
     public MMU(String bootstrap, GameBoy gb) {
         gameBoy = gb;
@@ -105,7 +110,7 @@ public class MMU {
         listeners.add(listener);
     }
 
-    public void loadCart(String file) {
+    public void loadCart(String file) throws Exception {
         cartridge = new Cartridge(file);
     }
 
@@ -118,6 +123,12 @@ public class MMU {
             writeRaw(i, (int)bytes[i] & 0xFF);
     }
 
+    public void clock(int mcycles) {
+        if (dma_remaining_cycles > 0) {
+            dma_remaining_cycles -= mcycles;
+        }
+    }
+
     public int readByte(int addr) {
         return readByte(addr, false);
     }
@@ -128,9 +139,9 @@ public class MMU {
             return memory[addr];
         else if (addr <= 0x7FFF)
             return cartridge.read(addr);
-        else if (addr <= 0x9FFF && !fromPPU && ppuMode == LCDMode.TRANSFER)
+        else if (addr <= 0x9FFF && !fromPPU && ppuMode == LCDMode.TRANSFER && readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
             return 0xFF;
-        else if (addr >= 0xFE00 && addr <= 0xFE9F && !fromPPU && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM))
+        else if (addr >= 0xFE00 && addr <= 0xFE9F && !fromPPU && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
             return 0xFF;
         else
             return memory[addr];
@@ -139,8 +150,10 @@ public class MMU {
     public void writeByte(int addr, int data) {
         addr &= 0xFFFF;
         data &= 0xFF;
-        if (GameBoy.DEBUG && breakpoints.contains(addr))
+        if (GameBoy.DEBUG && breakpoints.contains(addr)) {
             gameBoy.setState(GameBoyState.DEBUG);
+            Logger.log(Logger.Type.WARNING, "Breakpoint for write to $" + String.format("%04X", addr) + " reached");
+        }
         if (addr == SC && data == 0x81) {
             char c = (char) readByte(SB);
             serialOutput.append(c);
@@ -157,8 +170,12 @@ public class MMU {
             memory[P1] = (data & 0x30) | (memory[P1] & 0xCF);
         else if(addr == STAT)
             memory[STAT] = (data & 0x7C) | (memory[STAT] & 0x03);
-        else if(addr >= 0x2000 && addr <= 0x3FFF)
-            cartridge.switchRomBank(data);
+        else if(addr <= 0x3FFF)
+            cartridge.write(addr, data);
+        else if (addr >= 0x8000 && addr <= 0x9FFF && (ppuMode == LCDMode.TRANSFER) && readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
+            return;
+        else if (addr >= 0xFE00 && addr <= 0xFE9F && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
+            return;
         else
             memory[addr] = data;
 

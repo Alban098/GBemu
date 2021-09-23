@@ -46,12 +46,12 @@ public class APU implements IMMUListener {
         square2 = new SquareChannel(memory, MMU.NR21, MMU.NR22, MMU.NR23, MMU.NR24, Flags.NR52_CHANNEL_1_ON, Flags.NR21_PATTERN_DUTY, Flags.NR21_SOUND_LENGTH, Flags.NR22_ENVELOPE_SWEEP_NB, Flags.NR22_ENVELOPE_VOLUME, Flags.NR22_ENVELOPE_DIR, Flags.NR24_LOOP_CHANNEL, Flags.NR24_FREQ_HIGH);
     }
 
-    public void clock() {
-        clockLength();
-        clockEnvelope();
-        clockSweep();
-        clockChannels();
-        clockSamples();
+    public void clock(int mcycles) {
+        clockLength(mcycles);
+        clockEnvelope(mcycles);
+        clockSweep(mcycles);
+        clockChannels(mcycles);
+        clockSamples(mcycles);
     }
 
     public void onWriteToMMU(int addr, int data) {
@@ -78,8 +78,8 @@ public class APU implements IMMUListener {
     }
 
 
-    private void clockLength() {
-        cycleLength++;
+    private void clockLength(int mcycles) {
+        cycleLength += mcycles;
         if (cycleLength >= LR35902.CPU_CYCLES_256HZ) {
             square1.tickLength();
             square2.tickLength();
@@ -87,8 +87,8 @@ public class APU implements IMMUListener {
         }
     }
 
-    private void clockEnvelope() {
-        cycleEnvelope++;
+    private void clockEnvelope(int mcycles) {
+        cycleEnvelope += mcycles;
         if (cycleEnvelope >= LR35902.CPU_CYCLES_64HZ) {
             square1.tickEnvelope();
             square2.tickEnvelope();
@@ -96,20 +96,20 @@ public class APU implements IMMUListener {
         }
     }
 
-    private void clockSweep() {
-        cycleSweep++;
+    private void clockSweep(int mcycles) {
+        cycleSweep += mcycles;
         if (cycleSweep >= LR35902.CPU_CYCLES_128HZ) {
             square1.tickSweep();
             cycleSweep -= LR35902.CPU_CYCLES_128HZ;
         }
     }
 
-    private void clockChannels() {
+    private void clockChannels(int mcycles) {
         square1.clock();
     }
 
-    private void clockSamples() {
-        cycle++;
+    private void clockSamples(int mcycles) {
+        cycle += mcycles;
         if (cycle >= LR35902.CPU_CYCLES_PER_SAMPLE) {
             float sample = (square1.sample + square2.sample) / 30f;
 
