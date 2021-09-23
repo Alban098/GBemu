@@ -2,21 +2,17 @@ package gui;
 
 import core.GameBoy;
 import core.GameBoyState;
-import core.apu.APU;
 import core.ppu.PPU;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
-import main.Main;
 import openGL.Texture;
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
-
-import javax.sound.sampled.*;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.glfw.GLFW.glfwGetKey;
@@ -34,11 +30,14 @@ public class Window {
     private final MemoryLayer memoryLayer;
     private final SerialOutputLayer serialOutputLayer;
     private final ConsoleLayer consoleLayer;
+    private final PPULayer tileMapLayer;
 
     private boolean isSpacePressed = false;
     private boolean isFPressed = false;
 
     private Texture screen_texture;
+    private Texture[] tileMaps_textures;
+    private Texture[] tileTables_textures;
 
     private final GameBoy gameBoy;
 
@@ -49,6 +48,7 @@ public class Window {
         memoryLayer = new MemoryLayer();
         serialOutputLayer = new SerialOutputLayer();
         consoleLayer = new ConsoleLayer();
+        tileMapLayer = new PPULayer();
 
         this.gameBoy = gameBoy;
     }
@@ -59,6 +59,15 @@ public class Window {
         imGuiGlfw.init(windowPtr, true);
         imGuiGl3.init(glslVersion);
         screen_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT, gameBoy.getPpu().getScreenBuffer());
+        tileMaps_textures = new Texture[]{
+                new Texture(256, 256, gameBoy.getPpu().getTileMaps()[0]),
+                new Texture(256, 256, gameBoy.getPpu().getTileMaps()[1])
+        };
+        tileTables_textures = new Texture[]{
+                new Texture(128, 64, gameBoy.getPpu().getTileTables()[0]),
+                new Texture(128, 64, gameBoy.getPpu().getTileTables()[1]),
+                new Texture(128, 64, gameBoy.getPpu().getTileTables()[2])
+        };
     }
 
     public void destroy() {
@@ -135,15 +144,22 @@ public class Window {
             glClear(GL_COLOR_BUFFER_BIT);
             screen_texture.load(gameBoy.getPpu().getScreenBuffer());
 
+
             imGuiGlfw.newFrame();
             ImGui.newFrame();
             gameRendererLayer.imgui(screen_texture);
 
             if (GameBoy.DEBUG) {
+                tileTables_textures[0].load(gameBoy.getPpu().getTileTables()[0]);
+                tileTables_textures[1].load(gameBoy.getPpu().getTileTables()[1]);
+                tileTables_textures[2].load(gameBoy.getPpu().getTileTables()[2]);
+                tileMaps_textures[0].load(gameBoy.getPpu().getTileMaps()[0]);
+                tileMaps_textures[1].load(gameBoy.getPpu().getTileMaps()[1]);
                 cpuLayer.imgui(gameBoy);
                 memoryLayer.imgui(gameBoy);
                 serialOutputLayer.imgui(gameBoy);
                 consoleLayer.imgui(gameBoy);
+                tileMapLayer.imgui(tileTables_textures, tileMaps_textures);
             }
 
             ImGui.render();
