@@ -1,15 +1,12 @@
 package core.ppu;
 
-import com.sun.jna.ptr.ByteByReference;
 import core.Flags;
 import core.GameBoy;
-import core.GameBoyState;
 import core.memory.MMU;
 import core.cpu.LR35902;
-import core.ppu.helper.BackgroundMaps;
 import core.ppu.helper.ColorPalettes;
 import core.ppu.helper.ColorShade;
-import core.ppu.helper.TileCollection;
+import core.ppu.helper.Sprite;
 import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
@@ -20,17 +17,14 @@ public class PPU {
 
     public static final int SCREEN_WIDTH = 160;
     public static final int SCREEN_HEIGHT = 144;
+    private static final int MAX_SPRITES_PER_SCANLINE = 10;
 
     private final ByteBuffer screen_buffer;
     private final ByteBuffer[] tileMaps;
     private final ByteBuffer[] tileTables;
-    private final ColorShade[][] background_buffer;
     private final MMU memory;
 
     private final ColorPalettes palettes;
-    private ColorPalettes.ColorPalette bgPal;
-    private final BackgroundMaps bgMaps;
-    private final TileCollection tileList;
 
     private long cycles = 0;
     private boolean isFrameComplete;
@@ -48,10 +42,7 @@ public class PPU {
                 BufferUtils.createByteBuffer(128 * 64 * 4),
                 BufferUtils.createByteBuffer(128 * 64 * 4)
         };
-        background_buffer = new ColorShade[SCREEN_HEIGHT][SCREEN_WIDTH];
         palettes = new ColorPalettes(memory);
-        bgMaps = new BackgroundMaps(memory);
-        tileList = new TileCollection(memory);
         this.memory = memory;
     }
 
@@ -84,47 +75,177 @@ public class PPU {
     }
 
     private void processVBlank() {
-        if (cycles >= LR35902.CPU_CYCLES_PER_V_BLANK) {
+        if (cycles >= LR35902.CPU_CYCLES_PER_V_BLANK_SCANLINE) {
+
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT) {
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, true);
-                screen_buffer.clear();
                 if (GameBoy.DEBUG) {
                     computeTileTables();
                     computeTileMaps();
-                }
-                for (ColorShade[] scanline : background_buffer) {
-                    for (ColorShade colorShade : scanline) {
-                        screen_buffer.put((byte) colorShade.getColor().getRed());
-                        screen_buffer.put((byte) colorShade.getColor().getGreen());
-                        screen_buffer.put((byte) colorShade.getColor().getBlue());
-                        screen_buffer.put((byte) colorShade.getColor().getAlpha());
-                    }
                 }
                 isFrameComplete = true;
                 screen_buffer.flip();
             }
 
-            if (memory.readByte(MMU.LY, true) == 153) {
+            if (memory.readByte(MMU.LY, true) == 154) {
+                screen_buffer.clear();
                 memory.writeRaw(MMU.LY, 0);
                 memory.writeLcdMode(LCDMode.OAM);
+                if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_OAM_IRQ_ON))
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
+                if (memory.readByte(MMU.LY, true) == memory.readByte(MMU.LYC, true)) {
+                    memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, true);
+                    if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_IRQ))
+                        memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
+                } else {
+                    memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, false);
+                }
             } else {
                 memory.writeRaw(MMU.LY, memory.readByte(MMU.LY, true) + 1);
             }
-            cycles -= LR35902.CPU_CYCLES_PER_V_BLANK;
+            cycles -= LR35902.CPU_CYCLES_PER_V_BLANK_SCANLINE;
         }
     }
 
     private void processHBlank() {
+        //This may be reworked if LCDC.tileTable can be change mid scanline, but I don't think so ??
         if (cycles >= LR35902.CPU_CYCLES_PER_H_BLANK) {
-            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_HBLANK_IRQ_ON))
-                memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
 
-            fillBackgroundLayer();
+            //Register reads
+            int y = memory.readByte(MMU.LY);
+            int scx = memory.readByte(MMU.SCX);
+            int scy = memory.readByte(MMU.SCY);
+            int wx = memory.readByte(MMU.WX);
+            int wy = memory.readByte(MMU.WY);
+            int spriteSize = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_SIZE) ? 16 : 8;
+            boolean mode1 = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
 
-            if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT - 1)
+            //Rendering banks base addresses
+            int tileBGMapAddr = (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_MAP) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START) | ((((y + scy) & 0xFF) & 0xF8) << 2);
+            int tileWINMapAddr = (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_MAP) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START) | (((y - wy) & 0xF8) << 2);
+            int oamAddr = MMU.OAM_START;
+
+            ColorShade bgColor = ColorShade.TRANSPARENT, winColor = ColorShade.TRANSPARENT, spriteColor = ColorShade.TRANSPARENT, finalColor;
+
+            //Temporary variables, declared here to increase reusability
+            int tileIdAddr, tileId, spriteY, spriteSubX, spriteSubY;
+            boolean spriteFlipX, spriteFlipY;
+            Sprite[] sprites = new Sprite[PPU.MAX_SPRITES_PER_SCANLINE];
+            for (int i = 0; i < PPU.MAX_SPRITES_PER_SCANLINE; i++)
+                sprites[i] = new Sprite();
+
+            /*
+                Sprites fetch
+                TODO sprites X priority
+                Sprites priority when Xs are equal is ensure by the reverse filling of the sprites array
+            */
+            int foundSprites = PPU.MAX_SPRITES_PER_SCANLINE - 1;
+            while(foundSprites >= 0 && oamAddr < MMU.OAM_END) {
+                spriteY = memory.readByte(oamAddr++);
+                if (spriteY - 16 <= y && spriteY - 16 + spriteSize > y) {
+                    sprites[foundSprites].y = spriteY;
+                    sprites[foundSprites].x = memory.readByte(oamAddr++);
+                    sprites[foundSprites].tileId = memory.readByte(oamAddr++);
+                    sprites[foundSprites].attributes = memory.readByte(oamAddr++);
+                    foundSprites++;
+                } else {
+                    oamAddr += 3;
+                }
+            }
+
+            for (int x = 0; x < 160; x++) {
+                //Background
+                if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_ON)) {
+                    tileIdAddr = tileBGMapAddr | (((x + scx) & 0xFF) >> 3);
+                    tileId = memory.readByte(tileIdAddr, true);
+                    if (!mode1)
+                        tileId = signedByte(tileId);
+                    bgColor = getTileColor(
+                            palettes.getBgPalette(),
+                            mode1 ? 0 : 2,
+                            tileId,
+                            ((x + scx) & 0xFF) & 0x7,
+                            ((y + scy) & 0xFF) & 0x7
+                    );
+                }
+
+                //Window
+                if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_ON) && (x - wx - 7> 0) && (y - wy > 0) && (x - wx < 160) && (y - wy < 144) && wx < 166 && wy < 143) {
+                    tileIdAddr = tileWINMapAddr | ((x - wx - 7) >> 3);
+                    tileId = memory.readByte(tileIdAddr, true);
+                    if (!mode1)
+                        tileId = signedByte(tileId);
+                    winColor = getTileColor(
+                            palettes.getBgPalette(),
+                            mode1 ? 0 : 2,
+                            tileId,
+                            (x - wx - 7) & 0x7,
+                            (y - wy) & 0x7
+                    );
+                }
+
+                //Sprites
+                if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_ON)) {
+                    for (Sprite sprite : sprites) {
+                        if (sprite.x - 8 <= x && sprite.x >= x && ((sprite.attributes & Flags.SPRITE_ATTRIB_UNDER_BG) == 0x00)) {
+                            spriteFlipX = (sprite.attributes & Flags.SPRITE_ATTRIB_X_FLIP) != 0x00;
+                            spriteFlipY = (sprite.attributes & Flags.SPRITE_ATTRIB_Y_FLIP) != 0x00;
+                            spriteSubX = spriteFlipX ? 7 - (x - sprite.x + 8) : (x - sprite.x + 8);
+                            if (spriteSize == 8) { //8x8 mode
+                                spriteSubY = spriteFlipY ? 7 - (y - sprite.y + 16) : (y - sprite.y + 16);
+                                spriteColor = getTileColor(
+                                        (sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1(),
+                                        0,
+                                        sprite.tileId,
+                                        spriteSubX,
+                                        spriteSubY
+                                );
+                            } else { //8x16 mode
+                                spriteSubY = spriteFlipY ? 15 - (y - sprite.y + 16) : (y - sprite.y + 16);
+                                spriteColor = getTileColor(
+                                        (sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1(),
+                                        0,
+                                        spriteSubY < 8 ? sprite.tileId & 0xFE : sprite.tileId | 1,
+                                        spriteSubX,
+                                        spriteSubY
+                                );
+                            }
+                        }
+                    }
+                }
+
+                if (spriteColor == ColorShade.TRANSPARENT) {
+                    if (winColor == ColorShade.TRANSPARENT) {
+                        finalColor = bgColor;
+                    } else {
+                            finalColor = winColor;
+                    }
+                } else {
+                    finalColor = spriteColor;
+                }
+
+                screen_buffer.put((byte) finalColor.getColor().getRed());
+                screen_buffer.put((byte) finalColor.getColor().getGreen());
+                screen_buffer.put((byte) finalColor.getColor().getBlue());
+                screen_buffer.put((byte) 255);
+            }
+
+            if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT - 1) {
                 memory.writeLcdMode(LCDMode.V_BLANK);
-            else
+                if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_VBLANK_IRQ_ON))
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
+            } else {
                 memory.writeLcdMode(LCDMode.OAM);
+                if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_OAM_IRQ_ON))
+                    memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
+                if (memory.readByte(MMU.LY, true) == memory.readByte(MMU.LYC, true)) {
+                    memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, true);
+                    if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_IRQ))
+                        memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
+                } else {
+                    memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, false);
+                }
+            }
 
             memory.writeRaw(MMU.LY, memory.readByte(MMU.LY, true) + 1);
             cycles -= LR35902.CPU_CYCLES_PER_H_BLANK;
@@ -134,44 +255,32 @@ public class PPU {
     private void processTransfer() {
         if (cycles >= LR35902.CPU_CYCLES_PER_TRANSFER) {
             memory.writeLcdMode(LCDMode.H_BLANK);
+            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_HBLANK_IRQ_ON))
+                memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
             cycles -= LR35902.CPU_CYCLES_PER_TRANSFER;
         }
     }
 
     private void processOam() {
         if (cycles >= LR35902.CPU_CYCLES_PER_OAM) {
-            if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_OAM_IRQ_ON))
-                memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
-
-            int lcd_y = memory.readByte(MMU.LY, true);
-            int lcd_yc = memory.readByte(MMU.LYC, true);
-
-            if (lcd_y == lcd_yc) {
-                memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, true);
-                if (memory.readIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_IRQ))
-                    memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, true);
-            } else {
-                memory.writeIORegisterBit(MMU.STAT, Flags.STAT_COINCIDENCE_STATUS, false);
-            }
             memory.writeLcdMode(LCDMode.TRANSFER);
             cycles -= LR35902.CPU_CYCLES_PER_OAM;
         }
     }
 
     private void computeTileMaps() {
-        int i = 0;
-        boolean mode1;
+        int i = 0, tileIdAddr, tileId;
+        boolean mode1 = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
         for (ByteBuffer tileMap : tileMaps) {
             tileMap.clear();
             for (int y = 0; y < 256; y++) {
                 for (int x = 0; x < 256; x++) {
-                    int tileAttribAddr = (i == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | (x >> 3) | ((y & 0xF8) << 2);
-                    int tileId = memory.readByte(tileAttribAddr, true);
-                    mode1 = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
+                    tileIdAddr = (i == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | (x >> 3) | ((y & 0xF8) << 2);
+                    tileId = memory.readByte(tileIdAddr, true);
                     if (!mode1)
                         tileId = signedByte(tileId);
 
-                    ColorShade color = getTileColor(mode1 ? 0 : 1, tileId, x & 0x7, y & 0x7);
+                    ColorShade color = getTileColor(palettes.getBgPalette(), mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7);
                     tileMap.put((byte) color.getColor().getRed());
                     tileMap.put((byte) color.getColor().getGreen());
                     tileMap.put((byte) color.getColor().getBlue());
@@ -201,7 +310,7 @@ public class PPU {
                     for (int tileId = 16 * tileRow; tileId < 16 * tileRow + 16; tileId++) {
                         //Iterate over each pixel of the tile line
                         for (int x = 0; x < 8; x++) {
-                            ColorShade color = getTileColor(i, tileId, x, y);
+                            ColorShade color = getTileColor(palettes.getBgPalette(), i, tileId, x, y);
                             tileTable.put((byte) color.getColor().getRed());
                             tileTable.put((byte) color.getColor().getGreen());
                             tileTable.put((byte) color.getColor().getBlue());
@@ -215,44 +324,12 @@ public class PPU {
         }
     }
 
-    private ColorShade getTileColor(int tileBank, int tileId, int x, int y) {
+    private ColorShade getTileColor(ColorPalettes.ColorPalette palette, int tileBank, int tileId, int x, int y) {
         int tileAddr = 0x8000 + 0x800 * tileBank + tileId * 16;
         int low = memory.readByte(tileAddr | (y << 1), true);
         int high = memory.readByte(tileAddr | (y << 1) | 1, true);
         int colorIndex = (((high >> (7 - x)) & 0x1) << 1) | ((low >> (7 - x)) & 0x1);
-        return ColorShade.get((memory.readByte(MMU.BGP) >> colorIndex * 2) & 0x3);
-    }
-
-    private void fillBackgroundLayer() {
-        if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_ON))
-            return;
-
-        int lcdY = memory.readByte(MMU.LY, true);
-        int scrollY = memory.readByte(MMU.SCY, true);
-        int scrollX = memory.readByte(MMU.SCX, true);
-
-        int bgTileYStart = ((scrollY + lcdY) >> 3) >= 0x1F ? ((scrollY + lcdY) >> 3) & 0x1F : ((scrollY + lcdY) >> 3);
-        int bgTileYOffset = (scrollY + lcdY) & 0x7;
-
-        int bgTileXStart = scrollX >> 3;
-        int bgTileXOffset = scrollX & 0x7;
-
-        bgPal = palettes.getBgPalette();
-        BackgroundMaps.BackgroundMap currentBGMap = bgMaps.getBGMap();
-
-        for (int i = 0; i <= 20; i++) {
-            int tileId = bgTileXStart + i >= 0x1F ? (bgTileXStart + i) & 0x1F : bgTileXStart + i;
-            int currentTileId = currentBGMap.data[bgTileYStart][tileId];
-            TileCollection.Tile currentTile = tileList.getBGTile(currentTileId);
-
-            for (int j = 0; j < 8; j++) {
-                if (i == 0 && j < bgTileXOffset) continue;
-                if (i == 20 && j >= bgTileXOffset) continue;
-
-                ColorShade color = bgPal.colors[currentTile.data[bgTileYOffset][j]];
-                background_buffer[lcdY][(i << 3) + j - bgTileXOffset] = color;
-            }
-        }
+        return palette.colors[colorIndex];
     }
 
     public void reset() {

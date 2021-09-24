@@ -109,4 +109,9 @@ public class Flags {
     public static final int NR52_CHANNEL_3_ON  = 0x04;
     public static final int NR52_CHANNEL_2_ON  = 0x02;
     public static final int NR52_CHANNEL_1_ON  = 0x01;
+
+    public static final int SPRITE_ATTRIB_UNDER_BG = 0x80;
+    public static final int SPRITE_ATTRIB_Y_FLIP = 0x80;
+    public static final int SPRITE_ATTRIB_X_FLIP = 0x80;
+    public static final int SPRITE_ATTRIB_PAL = 0x80;
 }

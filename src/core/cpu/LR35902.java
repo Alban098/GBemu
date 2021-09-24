@@ -20,7 +20,7 @@ public class LR35902 {
     public static final int CPU_CYCLES_PER_SEC = 4194304;
     public static final int CPU_CYCLES_PER_FRAME = CPU_CYCLES_PER_SEC/60;
     public static final int CPU_CYCLES_PER_H_BLANK = 146;
-    public static final int CPU_CYCLES_PER_V_BLANK = 4560/10; //divide because VBlank is 10 scanline long
+    public static final int CPU_CYCLES_PER_V_BLANK_SCANLINE = 4560/10; //divide because VBlank is 10 scanline long
     public static final int CPU_CYCLES_PER_OAM = 80;
     public static final int CPU_CYCLES_PER_TRANSFER = 230;
     public static final int CPU_CYCLES_256HZ = CPU_CYCLES_PER_SEC / 256;

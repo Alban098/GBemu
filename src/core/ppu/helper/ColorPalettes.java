@@ -13,6 +13,9 @@ public class ColorPalettes implements IMMUListener {
         bgPalette = new ColorPalette();
         objPalette0 = new ColorPalette();
         objPalette1 = new ColorPalette();
+        updatePalette(bgPalette, memory.readByte(MMU.BGP), false);
+        updatePalette(objPalette0, memory.readByte(MMU.OBP0), false);
+        updatePalette(objPalette1, memory.readByte(MMU.OBP1), false);
     }
 
     public ColorPalette getBgPalette() {

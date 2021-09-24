@@ -15,7 +15,7 @@ public class Main {
     private static AudioContext ac;
 
     public static void main(String[] args) throws Exception {
-        String rom = "OK-01-special.gb";
+        String rom = "Dr. Mario (World).gb";
         GameBoy gb = new GameBoy("roms\\DMG_ROM.bin");
         gb.insertCartridge("roms\\" + rom);
         launchSoundEngine(gb);

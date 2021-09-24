@@ -169,7 +169,7 @@ public class MMU {
         else if(addr == P1)
             memory[P1] = (data & 0x30) | (memory[P1] & 0xCF);
         else if(addr == STAT)
-            memory[STAT] = (data & 0x7C) | (memory[STAT] & 0x03);
+            memory[STAT] = (data & 0x78) | (memory[STAT] & 0x07);
         else if(addr <= 0x3FFF)
             cartridge.write(addr, data);
         else if (addr >= 0x8000 && addr <= 0x9FFF && (ppuMode == LCDMode.TRANSFER) && readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
