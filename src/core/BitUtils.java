@@ -16,4 +16,8 @@ public class BitUtils {
     public static int msb(int data) {
         return (data & 0xFF00) >> 8;
     }
+
+    public static boolean inRange(int val, int lower, int upper) {
+        return val <= upper && val >= lower;
+    }
 }

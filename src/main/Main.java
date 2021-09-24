@@ -15,8 +15,8 @@ public class Main {
     private static AudioContext ac;
 
     public static void main(String[] args) throws Exception {
-        String rom = "Dr. Mario (World).gb";
-        GameBoy gb = new GameBoy("roms\\DMG_ROM.bin");
+        String rom = "Tetris (World) (Rev A).gb";
+        GameBoy gb = new GameBoy();
         gb.insertCartridge("roms\\" + rom);
         launchSoundEngine(gb);
         Window window = new Window(gb);

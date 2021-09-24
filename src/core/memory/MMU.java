@@ -71,20 +71,13 @@ public class MMU {
     public static final int IRQ_SERIAL_VECTOR   = 0x58;
     public static final int IRQ_INPUT_VECTOR    = 0x60;
 
-    public static final int TILE_DATA0_START    = 0x8800;
-    public static final int TILE_DATA0_END      = 0x97FF;
-    public static final int TILE_DATA1_START    = 0x8000;
-    public static final int TILE_DATA1_END      = 0x8FFF;
+
     public static final int BG_MAP0_START       = 0x9800;
-    public static final int BG_MAP0_END         = 0x9BFF;
     public static final int BG_MAP1_START       = 0x9C00;
-    public static final int BG_MAP1_END         = 0x9FFF;
     public static final int OAM_START           = 0xFE00;
     public static final int OAM_END             = 0xFE9F;
 
-    public static final int TILE_BLOCK_0        = 0x8000;
-    public static final int TILE_BLOCK_1        = 0x8800;
-    public static final int TILE_BLOCK_2        = 0x9000;
+    public static final int TILE_BLOCK_START    = 0x8000;
 
     private final List<IMMUListener> listeners;
     private final GameBoy gameBoy;
@@ -97,13 +90,13 @@ public class MMU {
     private final Set<Integer> breakpoints;
     private int dma_remaining_cycles = 0;
 
-    public MMU(String bootstrap, GameBoy gb) {
+    public MMU(GameBoy gb) {
         gameBoy = gb;
         memory = new int[0x10000];
         breakpoints = new HashSet<>();
         serialOutput = new StringBuilder();
         listeners = new ArrayList<>();
-        loadBootstrap(bootstrap);
+        loadBootstrap();
     }
 
     public void addListener(IMMUListener listener) {
@@ -114,13 +107,8 @@ public class MMU {
         cartridge = new Cartridge(file);
     }
 
-    private void loadBootstrap(String file) {
-        Path path = Paths.get(file);
-
-        byte[] bytes = new byte[0];
-        try { bytes = Files.readAllBytes(path); } catch (IOException e) { e.printStackTrace(); }
-        for (int i = 0; i < 0x0100; i++)
-            writeRaw(i, (int)bytes[i] & 0xFF);
+    private void loadBootstrap() {
+        System.arraycopy(GameBoy.BOOTSTRAP, 0, memory, 0, 0x0100);
     }
 
     public void clock(int mcycles) {
@@ -172,8 +160,11 @@ public class MMU {
             memory[STAT] = (data & 0x78) | (memory[STAT] & 0x07);
         else if(addr <= 0x3FFF)
             cartridge.write(addr, data);
+        /*
+        //VRAM Lock during transfer causes bugs for some reason
         else if (addr >= 0x8000 && addr <= 0x9FFF && (ppuMode == LCDMode.TRANSFER) && readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
             return;
+        */
         else if (addr >= 0xFE00 && addr <= 0xFE9F && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
             return;
         else
@@ -227,5 +218,10 @@ public class MMU {
 
     public void addBreakpoint(int addr) {
         breakpoints.add(addr);
+    }
+
+    public void reset() {
+        Arrays.fill(memory, 0);
+        loadBootstrap();
     }
 }

@@ -38,6 +38,8 @@ public class Window {
     private Texture screen_texture;
     private Texture[] tileMaps_textures;
     private Texture[] tileTables_textures;
+    private Texture oam_texture;
+
 
     private final GameBoy gameBoy;
 
@@ -68,6 +70,7 @@ public class Window {
                 new Texture(128, 64, gameBoy.getPpu().getTileTables()[1]),
                 new Texture(128, 64, gameBoy.getPpu().getTileTables()[2])
         };
+        oam_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT, gameBoy.getPpu().getOamBuffer());
     }
 
     public void destroy() {
@@ -155,11 +158,12 @@ public class Window {
                 tileTables_textures[2].load(gameBoy.getPpu().getTileTables()[2]);
                 tileMaps_textures[0].load(gameBoy.getPpu().getTileMaps()[0]);
                 tileMaps_textures[1].load(gameBoy.getPpu().getTileMaps()[1]);
+                oam_texture.load(gameBoy.getPpu().getOamBuffer());
                 cpuLayer.imgui(gameBoy);
                 memoryLayer.imgui(gameBoy);
                 serialOutputLayer.imgui(gameBoy);
                 consoleLayer.imgui(gameBoy);
-                tileMapLayer.imgui(tileTables_textures, tileMaps_textures);
+                tileMapLayer.imgui(gameBoy.getMemory(), tileTables_textures, tileMaps_textures, oam_texture);
             }
 
             ImGui.render();

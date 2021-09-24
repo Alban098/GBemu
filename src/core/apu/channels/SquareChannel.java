@@ -1,5 +1,6 @@
 package core.apu.channels;
 
+import core.Flags;
 import core.apu.APU;
 import core.apu.channels.component.Envelope;
 import core.apu.channels.component.LengthCounter;
@@ -52,8 +53,8 @@ public class SquareChannel {
         this.envelope = new Envelope();
     }
 
-    public void clock() {
-        cycleCount++;
+    public void clock(int mcycles) {
+        cycleCount += mcycles;
         if (cycleCount >= cycleSampleUpdate) {
             sampleIndex++;
             if (sampleIndex > 7) sampleIndex = 0;
@@ -79,7 +80,7 @@ public class SquareChannel {
         envelope.setEnvelope(envelopeTicks, envelopeVolume, increase);
 
         currentFreq = getFrequency();
-        cycleSampleUpdate = (2048 - currentFreq) >> 2;
+        cycleSampleUpdate = (2048 - currentFreq) << 2;
         cycleCount = 0;
         sampleIndex = 0;
 

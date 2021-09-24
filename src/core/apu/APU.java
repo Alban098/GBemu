@@ -2,6 +2,7 @@ package core.apu;
 
 import core.Flags;
 import core.apu.channels.SweepingSquareChannel;
+import core.apu.channels.WaveChannel;
 import core.memory.MMU;
 import core.apu.channels.SquareChannel;
 import core.cpu.LR35902;
@@ -24,6 +25,7 @@ public class APU implements IMMUListener {
     private final MMU memory;
     private final SweepingSquareChannel square1;
     private final SquareChannel square2;
+    private final WaveChannel wave;
 
     private int cycle = 0;
     private int cycleLength = 0;
@@ -38,12 +40,15 @@ public class APU implements IMMUListener {
     boolean leftEnabled = false;
     boolean rightEnabled = false;
 
+    private float lastSample = 0;
+
     public APU(MMU memory) {
         this.memory = memory;
         memory.addListener(this);
         sampleQueue = new ConcurrentLinkedQueue<>();
         square1 = new SweepingSquareChannel(memory, MMU.NR11, MMU.NR12, MMU.NR13, MMU.NR14, Flags.NR52_CHANNEL_1_ON, Flags.NR11_PATTERN_DUTY, Flags.NR11_SOUND_LENGTH, Flags.NR12_ENVELOPE_SWEEP_NB, Flags.NR12_ENVELOPE_VOLUME, Flags.NR12_ENVELOPE_DIR, Flags.NR14_LOOP_CHANNEL, Flags.NR14_FREQ_HIGH);
         square2 = new SquareChannel(memory, MMU.NR21, MMU.NR22, MMU.NR23, MMU.NR24, Flags.NR52_CHANNEL_1_ON, Flags.NR21_PATTERN_DUTY, Flags.NR21_SOUND_LENGTH, Flags.NR22_ENVELOPE_SWEEP_NB, Flags.NR22_ENVELOPE_VOLUME, Flags.NR22_ENVELOPE_DIR, Flags.NR24_LOOP_CHANNEL, Flags.NR24_FREQ_HIGH);
+        wave = new WaveChannel(memory);
     }
 
     public void clock(int mcycles) {
@@ -74,15 +79,19 @@ public class APU implements IMMUListener {
                 if ((data & Flags.NR24_RESTART) != 0)
                     square2.restart();
             }
+            case MMU.NR34 -> {
+                if ((data & Flags.NR34_RESTART) != 0)
+                    wave.restart();
+            }
         }
     }
-
 
     private void clockLength(int mcycles) {
         cycleLength += mcycles;
         if (cycleLength >= LR35902.CPU_CYCLES_256HZ) {
             square1.tickLength();
             square2.tickLength();
+            wave.tickLength();
             cycleLength -= LR35902.CPU_CYCLES_256HZ;
         }
     }
@@ -105,15 +114,18 @@ public class APU implements IMMUListener {
     }
 
     private void clockChannels(int mcycles) {
-        square1.clock();
+        square1.clock(mcycles);
+        square2.clock(mcycles);
+        wave.clock(mcycles);
     }
 
     private void clockSamples(int mcycles) {
         cycle += mcycles;
         if (cycle >= LR35902.CPU_CYCLES_PER_SAMPLE) {
-            float sample = (square1.sample + square2.sample) / 30f;
+            float sample = (wave.sample + square2.sample + square1.sample) / 45f;
 
-            sampleQueue.offer(sample);
+            sampleQueue.offer((lastSample + sample) / 2);
+            lastSample = sample;
             cycle -= LR35902.CPU_CYCLES_PER_SAMPLE;
         }
     }
@@ -121,5 +133,9 @@ public class APU implements IMMUListener {
 
     public float getNextSample() {
         return sampleQueue.isEmpty() ? 0 : sampleQueue.poll();
+    }
+
+    public void reset() {
+
     }
 }

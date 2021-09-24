@@ -611,8 +611,10 @@ public class LR35902 {
     public void init() {
         reset();
         next_instr = fetchInstruction();
-        cpuState.set(af, bc, de, hl, sp, pc, next_instr);
-        decompile();
+        if (GameBoy.DEBUG) {
+            cpuState.set(af, bc, de, hl, sp, pc, next_instr);
+            decompile();
+        }
     }
 
     public void addBreakpoint(int addr) {
