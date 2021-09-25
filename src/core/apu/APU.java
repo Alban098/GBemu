@@ -1,6 +1,7 @@
 package core.apu;
 
 import core.Flags;
+import core.apu.channels.NoiseChannel;
 import core.apu.channels.SweepingSquareChannel;
 import core.apu.channels.WaveChannel;
 import core.memory.MMU;
@@ -20,12 +21,13 @@ public class APU implements IMMUListener {
             { 1, 0, 0, 0, 0, 1, 1, 1 },
             { 0, 1, 1, 1, 1, 1, 1, 0 }
     };
+    public static final int[] AUDIO_DIVISOR = {8, 16, 32, 48, 64, 80, 96, 112};
 
     private final Queue<Float> sampleQueue;
-    private final MMU memory;
     private final SweepingSquareChannel square1;
     private final SquareChannel square2;
     private final WaveChannel wave;
+    private final NoiseChannel noise;
 
     private int cycle = 0;
     private int cycleLength = 0;
@@ -43,12 +45,12 @@ public class APU implements IMMUListener {
     private float lastSample = 0;
 
     public APU(MMU memory) {
-        this.memory = memory;
         memory.addListener(this);
         sampleQueue = new ConcurrentLinkedQueue<>();
         square1 = new SweepingSquareChannel(memory, MMU.NR11, MMU.NR12, MMU.NR13, MMU.NR14, Flags.NR52_CHANNEL_1_ON, Flags.NR11_PATTERN_DUTY, Flags.NR11_SOUND_LENGTH, Flags.NR12_ENVELOPE_SWEEP_NB, Flags.NR12_ENVELOPE_VOLUME, Flags.NR12_ENVELOPE_DIR, Flags.NR14_LOOP_CHANNEL, Flags.NR14_FREQ_HIGH);
         square2 = new SquareChannel(memory, MMU.NR21, MMU.NR22, MMU.NR23, MMU.NR24, Flags.NR52_CHANNEL_1_ON, Flags.NR21_PATTERN_DUTY, Flags.NR21_SOUND_LENGTH, Flags.NR22_ENVELOPE_SWEEP_NB, Flags.NR22_ENVELOPE_VOLUME, Flags.NR22_ENVELOPE_DIR, Flags.NR24_LOOP_CHANNEL, Flags.NR24_FREQ_HIGH);
         wave = new WaveChannel(memory);
+        noise = new NoiseChannel(memory);
     }
 
     public void clock(int mcycles) {
@@ -83,6 +85,10 @@ public class APU implements IMMUListener {
                 if ((data & Flags.NR34_RESTART) != 0)
                     wave.restart();
             }
+            case MMU.NR44 -> {
+                if ((data & Flags.NR44_RESTART) != 0)
+                    noise.restart();
+            }
         }
     }
 
@@ -92,6 +98,7 @@ public class APU implements IMMUListener {
             square1.tickLength();
             square2.tickLength();
             wave.tickLength();
+            noise.tickLength();
             cycleLength -= LR35902.CPU_CYCLES_256HZ;
         }
     }
@@ -101,6 +108,7 @@ public class APU implements IMMUListener {
         if (cycleEnvelope >= LR35902.CPU_CYCLES_64HZ) {
             square1.tickEnvelope();
             square2.tickEnvelope();
+            noise.tickEnvelope();
             cycleEnvelope -= LR35902.CPU_CYCLES_64HZ;
         }
     }
@@ -117,12 +125,13 @@ public class APU implements IMMUListener {
         square1.clock(mcycles);
         square2.clock(mcycles);
         wave.clock(mcycles);
+        noise.clock(mcycles);
     }
 
     private void clockSamples(int mcycles) {
         cycle += mcycles;
         if (cycle >= LR35902.CPU_CYCLES_PER_SAMPLE) {
-            float sample = (wave.sample + square2.sample + square1.sample) / 45f;
+            float sample = (noise.sample + wave.sample + square2.sample + square1.sample) / 60f;
 
             sampleQueue.offer((lastSample + sample) / 2);
             lastSample = sample;

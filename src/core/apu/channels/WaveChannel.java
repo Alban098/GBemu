@@ -7,17 +7,17 @@ import core.memory.MMU;
 
 public class WaveChannel {
 
-    protected final MMU memory;
+    private final MMU memory;
     private final LengthCounter lengthCounter;
 
     public int sample;
 
-    protected int currentFreq = 0;
+    private int currentFreq = 0;
     private int sampleIndex = 0;
-    protected int cycleSampleUpdate = 0;
-    protected int cycleCount = 0;
+    private int cycleSampleUpdate = 0;
+    private int cycleCount = 0;
 
-    protected boolean running = false;
+    private boolean running = false;
 
     public WaveChannel(MMU memory) {
         this.memory = memory;
