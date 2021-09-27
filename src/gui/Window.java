@@ -7,6 +7,8 @@ import core.input.State;
 import core.ppu.PPU;
 import imgui.ImGui;
 import imgui.ImGuiIO;
+import imgui.extension.implot.ImPlot;
+import imgui.extension.implot.ImPlotContext;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
@@ -32,7 +34,8 @@ public class Window {
     private final MemoryLayer memoryLayer;
     private final SerialOutputLayer serialOutputLayer;
     private final ConsoleLayer consoleLayer;
-    private final PPULayer tileMapLayer;
+    private final PPULayer ppuLayer;
+    private final APULayer apuLayer;
 
     private boolean isSpacePressed = false;
     private boolean isFPressed = false;
@@ -44,6 +47,7 @@ public class Window {
 
 
     private final GameBoy gameBoy;
+    private ImPlotContext plotCtx;
 
 
     public Window(GameBoy gameBoy) {
@@ -52,7 +56,8 @@ public class Window {
         memoryLayer = new MemoryLayer();
         serialOutputLayer = new SerialOutputLayer();
         consoleLayer = new ConsoleLayer();
-        tileMapLayer = new PPULayer();
+        ppuLayer = new PPULayer();
+        apuLayer = new APULayer(gameBoy.getApu().getDebugSampleQueue());
 
         this.gameBoy = gameBoy;
     }
@@ -78,6 +83,7 @@ public class Window {
     public void destroy() {
         imGuiGl3.dispose();
         imGuiGlfw.dispose();
+        ImPlot.destroyContext(plotCtx);
         ImGui.destroyContext();
         Callbacks.glfwFreeCallbacks(windowPtr);
         glfwDestroyWindow(windowPtr);
@@ -116,6 +122,7 @@ public class Window {
 
     private void initImGui() {
         ImGui.createContext();
+        plotCtx = ImPlot.createContext();
         ImGuiIO io = ImGui.getIO();
         io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable);
     }
@@ -166,7 +173,8 @@ public class Window {
                 memoryLayer.imgui(gameBoy);
                 serialOutputLayer.imgui(gameBoy);
                 consoleLayer.imgui(gameBoy);
-                tileMapLayer.imgui(gameBoy.getMemory(), tileTables_textures, tileMaps_textures, oam_texture);
+                apuLayer.imgui(gameBoy);
+                ppuLayer.imgui(gameBoy.getMemory(), tileTables_textures, tileMaps_textures, oam_texture);
             }
 
             ImGui.render();

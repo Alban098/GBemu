@@ -1,6 +1,7 @@
 package core.apu;
 
 import core.Flags;
+import core.GameBoy;
 import core.apu.channels.NoiseChannel;
 import core.apu.channels.SweepingSquareChannel;
 import core.apu.channels.WaveChannel;
@@ -8,7 +9,10 @@ import core.memory.MMU;
 import core.apu.channels.SquareChannel;
 import core.cpu.LR35902;
 import core.ppu.helper.IMMUListener;
+import debug.Logger;
+import gui.APULayer;
 
+import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -23,16 +27,22 @@ public class APU implements IMMUListener {
     };
     public static final int[] AUDIO_DIVISOR = {8, 16, 32, 48, 64, 80, 96, 112};
 
-    private final Queue<Float> sampleQueue;
+    private final Queue<Sample> sampleQueue;
+    private final Queue<Sample> debugSampleQueue;
+    private final Queue<Integer> lastLength;
+
     private final SweepingSquareChannel square1;
     private final SquareChannel square2;
     private final WaveChannel wave;
     private final NoiseChannel noise;
 
-    private int cycle = 0;
+    private double cycle = 0;
     private int cycleLength = 0;
     private int cycleEnvelope = 0;
     private int cycleSweep = 0;
+
+    private long sampleIndex = 0;
+    private boolean adaptativeSampleRateStarted = false;
 
     private int volumeLeft = 0;
     private int volumeRight= 0;
@@ -47,6 +57,8 @@ public class APU implements IMMUListener {
     public APU(MMU memory) {
         memory.addListener(this);
         sampleQueue = new ConcurrentLinkedQueue<>();
+        debugSampleQueue = new ConcurrentLinkedQueue<>();
+        lastLength = new LinkedList<>();
         square1 = new SweepingSquareChannel(memory, MMU.NR11, MMU.NR12, MMU.NR13, MMU.NR14, Flags.NR52_CHANNEL_1_ON, Flags.NR11_PATTERN_DUTY, Flags.NR11_SOUND_LENGTH, Flags.NR12_ENVELOPE_SWEEP_NB, Flags.NR12_ENVELOPE_VOLUME, Flags.NR12_ENVELOPE_DIR, Flags.NR14_LOOP_CHANNEL, Flags.NR14_FREQ_HIGH);
         square2 = new SquareChannel(memory, MMU.NR21, MMU.NR22, MMU.NR23, MMU.NR24, Flags.NR52_CHANNEL_1_ON, Flags.NR21_PATTERN_DUTY, Flags.NR21_SOUND_LENGTH, Flags.NR22_ENVELOPE_SWEEP_NB, Flags.NR22_ENVELOPE_VOLUME, Flags.NR22_ENVELOPE_DIR, Flags.NR24_LOOP_CHANNEL, Flags.NR24_FREQ_HIGH);
         wave = new WaveChannel(memory);
@@ -59,6 +71,7 @@ public class APU implements IMMUListener {
         clockSweep(mcycles);
         clockChannels(mcycles);
         clockSamples(mcycles);
+
     }
 
     public void onWriteToMMU(int addr, int data) {
@@ -131,26 +144,47 @@ public class APU implements IMMUListener {
     private void clockSamples(int mcycles) {
         cycle += mcycles;
         if (cycle >= LR35902.CPU_CYCLES_PER_SAMPLE) {
-            float sample = (noise.sample + wave.sample + square2.sample + square1.sample) / 60f;
+            Sample sample = new Sample(square1.sample, square2.sample, wave.sample, noise.sample);
             sampleQueue.offer(sample);
+            if (sampleIndex % (APU.SAMPLE_RATE/10) == 0) {
+                lastLength.offer(sampleQueue.size());
+                if (sampleQueue.size() > 5000) {
+                    LR35902.CPU_CYCLES_PER_SAMPLE += .5;
+                    adaptativeSampleRateStarted = true;
+                } else if (sampleQueue.size() < 100 && adaptativeSampleRateStarted) {
+                    LR35902.CPU_CYCLES_PER_SAMPLE -= .5;
+                }
+                Logger.log(Logger.Type.INFO, String.valueOf(sampleQueue.size()));
+
+            }
+            if (GameBoy.DEBUG) {
+                debugSampleQueue.offer(sample);
+                if (debugSampleQueue.size() > APULayer.DEBUG_SAMPLE_NUMBER)
+                    debugSampleQueue.poll();
+            }
+            sampleIndex++;
             cycle -= LR35902.CPU_CYCLES_PER_SAMPLE;
         }
     }
 
 
     public float getNextSample() {
-        //TODO Fix audio lagging behind 
-        if (sampleQueue.size() > SAMPLE_RATE / 5)
-            while (sampleQueue.size() > SAMPLE_RATE / 20)
-                sampleQueue.poll();
-        //
-        float sample = sampleQueue.isEmpty() ? 0 : sampleQueue.poll();
-        float filtered = (sample + lastSample) / 2;
-        lastSample = sample;
-        return filtered;
+        Sample s = sampleQueue.poll();
+        if (s != null) {
+            lastSample = (s.getNormalizedValue() + lastSample) / 2;
+            return lastSample;
+        }
+        lastSample /= 2;
+
+        return lastSample;
+    }
+
+    public Queue<Sample> getDebugSampleQueue() {
+        return debugSampleQueue;
     }
 
     public void reset() {
 
     }
+
 }
