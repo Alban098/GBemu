@@ -26,7 +26,7 @@ public class LR35902 {
     public static final int CPU_CYCLES_256HZ = CPU_CYCLES_PER_SEC / 256;
     public static final int CPU_CYCLES_128HZ = CPU_CYCLES_PER_SEC / 128;
     public static final int CPU_CYCLES_64HZ = CPU_CYCLES_PER_SEC / 64;
-    public static final int CPU_CYCLES_PER_SAMPLE = CPU_CYCLES_PER_SEC / (APU.SAMPLE_RATE + 250);
+    public static final int CPU_CYCLES_PER_SAMPLE = CPU_CYCLES_PER_SEC / APU.SAMPLE_RATE;
 
     private static final int DECOMPILE_SIZE = 0x08;
     private final List<Instruction> opcodes;

@@ -31,6 +31,7 @@ public class PPU {
     private final ColorPalettes palettes;
 
     private long cycles = 0;
+    private long frame_cycles = 0;
     private boolean isFrameComplete;
     private int off_cycles = 0;
 
@@ -72,6 +73,11 @@ public class PPU {
             return;
         }
         cycles += mcycles;
+        frame_cycles += mcycles;
+        if (frame_cycles >= LR35902.CPU_CYCLES_PER_FRAME) {
+            isFrameComplete = true;
+            frame_cycles -= LR35902.CPU_CYCLES_PER_FRAME;
+        }
         switch (memory.readLcdMode()) {
             case OAM -> processOam();
             case TRANSFER -> processTransfer();
@@ -90,7 +96,6 @@ public class PPU {
                     computeTileMaps();
                     computeOAM();
                 }
-                isFrameComplete = true;
                 screen_buffer.flip();
             }
 
@@ -211,15 +216,6 @@ public class PPU {
                                         spriteSubX,
                                         spriteSubY
                                 );
-                            }
-                            if ((sprite.attributes & Flags.SPRITE_ATTRIB_UNDER_BG) == 0x00) {
-                                if (winColor == ColorShade.TRANSPARENT) { //No Window
-                                    if (bgColor != ColorShade.WHITE && bgColor != ColorShade.TRANSPARENT) //Background is color 1 to 3
-                                        spriteColor = bgColor;
-                                } else { //Window
-                                    if (winColor != ColorShade.WHITE)
-                                        spriteColor = winColor;
-                                }
                             }
                         }
                     }

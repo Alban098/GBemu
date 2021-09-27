@@ -132,16 +132,22 @@ public class APU implements IMMUListener {
         cycle += mcycles;
         if (cycle >= LR35902.CPU_CYCLES_PER_SAMPLE) {
             float sample = (noise.sample + wave.sample + square2.sample + square1.sample) / 60f;
-
-            sampleQueue.offer((lastSample + sample) / 2);
-            lastSample = sample;
+            sampleQueue.offer(sample);
             cycle -= LR35902.CPU_CYCLES_PER_SAMPLE;
         }
     }
 
 
     public float getNextSample() {
-        return sampleQueue.isEmpty() ? 0 : sampleQueue.poll();
+        //TODO Fix audio lagging behind 
+        if (sampleQueue.size() > SAMPLE_RATE / 5)
+            while (sampleQueue.size() > SAMPLE_RATE / 20)
+                sampleQueue.poll();
+        //
+        float sample = sampleQueue.isEmpty() ? 0 : sampleQueue.poll();
+        float filtered = (sample + lastSample) / 2;
+        lastSample = sample;
+        return filtered;
     }
 
     public void reset() {

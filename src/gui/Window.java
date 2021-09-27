@@ -2,6 +2,8 @@ package gui;
 
 import core.GameBoy;
 import core.GameBoyState;
+import core.input.Button;
+import core.input.State;
 import core.ppu.PPU;
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -120,6 +122,7 @@ public class Window {
 
     public void run() {
         while (!glfwWindowShouldClose(windowPtr)) {
+            handleInput();
             if (GameBoy.DEBUG) {
                 if (gameBoy.getState() == GameBoyState.RUNNING)
                     gameBoy.executeFrame();
@@ -178,5 +181,47 @@ public class Window {
             GLFW.glfwSwapBuffers(windowPtr);
             GLFW.glfwPollEvents();
         }
+    }
+
+    private void handleInput() {
+        if (glfwGetKey(windowPtr, GLFW_KEY_W) == GLFW_PRESS)
+            gameBoy.setButtonState(Button.UP, State.PRESSED);
+        else
+            gameBoy.setButtonState(Button.UP, State.RELEASED);
+
+        if (glfwGetKey(windowPtr, GLFW_KEY_S) == GLFW_PRESS)
+            gameBoy.setButtonState(Button.DOWN, State.PRESSED);
+        else
+            gameBoy.setButtonState(Button.DOWN, State.RELEASED);
+
+        if (glfwGetKey(windowPtr, GLFW_KEY_A) == GLFW_PRESS)
+            gameBoy.setButtonState(Button.LEFT, State.PRESSED);
+        else
+            gameBoy.setButtonState(Button.LEFT, State.RELEASED);
+
+        if (glfwGetKey(windowPtr, GLFW_KEY_D) == GLFW_PRESS)
+            gameBoy.setButtonState(Button.RIGHT, State.PRESSED);
+        else
+            gameBoy.setButtonState(Button.RIGHT, State.RELEASED);
+
+        if (glfwGetKey(windowPtr, GLFW_KEY_I) == GLFW_PRESS)
+            gameBoy.setButtonState(Button.A, State.PRESSED);
+        else
+            gameBoy.setButtonState(Button.A, State.RELEASED);
+
+        if (glfwGetKey(windowPtr, GLFW_KEY_O) == GLFW_PRESS)
+            gameBoy.setButtonState(Button.B, State.PRESSED);
+        else
+            gameBoy.setButtonState(Button.B, State.RELEASED);
+
+        if (glfwGetKey(windowPtr, GLFW_KEY_K) == GLFW_PRESS)
+            gameBoy.setButtonState(Button.START, State.PRESSED);
+        else
+            gameBoy.setButtonState(Button.START, State.RELEASED);
+
+        if (glfwGetKey(windowPtr, GLFW_KEY_L) == GLFW_PRESS)
+            gameBoy.setButtonState(Button.SELECT, State.PRESSED);
+        else
+            gameBoy.setButtonState(Button.SELECT, State.RELEASED);
     }
 }

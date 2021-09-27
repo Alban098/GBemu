@@ -114,4 +114,7 @@ public class Flags {
     public static final int SPRITE_ATTRIB_Y_FLIP = 0x40;
     public static final int SPRITE_ATTRIB_X_FLIP = 0x20;
     public static final int SPRITE_ATTRIB_PAL = 0x10;
+
+    public static final int P1_BUTTON = 0x20;
+    public static final int P1_DPAD = 0x10;
 }

@@ -2,6 +2,9 @@ package core;
 
 import core.apu.APU;
 import core.cpu.LR35902;
+import core.input.InputManager;
+import core.input.State;
+import core.input.Button;
 import core.memory.MMU;
 import core.ppu.PPU;
 import debug.Logger;
@@ -35,6 +38,8 @@ public class GameBoy {
     private final PPU ppu;
     private final APU apu;
     private final Timer timer;
+    private final InputManager inputManager;
+
     private GameBoyState currentState = GameBoyState.PAUSED;
 
     public GameBoy() {
@@ -43,6 +48,7 @@ public class GameBoy {
         ppu = new PPU(memory);
         apu = new APU(memory);
         timer = new Timer(memory);
+        inputManager = new InputManager(memory);
         if (!GameBoy.DEBUG)
             currentState = GameBoyState.RUNNING;
         reset();
@@ -125,6 +131,7 @@ public class GameBoy {
         ppu.clock(mcycles);
         apu.clock(mcycles);
         timer.clock(mcycles);
+        inputManager.clock();
     }
 
     public void executeInstructions(int nb_instr, boolean force) {
@@ -172,5 +179,9 @@ public class GameBoy {
 
     public void addMemoryBreakpoint(int addr) {
         memory.addBreakpoint(addr);
+    }
+
+    public void setButtonState(Button button, State state) {
+        inputManager.setButtonState(button, state);
     }
 }
