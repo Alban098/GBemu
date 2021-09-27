@@ -31,4 +31,11 @@ public class Envelope {
     public int getVolume() {
         return volume;
     }
+
+    public void reset() {
+        elapsedTicks = 0;
+        ticks = 0;
+        volume = 0;
+        increasing = false;
+    }
 }

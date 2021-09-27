@@ -1,13 +1,22 @@
 package gui;
 
+import core.GameBoy;
 import core.memory.MMU;
 import core.ppu.helper.Sprite;
 import imgui.ImGui;
 import openGL.Texture;
 
-public class PPULayer {
+public class PPULayer extends AbstractDebugLayer {
 
-    public void imgui(MMU memory, Texture[] tileTables, Texture[] tileMaps, Texture oam) {
+    private Texture[] tileMaps;
+    private Texture[] tileTables;
+    private Texture oam;
+
+    public PPULayer(GameBoy gameboy) {
+        super(gameboy);
+    }
+
+    public void render() {
         ImGui.begin("PPU");
         if (ImGui.beginTabBar("tab")) {
             if (ImGui.beginTabItem("Tile Data")) {
@@ -33,7 +42,7 @@ public class PPULayer {
                 for (int i = 0; i < 5; i++) {
                     for (int j = 0; j < 8; j++) {
                         ImGui.sameLine();
-                        Sprite sprite = new Sprite(memory.readByte(addr++, true), memory.readByte(addr++, true), memory.readByte(addr++, true), memory.readByte(addr++, true));
+                        Sprite sprite = new Sprite(gameboy.getMemory().readByte(addr++, true), gameboy.getMemory().readByte(addr++, true), gameboy.getMemory().readByte(addr++, true), gameboy.getMemory().readByte(addr++, true));
                         ImGui.beginChild("sprite" + (8 * i + j), 65, 65);
                         ImGui.textColored(255, 255, 0, 255, "   Y:");
                         ImGui.sameLine();
@@ -66,5 +75,11 @@ public class PPULayer {
         }
         ImGui.endTabBar();
         ImGui.end();
+    }
+
+    public void linkTextures(Texture[] tileMaps_textures, Texture[] tileTables_textures, Texture oam_texture) {
+        this.tileMaps = tileMaps_textures;
+        this.tileTables = tileTables_textures;
+        this.oam = oam_texture;
     }
 }

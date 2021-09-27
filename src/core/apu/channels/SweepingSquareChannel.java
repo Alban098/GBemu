@@ -53,4 +53,13 @@ public class SweepingSquareChannel extends SquareChannel {
         memory.writeByte(nrX4_register, (frequencyData & 0xF8) | ((freq & 0x700) >> 8));
         memory.writeByte(nrX3_register, freq & 0xFF);
     }
+
+    @Override
+    public void reset() {
+        super.reset();
+        elapsedSweepTime = 0;
+        sweepShift = 0;
+        sweepTime = 0;
+        sweepDecreasing = false;
+    }
 }

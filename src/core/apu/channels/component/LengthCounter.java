@@ -14,4 +14,9 @@ public class LengthCounter {
         length -= length != 0 ? 1 : 0;
         return !stopLoop || length != 0;
     }
+
+    public void reset() {
+        stopLoop = false;
+        length = 0;
+    }
 }

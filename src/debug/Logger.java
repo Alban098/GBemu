@@ -40,14 +40,7 @@ public class Logger {
         lines = new ConcurrentLinkedQueue<>();
     }
 
-    public static class Line {
-        private final Color color;
-        private final String content;
-
-        public Line(Color color, String content) {
-            this.color = color;
-            this.content = content;
-        }
+    public record Line(Color color, String content) {
 
         public Color getColor() {
             return color;

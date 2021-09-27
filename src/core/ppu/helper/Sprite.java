@@ -2,10 +2,10 @@ package core.ppu.helper;
 
 public class Sprite implements Comparable<Sprite> {
 
-    public int y = 0;
-    public int x = 0;
-    public int tileId = 0;
-    public int attributes = 0;
+    public int y;
+    public int x;
+    public int tileId;
+    public int attributes;
 
     public Sprite(int y, int x, int tileId, int attributes) {
         this.y = y;

@@ -11,7 +11,7 @@ import debug.Logger;
 
 public class GameBoy {
 
-    public static final boolean DEBUG = true;
+    public static boolean DEBUG = true;
     public static final boolean ENABLE_BOOTSTRAP = true;
 
     public static final int[] BOOTSTRAP = {
@@ -51,12 +51,11 @@ public class GameBoy {
         inputManager = new InputManager(memory);
         if (!GameBoy.DEBUG)
             currentState = GameBoyState.RUNNING;
-        reset();
     }
 
     public void insertCartridge(String file) throws Exception {
         memory.loadCart(file);
-        cpu.init();
+        reset();
     }
 
     public void reset() {
@@ -107,6 +106,7 @@ public class GameBoy {
         memory.writeRaw(MMU.WY, 0x00);
         memory.writeRaw(MMU.IE, 0x00);
         Logger.log(Logger.Type.INFO, "Emulation reset");
+        cpu.init();
     }
 
     public MMU getMemory() {

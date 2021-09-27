@@ -132,7 +132,7 @@ public class PPU {
             int tileWINMapAddr = (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_MAP) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START) | (((y - wy) & 0xF8) << 2);
             int oamAddr = MMU.OAM_START;
 
-            ColorShade bgColor = ColorShade.TRANSPARENT, winColor = ColorShade.TRANSPARENT, spriteColor = ColorShade.TRANSPARENT, finalColor;
+            ColorShade bgColor, winColor, spriteColor, finalColor;
 
             //Temporary variables, declared here to increase reusability
             int tileIdAddr, tileId, spriteY, spriteSubX, spriteSubY;

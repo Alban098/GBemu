@@ -10,17 +10,16 @@ import imgui.extension.implot.flag.ImPlotFlags;
 import java.util.Queue;
 
 
-public class APULayer {
+public class APULayer extends AbstractDebugLayer {
 
     public static final int DEBUG_SAMPLE_NUMBER = 368;
     private final Queue<Sample> sample_queue;
     private final Float[][] samples;
     private final Float[] xs;
-    private int flags = ImPlotFlags.NoMousePos | ImPlotFlags.NoLegend;
-    private int axisFlags = ImPlotAxisFlags.RangeFit | ImPlotAxisFlags.LockMax | ImPlotAxisFlags.LockMin | ImPlotAxisFlags.NoGridLines | ImPlotAxisFlags.NoDecorations;
 
-    public APULayer(Queue<Sample> sample_queue) {
-        this.sample_queue = sample_queue;
+    public APULayer(GameBoy gameBoy) {
+        super(gameBoy);
+        this.sample_queue = gameBoy.getApu().getDebugSampleQueue();
         this.samples = new Float[5][DEBUG_SAMPLE_NUMBER];
         xs = new Float[DEBUG_SAMPLE_NUMBER];
         for (int i = 0; i < DEBUG_SAMPLE_NUMBER; i++) {
@@ -33,7 +32,7 @@ public class APULayer {
         }
     }
 
-    public void imgui(GameBoy gameBoy) {
+    public void render() {
         ImGui.begin("APU");
         int i = 0;
         for (Sample s : sample_queue) {
@@ -46,6 +45,8 @@ public class APULayer {
         }
         ImGui.setWindowSize(515, 335);
         ImPlot.setNextPlotLimits(0, DEBUG_SAMPLE_NUMBER, -0.2,7.1,1);
+        int axisFlags = ImPlotAxisFlags.RangeFit | ImPlotAxisFlags.LockMax | ImPlotAxisFlags.LockMin | ImPlotAxisFlags.NoGridLines | ImPlotAxisFlags.NoDecorations;
+        int flags = ImPlotFlags.NoMousePos | ImPlotFlags.NoLegend;
         if (ImPlot.beginPlot("Channels", "Time", "Intensity", new ImVec2(500, 300), flags, axisFlags, axisFlags)) {
             ImPlot.plotLine("Square 1", xs, samples[0]);
             ImPlot.plotLine("Square 2", xs, samples[1]);
@@ -54,10 +55,6 @@ public class APULayer {
             ImPlot.plotLine("D.A.C", xs, samples[4]);
             ImPlot.endPlot();
         }
-
-
-
-
         ImGui.end();
     }
 }

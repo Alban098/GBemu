@@ -7,12 +7,7 @@ import core.cartridge.Cartridge;
 import core.ppu.LCDMode;
 import core.ppu.helper.IMMUListener;
 import debug.Logger;
-import main.Main;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 public class MMU {

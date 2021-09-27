@@ -16,7 +16,6 @@ public class NoiseChannel {
 
     private int cycleSampleUpdate = 0;
     private int cycleCount = 0;
-    private int divisor = 0;
     private int lfsr = 0;
 
     private boolean widthFlag = false;
@@ -51,10 +50,9 @@ public class NoiseChannel {
         envelope.setEnvelope(envelopeTicks, envelopeVolume, increase);
 
         int noiseData = memory.readByte(MMU.NR43);
-        divisor = APU.AUDIO_DIVISOR[noiseData & Flags.NR43_DIV_RATIO];
         widthFlag = (noiseData & Flags.NR43_COUNTER_WIDTH) != 0x00;
         lfsr = 0x7FFF;
-        cycleSampleUpdate = (divisor << (((noiseData & Flags.NR43_SHIFT_CLK_FREQ) >> 4) + 1)) << 2;
+        cycleSampleUpdate = (APU.AUDIO_DIVISOR[noiseData & Flags.NR43_DIV_RATIO] << (((noiseData & Flags.NR43_SHIFT_CLK_FREQ) >> 4) + 1)) << 2;
         cycleCount = 0;
 
         updateSample();
@@ -83,4 +81,14 @@ public class NoiseChannel {
             sample = 0;
     }
 
+    public void reset() {
+        sample = 0;
+        running = false;
+        cycleSampleUpdate = 0;
+        cycleCount = 0;
+        lfsr = 0;
+        widthFlag = false;
+        lengthCounter.reset();
+        envelope.reset();
+    }
 }

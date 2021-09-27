@@ -1,7 +1,6 @@
 package core.apu.channels;
 
 import core.Flags;
-import core.apu.APU;
 import core.apu.channels.component.LengthCounter;
 import core.memory.MMU;
 
@@ -12,7 +11,6 @@ public class WaveChannel {
 
     public int sample;
 
-    private int currentFreq = 0;
     private int sampleIndex = 0;
     private int cycleSampleUpdate = 0;
     private int cycleCount = 0;
@@ -43,8 +41,7 @@ public class WaveChannel {
         boolean lengthStop = memory.readIORegisterBit(MMU.NR34, Flags.NR34_LOOP_CHANNEL);
         lengthCounter.setLength(length, lengthStop);
 
-        currentFreq = getFrequency();
-        cycleSampleUpdate = (2048 - currentFreq) << 1;
+        cycleSampleUpdate = (2048 - getFrequency()) << 1;
         cycleCount = 0;
         sampleIndex = 0;
 
@@ -76,4 +73,12 @@ public class WaveChannel {
             sample = 0;
     }
 
+    public void reset() {
+        sample = 0;
+        running = false;
+        sampleIndex = 0;
+        cycleSampleUpdate = 0;
+        cycleCount = 0;
+        lengthCounter.reset();
+    }
 }

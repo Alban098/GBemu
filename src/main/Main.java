@@ -8,8 +8,6 @@ import net.beadsproject.beads.core.io.JavaSoundAudioIO;
 import net.beadsproject.beads.ugens.Function;
 import net.beadsproject.beads.ugens.WaveShaper;
 
-import javax.sound.sampled.LineUnavailableException;
-
 public class Main {
 
     private static AudioContext ac;
@@ -30,7 +28,7 @@ public class Main {
     public static void launchSoundEngine(GameBoy gameBoy) {
         JavaSoundAudioIO jsaIO = new JavaSoundAudioIO();
         JavaSoundAudioIO.printMixerInfo();
-        jsaIO.selectMixer(10);
+        jsaIO.selectMixer(3);
         ac = new AudioContext(jsaIO);
         Function audioProcessor = new Function(new WaveShaper(ac)) {
             public float calculate() {

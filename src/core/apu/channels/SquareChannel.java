@@ -1,6 +1,5 @@
 package core.apu.channels;
 
-import core.Flags;
 import core.apu.APU;
 import core.apu.channels.component.Envelope;
 import core.apu.channels.component.LengthCounter;
@@ -16,17 +15,17 @@ public class SquareChannel {
 
     protected int currentFreq = 0;
     protected int nrX1_register;
-    private int nrX2_register;
+    private final int nrX2_register;
     protected int nrX3_register;
     protected int nrX4_register;
-    private int nr52_channelOnFlag;
-    private int nrX1_patternDutyFlag;
-    private int nrX1_soundLengthFlag;
-    private int nrX2_envSweepNbFlag;
-    private int nrX2_envVolumeFlag;
-    private int nrX2_envDirFlag;
-    private int nrX4_loopFlag;
-    private int nrX4_freqHighFlag;
+    private final int nr52_channelOnFlag;
+    private final int nrX1_patternDutyFlag;
+    private final int nrX1_soundLengthFlag;
+    private final int nrX2_envSweepNbFlag;
+    private final int nrX2_envVolumeFlag;
+    private final int nrX2_envDirFlag;
+    private final int nrX4_loopFlag;
+    private final int nrX4_freqHighFlag;
 
     private int selectedDuty = 0;
     private int sampleIndex = 0;
@@ -111,4 +110,14 @@ public class SquareChannel {
             sample = 0;
     }
 
+    public void reset() {
+        sample = 0;
+        selectedDuty = 0;
+        sampleIndex = 0;
+        cycleSampleUpdate = 0;
+        cycleCount = 0;
+        running = false;
+        lengthCounter.reset();
+        envelope.reset();
+    }
 }

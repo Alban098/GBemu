@@ -9,10 +9,8 @@ import core.memory.MMU;
 import core.apu.channels.SquareChannel;
 import core.cpu.LR35902;
 import core.ppu.helper.IMMUListener;
-import debug.Logger;
 import gui.APULayer;
 
-import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -29,7 +27,6 @@ public class APU implements IMMUListener {
 
     private final Queue<Sample> sampleQueue;
     private final Queue<Sample> debugSampleQueue;
-    private final Queue<Integer> lastLength;
 
     private final SweepingSquareChannel square1;
     private final SquareChannel square2;
@@ -58,7 +55,6 @@ public class APU implements IMMUListener {
         memory.addListener(this);
         sampleQueue = new ConcurrentLinkedQueue<>();
         debugSampleQueue = new ConcurrentLinkedQueue<>();
-        lastLength = new LinkedList<>();
         square1 = new SweepingSquareChannel(memory, MMU.NR11, MMU.NR12, MMU.NR13, MMU.NR14, Flags.NR52_CHANNEL_1_ON, Flags.NR11_PATTERN_DUTY, Flags.NR11_SOUND_LENGTH, Flags.NR12_ENVELOPE_SWEEP_NB, Flags.NR12_ENVELOPE_VOLUME, Flags.NR12_ENVELOPE_DIR, Flags.NR14_LOOP_CHANNEL, Flags.NR14_FREQ_HIGH);
         square2 = new SquareChannel(memory, MMU.NR21, MMU.NR22, MMU.NR23, MMU.NR24, Flags.NR52_CHANNEL_1_ON, Flags.NR21_PATTERN_DUTY, Flags.NR21_SOUND_LENGTH, Flags.NR22_ENVELOPE_SWEEP_NB, Flags.NR22_ENVELOPE_VOLUME, Flags.NR22_ENVELOPE_DIR, Flags.NR24_LOOP_CHANNEL, Flags.NR24_FREQ_HIGH);
         wave = new WaveChannel(memory);
@@ -71,7 +67,6 @@ public class APU implements IMMUListener {
         clockSweep(mcycles);
         clockChannels(mcycles);
         clockSamples(mcycles);
-
     }
 
     public void onWriteToMMU(int addr, int data) {
@@ -147,15 +142,12 @@ public class APU implements IMMUListener {
             Sample sample = new Sample(square1.sample, square2.sample, wave.sample, noise.sample);
             sampleQueue.offer(sample);
             if (sampleIndex % (APU.SAMPLE_RATE/10) == 0) {
-                lastLength.offer(sampleQueue.size());
                 if (sampleQueue.size() > 5000) {
                     LR35902.CPU_CYCLES_PER_SAMPLE += .5;
                     adaptativeSampleRateStarted = true;
                 } else if (sampleQueue.size() < 100 && adaptativeSampleRateStarted) {
                     LR35902.CPU_CYCLES_PER_SAMPLE -= .5;
                 }
-                Logger.log(Logger.Type.INFO, String.valueOf(sampleQueue.size()));
-
             }
             if (GameBoy.DEBUG) {
                 debugSampleQueue.offer(sample);
@@ -184,7 +176,19 @@ public class APU implements IMMUListener {
     }
 
     public void reset() {
-
+        lastSample = 0;
+        sampleQueue.clear();
+        debugSampleQueue.clear();
+        adaptativeSampleRateStarted = false;
+        sampleIndex = 0;
+        cycle = 0;
+        cycleEnvelope = 0;
+        cycleLength = 0;
+        cycleSweep = 0;
+        square1.reset();
+        square2.reset();
+        wave.reset();
+        noise.reset();
     }
 
 }
