@@ -13,6 +13,7 @@ public class GameBoy {
 
     public static boolean DEBUG = true;
     public static final boolean ENABLE_BOOTSTRAP = true;
+    private boolean hasCartridge = false;
 
     public static final int[] BOOTSTRAP = {
             0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26, 0xFF, 0x0E,
@@ -55,6 +56,7 @@ public class GameBoy {
 
     public void insertCartridge(String file) throws Exception {
         memory.loadCart(file);
+        hasCartridge = true;
         reset();
     }
 
@@ -92,7 +94,7 @@ public class GameBoy {
         memory.writeRaw(MMU.NR50, 0x77);
         memory.writeRaw(MMU.NR51, 0xF3);
         memory.writeRaw(MMU.NR52, 0xF1);
-        memory.writeRaw(MMU.LCDC, 0x11);
+        memory.writeRaw(MMU.LCDC, 0x91);
         memory.writeRaw(MMU.STAT, 0x85);
         memory.writeRaw(MMU.SCX, 0x00);
         memory.writeRaw(MMU.SCY, 0x00);
@@ -176,6 +178,9 @@ public class GameBoy {
     public void removeBreakpoint(int addr) {
         cpu.removeBreakpoint(addr);
     }
+    public void removeMemoryBreakpoint(int addr) {
+        memory.removeBreakpoint(addr);
+    }
 
     public void addMemoryBreakpoint(int addr) {
         memory.addBreakpoint(addr);
@@ -183,5 +188,9 @@ public class GameBoy {
 
     public void setButtonState(Button button, State state) {
         inputManager.setButtonState(button, state);
+    }
+
+    public boolean hasCartridge() {
+        return hasCartridge;
     }
 }

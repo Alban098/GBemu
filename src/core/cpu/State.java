@@ -12,14 +12,14 @@ public class State {
     private final RegisterWord pc;
     private final LR35902.Instruction instruction;
 
-    public State() {
+    public State(LR35902 cpu) {
         af = new RegisterWord(0);
         bc = new RegisterWord(0);
         de = new RegisterWord(0);
         hl = new RegisterWord(0);
         sp = new RegisterWord(0);
         pc = new RegisterWord(0);
-        instruction = new LR35902.Instruction(0, "NOP", 1, null);
+        instruction = new LR35902.Instruction(0, "NOP", 1, null, cpu);
     }
 
     public void set(RegisterWord af, RegisterWord bc, RegisterWord de, RegisterWord hl, RegisterWord sp, RegisterWord pc, LR35902.Instruction instruction) {

@@ -57,6 +57,7 @@ public class PPU {
 
     public void clock(int mcycles) {
         if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON)) {
+            memory.writeLcdMode(LCDMode.H_BLANK);
             //prevent rendering routine from getting stuck when LCD is off
             off_cycles+= mcycles;
             if (off_cycles >= LR35902.CPU_CYCLES_PER_FRAME) {
@@ -225,11 +226,13 @@ public class PPU {
                 } else {
                     finalColor = spriteColor;
                 }
-
-                screen_buffer.put((byte) finalColor.getColor().getRed());
-                screen_buffer.put((byte) finalColor.getColor().getGreen());
-                screen_buffer.put((byte) finalColor.getColor().getBlue());
-                screen_buffer.put((byte) 255);
+                
+                if (screen_buffer.position() < screen_buffer.limit()) {
+                    screen_buffer.put((byte) finalColor.getColor().getRed());
+                    screen_buffer.put((byte) finalColor.getColor().getGreen());
+                    screen_buffer.put((byte) finalColor.getColor().getBlue());
+                    screen_buffer.put((byte) 255);
+                }
             }
 
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT - 1) {

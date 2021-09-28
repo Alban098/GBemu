@@ -41,20 +41,49 @@ public class ConsoleLayer extends AbstractDebugLayer {
     private void interpretCommand(Command command, GameBoy gameBoy) {
         switch (command.command) {
             case "break" -> {
-                try {
-                    gameBoy.addBreakpoint(Integer.decode("0x" + command.args.get(0)));
-                    Logger.log(Logger.Type.INFO,  "Breakpoint created");
-                } catch (Exception e) {
-                    Logger.log(Logger.Type.ERROR,"Error creating breakpoint : " + e.getMessage());
+                switch (command.args.get(0)) {
+                    case "-m" -> {
+                        if ("-r".equals(command.args.get(1))) {
+                            try {
+                                gameBoy.removeMemoryBreakpoint(Integer.decode("0x" + command.args.get(1)));
+                                Logger.log(Logger.Type.INFO, "Breakpoint created");
+                            } catch (Exception e) {
+                                Logger.log(Logger.Type.ERROR, "Error creating breakpoint : " + e.getMessage());
+                            }
+                        } else {
+                            try {
+                                gameBoy.addMemoryBreakpoint(Integer.decode("0x" + command.args.get(1)));
+                                Logger.log(Logger.Type.INFO, "Breakpoint created");
+                            } catch (Exception e) {
+                                Logger.log(Logger.Type.ERROR, "Error creating breakpoint : " + e.getMessage());
+                            }
+                        }
+                    }
+                    case "-r" -> {
+                        try {
+                            gameBoy.removeBreakpoint(Integer.decode("0x" + command.args.get(1)));
+                            Logger.log(Logger.Type.INFO,  "Breakpoint created");
+                        } catch (Exception e) {
+                            Logger.log(Logger.Type.ERROR,"Error creating breakpoint : " + e.getMessage());
+                        }
+                    }
+                    default -> {
+                        try {
+                            gameBoy.addBreakpoint(Integer.decode("0x" + command.args.get(0)));
+                            Logger.log(Logger.Type.INFO,  "Breakpoint created");
+                        } catch (Exception e) {
+                            Logger.log(Logger.Type.ERROR,"Error creating breakpoint : " + e.getMessage());
+                        }
+                    }
                 }
             }
-            case "break-m" -> {
-                try {
-                    gameBoy.addMemoryBreakpoint(Integer.decode("0x" + command.args.get(0)));
-                    Logger.log(Logger.Type.INFO,  "Breakpoint created");
-                } catch (Exception e) {
-                    Logger.log(Logger.Type.ERROR,"Error creating breakpoint : " + e.getMessage());
-                }
+            case "help" -> {
+                Logger.log(Logger.Type.INFO, "================= break =================");
+                Logger.log(Logger.Type.INFO, " break (-r)/(-m)/(-m -r) addr");
+                Logger.log(Logger.Type.INFO, " -r : remove breakpoint at addr");
+                Logger.log(Logger.Type.INFO, " -m : add memory breakpoint at addr");
+                Logger.log(Logger.Type.INFO, " -m -r : remove memory breakpoint at addr");
+                Logger.log(Logger.Type.INFO, " addr : address in hex, ex:C5F6");
             }
             default -> Logger.log(Logger.Type.WARNING, "Unknown command !");
         }

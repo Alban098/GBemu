@@ -15,7 +15,6 @@ public class MMU {
     public static final int P1                  = 0xFF00;
     public static final int SB                  = 0xFF01;
     public static final int SC                  = 0xFF02;
-    public static final int IO_INTERNAL_CLK_LOW = 0xFF03;
     public static final int DIV                 = 0xFF04;
     public static final int TIMA                = 0xFF05;
     public static final int TMA                 = 0xFF06;
@@ -43,7 +42,6 @@ public class MMU {
     public static final int NR51                = 0xFF25;
     public static final int NR52                = 0xFF26;
     public static final int WAVE_PATTERN_START  = 0xFF30;
-    public static final int WAVE_PATTERN_END    = 0xFF3F;
     public static final int LCDC                = 0xFF40;
     public static final int STAT                = 0xFF41;
     public static final int SCY                 = 0xFF42;
@@ -218,5 +216,9 @@ public class MMU {
     public void reset() {
         Arrays.fill(memory, 0);
         loadBootstrap();
+    }
+
+    public void removeBreakpoint(int addr) {
+        breakpoints.remove(addr);
     }
 }

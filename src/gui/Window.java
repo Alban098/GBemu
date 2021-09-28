@@ -167,27 +167,29 @@ public class Window {
     }
 
     private void tickEmulator() {
-        if (GameBoy.DEBUG) {
-            if (gameboy.getState() == GameBoyState.RUNNING)
+        if (gameboy.hasCartridge()) {
+            if (GameBoy.DEBUG) {
+                if (gameboy.getState() == GameBoyState.RUNNING)
+                    gameboy.executeFrame();
+                if (gameboy.getState() == GameBoyState.DEBUG) {
+                    if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
+                        gameboy.executeInstructions(1, true);
+                        isSpacePressed = true;
+                    }
+                    if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
+                        isSpacePressed = false;
+                    if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_PRESS && !isFPressed) {
+                        gameboy.forceFrame();
+                        isFPressed = true;
+                    }
+                    if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_RELEASE && isFPressed)
+                        isFPressed = false;
+                    if (glfwGetKey(windowPtr, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
+                        gameboy.executeInstructions(1000, false);
+                }
+            } else {
                 gameboy.executeFrame();
-            if (gameboy.getState() == GameBoyState.DEBUG) {
-                if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
-                    gameboy.executeInstructions(1, true);
-                    isSpacePressed = true;
-                }
-                if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
-                    isSpacePressed = false;
-                if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_PRESS && !isFPressed) {
-                    gameboy.forceFrame();
-                    isFPressed = true;
-                }
-                if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_RELEASE && isFPressed)
-                    isFPressed = false;
-                if (glfwGetKey(windowPtr, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
-                    gameboy.executeInstructions(1000, false);
             }
-        } else {
-            gameboy.executeFrame();
         }
     }
 
@@ -262,17 +264,19 @@ public class Window {
                 }
             }
             ImGui.separator();
-            switch (gameboy.getState()) {
-                case RUNNING -> {
-                    if(ImGui.menuItem("Pause"))
-                        gameboy.setState(GameBoyState.PAUSED);
-                }
-                case PAUSED, DEBUG -> {
-                    if(ImGui.menuItem("Run"))
-                        gameboy.setState(GameBoyState.RUNNING);
+            if (gameboy.hasCartridge()) {
+                switch (gameboy.getState()) {
+                    case RUNNING -> {
+                        if (ImGui.menuItem("Pause"))
+                            gameboy.setState(GameBoyState.PAUSED);
+                    }
+                    case PAUSED, DEBUG -> {
+                        if (ImGui.menuItem("Run"))
+                            gameboy.setState(GameBoyState.RUNNING);
+                    }
                 }
             }
-            if(ImGui.menuItem("Reset"))
+            if (ImGui.menuItem("Reset"))
                 gameboy.reset();
             ImGui.endMenu();
         }
