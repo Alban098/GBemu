@@ -1,8 +1,8 @@
 package core.apu.channels;
 
 import core.apu.APU;
-import core.apu.channels.component.Envelope;
-import core.apu.channels.component.LengthCounter;
+import core.apu.components.Envelope;
+import core.apu.components.LengthCounter;
 import core.memory.MMU;
 
 public class SquareChannel {
@@ -52,8 +52,8 @@ public class SquareChannel {
         this.envelope = new Envelope();
     }
 
-    public void clock(int mcycles) {
-        cycleCount += mcycles;
+    public void clock() {
+        cycleCount++;
         if (cycleCount >= cycleSampleUpdate) {
             sampleIndex++;
             if (sampleIndex > 7) sampleIndex = 0;

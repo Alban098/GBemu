@@ -55,11 +55,11 @@ public class PPU {
         return screen_buffer;
     }
 
-    public void clock(int mcycles) {
+    public void clock() {
         if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON)) {
             memory.writeLcdMode(LCDMode.H_BLANK);
             //prevent rendering routine from getting stuck when LCD is off
-            off_cycles+= mcycles;
+            off_cycles++;
             if (off_cycles >= LR35902.CPU_CYCLES_PER_FRAME) {
                 screen_buffer.clear();
                 if (GameBoy.DEBUG) {
@@ -72,7 +72,7 @@ public class PPU {
             }
             return;
         }
-        cycles += mcycles;
+        cycles++;
         switch (memory.readLcdMode()) {
             case OAM -> processOam();
             case TRANSFER -> processTransfer();

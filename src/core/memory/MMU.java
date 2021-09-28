@@ -104,9 +104,9 @@ public class MMU {
         System.arraycopy(GameBoy.BOOTSTRAP, 0, memory, 0, 0x0100);
     }
 
-    public void clock(int mcycles) {
+    public void clock() {
         if (dma_remaining_cycles > 0) {
-            dma_remaining_cycles -= mcycles;
+            dma_remaining_cycles--;
         }
     }
 

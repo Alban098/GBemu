@@ -13,11 +13,11 @@ public class Timer {
         this.memory = memory;
     }
 
-    public void clock(int mcycles) {
-        clockDiv += mcycles;
-        clockTima += mcycles;
+    public void clock() {
+        clockDiv++;
+        clockTima++;
         if (pendingOverflow >= 0)
-            triggerInterrupt(mcycles);
+            triggerInterrupt();
         if (clockDiv > 256) {
             memory.writeRaw(MMU.DIV, (memory.readByte(MMU.DIV) + 1) & 0xFF);
             clockDiv -= 256;
@@ -46,11 +46,11 @@ public class Timer {
         };
     }
 
-    public void triggerInterrupt(int mcycles) {
+    public void triggerInterrupt() {
         if (pendingOverflow <= 0) {
             memory.writeByte(MMU.TIMA, memory.readByte(MMU.TMA));
             memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, true);
         }
-        pendingOverflow -= mcycles;
+        pendingOverflow--;
     }
 }

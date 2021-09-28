@@ -1,7 +1,7 @@
 package core.apu.channels;
 
 import core.Flags;
-import core.apu.channels.component.LengthCounter;
+import core.apu.components.LengthCounter;
 import core.memory.MMU;
 
 public class WaveChannel {
@@ -22,8 +22,8 @@ public class WaveChannel {
         this.lengthCounter = new LengthCounter();
     }
 
-    public void clock(int mcycles) {
-        cycleCount += mcycles;
+    public void clock() {
+        cycleCount++;
         if (cycleCount >= cycleSampleUpdate) {
             sampleIndex++;
             if (sampleIndex > 31) sampleIndex = 0;

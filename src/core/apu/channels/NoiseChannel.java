@@ -2,8 +2,8 @@ package core.apu.channels;
 
 import core.Flags;
 import core.apu.APU;
-import core.apu.channels.component.Envelope;
-import core.apu.channels.component.LengthCounter;
+import core.apu.components.Envelope;
+import core.apu.components.LengthCounter;
 import core.memory.MMU;
 
 public class NoiseChannel {
@@ -27,8 +27,8 @@ public class NoiseChannel {
         this.envelope = new Envelope();
     }
 
-    public void clock(int mcycles) {
-        cycleCount += mcycles;
+    public void clock() {
+        cycleCount++;
         if (cycleCount >= cycleSampleUpdate) {
             updateSample();
             cycleCount -= cycleSampleUpdate;

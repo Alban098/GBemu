@@ -627,14 +627,16 @@ public class LR35902 {
 
     public int execute() {
         if (!halted) {
-            opcode_mcycle = next_instr.operate();
-            handleInterrupts();
-            next_instr = fetchInstruction();
-            if (GameBoy.DEBUG && breakpoints.contains(next_instr.addr)) {
-                gameBoy.setState(GameBoyState.DEBUG);
-                Logger.log(Logger.Type.WARNING, "Beakpoint $" + String.format("%04X", next_instr.addr) + " reached");
+            if (opcode_mcycle-- < 1) {
+                opcode_mcycle = next_instr.operate();
+                handleInterrupts();
+                next_instr = fetchInstruction();
+                if (GameBoy.DEBUG && breakpoints.contains(next_instr.addr)) {
+                    gameBoy.setState(GameBoyState.DEBUG);
+                    Logger.log(Logger.Type.WARNING, "Beakpoint $" + String.format("%04X", next_instr.addr) + " reached");
+                }
+                createDebugInfo();
             }
-            createDebugInfo();
         } else if (handleInterrupts()) {
             next_instr = fetchInstruction();
             createDebugInfo();

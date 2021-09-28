@@ -128,12 +128,13 @@ public class GameBoy {
     }
 
     public void executeInstruction() {
-        int mcycles = cpu.execute();
-        memory.clock(mcycles);
-        ppu.clock(mcycles);
-        apu.clock(mcycles);
-        timer.clock(mcycles);
-        inputManager.clock();
+        while (cpu.execute() > 0) {
+            memory.clock();
+            ppu.clock();
+            apu.clock();
+            timer.clock();
+            inputManager.clock();
+        }
     }
 
     public void executeInstructions(int nb_instr, boolean force) {

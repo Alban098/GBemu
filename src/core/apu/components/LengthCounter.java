@@ -1,4 +1,4 @@
-package core.apu.channels.component;
+package core.apu.components;
 
 public class LengthCounter {
 

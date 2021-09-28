@@ -61,12 +61,12 @@ public class APU implements IMMUListener {
         noise = new NoiseChannel(memory);
     }
 
-    public void clock(int mcycles) {
-        clockLength(mcycles);
-        clockEnvelope(mcycles);
-        clockSweep(mcycles);
-        clockChannels(mcycles);
-        clockSamples(mcycles);
+    public void clock() {
+        clockLength();
+        clockEnvelope();
+        clockSweep();
+        clockChannels();
+        clockSamples();
     }
 
     public void onWriteToMMU(int addr, int data) {
@@ -100,8 +100,8 @@ public class APU implements IMMUListener {
         }
     }
 
-    private void clockLength(int mcycles) {
-        cycleLength += mcycles;
+    private void clockLength() {
+        cycleLength++;
         if (cycleLength >= LR35902.CPU_CYCLES_256HZ) {
             square1.tickLength();
             square2.tickLength();
@@ -111,8 +111,8 @@ public class APU implements IMMUListener {
         }
     }
 
-    private void clockEnvelope(int mcycles) {
-        cycleEnvelope += mcycles;
+    private void clockEnvelope() {
+        cycleEnvelope++;
         if (cycleEnvelope >= LR35902.CPU_CYCLES_64HZ) {
             square1.tickEnvelope();
             square2.tickEnvelope();
@@ -121,23 +121,23 @@ public class APU implements IMMUListener {
         }
     }
 
-    private void clockSweep(int mcycles) {
-        cycleSweep += mcycles;
+    private void clockSweep() {
+        cycleSweep++;
         if (cycleSweep >= LR35902.CPU_CYCLES_128HZ) {
             square1.tickSweep();
             cycleSweep -= LR35902.CPU_CYCLES_128HZ;
         }
     }
 
-    private void clockChannels(int mcycles) {
-        square1.clock(mcycles);
-        square2.clock(mcycles);
-        wave.clock(mcycles);
-        noise.clock(mcycles);
+    private void clockChannels() {
+        square1.clock();
+        square2.clock();
+        wave.clock();
+        noise.clock();
     }
 
-    private void clockSamples(int mcycles) {
-        cycle += mcycles;
+    private void clockSamples() {
+        cycle++;
         if (cycle >= LR35902.CPU_CYCLES_PER_SAMPLE) {
             Sample sample = new Sample(square1.sample, square2.sample, wave.sample, noise.sample);
             sampleQueue.offer(sample);
