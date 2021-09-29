@@ -44,10 +44,10 @@ public class GameBoy {
     private final InputManager inputManager;
     private final Debugger debugger;
 
-    private GameBoyState currentState = GameBoyState.PAUSED;
+    private GameBoyState currentState;
 
     public GameBoy() {
-        memory = new MMU(this);
+        memory = new MMU();
         cpu = new LR35902(this);
         ppu = new PPU(this);
         apu = new APU(this);

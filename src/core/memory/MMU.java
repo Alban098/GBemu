@@ -2,16 +2,15 @@ package core.memory;
 
 import core.Flags;
 import core.GameBoy;
-import core.GameBoyState;
 import core.cartridge.Cartridge;
 import core.ppu.LCDMode;
 import core.ppu.helper.IMMUListener;
-import debug.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class MMU {
-
     public static final int P1                  = 0xFF00;
     public static final int SB                  = 0xFF01;
     public static final int SC                  = 0xFF02;
@@ -72,24 +71,38 @@ public class MMU {
 
     public static final int TILE_BLOCK_START    = 0x8000;
 
-    private final List<IMMUListener> listeners;
-    private final GameBoy gameboy;
-
     private Cartridge cartridge;
-    private LCDMode ppuMode = LCDMode.H_BLANK;
-    private final int[] memory;
-    private StringBuilder serialOutput;
+    private final int[] bootstrap;
+    private final int[] vram;
+    private final int[] wram;
+    private final int[] oam;
+    private final int[] io_registers;
+    private final int[] hram;
+    private int ie;
 
-    private final Set<Integer> breakpoints;
     private int dma_remaining_cycles = 0;
+    private StringBuilder serialOutput;
+    private LCDMode ppuMode = LCDMode.H_BLANK;
+    private final List<IMMUListener> listeners;
 
-    public MMU(GameBoy gb) {
-        gameboy = gb;
-        memory = new int[0x10000];
-        breakpoints = new HashSet<>();
+
+    public MMU() {
         serialOutput = new StringBuilder();
+        bootstrap = new int[0x100];
+        vram = new int[0x2000];
+        wram = new int[0x2000];
+        oam = new int[0xA0];
+        io_registers = new int[0x80];
+        hram = new int[0xFF];
+        ie = 0;
         listeners = new ArrayList<>();
         loadBootstrap();
+    }
+
+    public void clock() {
+        if (dma_remaining_cycles > 0) {
+            dma_remaining_cycles--;
+        }
     }
 
     public void addListener(IMMUListener listener) {
@@ -101,13 +114,7 @@ public class MMU {
     }
 
     private void loadBootstrap() {
-        System.arraycopy(GameBoy.BOOTSTRAP, 0, memory, 0, 0x0100);
-    }
-
-    public void clock() {
-        if (dma_remaining_cycles > 0) {
-            dma_remaining_cycles--;
-        }
+        System.arraycopy(GameBoy.BOOTSTRAP, 0, bootstrap, 0, 0x0100);
     }
 
     public int readByte(int addr) {
@@ -116,65 +123,118 @@ public class MMU {
 
     public int readByte(int addr, boolean fromPPU) {
         addr &= 0xFFFF;
-        if (addr <= 0xFF && memory[BOOTSTRAP_CONTROL] != 1)
-            return memory[addr];
-        else if (addr <= 0x7FFF)
-            return cartridge.read(addr);
-        else if (addr <= 0x9FFF && !fromPPU && ppuMode == LCDMode.TRANSFER && readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
+        if (addr <= 0x7FFF) {
+            if (addr <= 0xFF && io_registers[BOOTSTRAP_CONTROL & 0x7F] != 1)
+                return bootstrap[addr & 0xFF];
+            if (cartridge != null)
+                return cartridge.read(addr);
+            return 0x00;
+        } else if (addr <= 0x9FFF) {
+            if (!fromPPU && ppuMode == LCDMode.TRANSFER && readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
+                return 0xFF;
+            return vram[addr & 0x1FFF];
+        } else if (addr <= 0xBFFF) {
+            if (cartridge != null)
+                return cartridge.read(addr);
+            return 0x00;
+        } else if (addr <= 0xDFFF) {
+            return wram[addr & 0x1FFF];
+        } else if (addr <= 0xFE9F) {
+            if (!fromPPU && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
+                return 0xFF;
+            return oam[addr & 0xFF];
+        } else if (addr <= 0xFEFF) {
             return 0xFF;
-        else if (addr >= 0xFE00 && addr <= 0xFE9F && !fromPPU && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
-            return 0xFF;
-        else
-            return memory[addr];
+        } else if (addr <= 0xFF7F) {
+            return io_registers[addr & 0x7F];
+        } else if (addr <= 0xFFFE) {
+            return hram[addr & 0x7F];
+        } else {
+            return ie;
+        }
     }
 
     public void writeByte(int addr, int data) {
         addr &= 0xFFFF;
         data &= 0xFF;
-        if (addr == SC && data == 0x81) {
-            char c = (char) readByte(SB);
-            serialOutput.append(c);
-            writeByte(SC, 0);
+        if (addr <= 0x7FFF) {
+            if (cartridge != null)
+                cartridge.write(addr, data);
+        } else if (addr <= 0x9FFF) {
+            vram[addr & 0x1FFF] = data;
+        } else if (addr <= 0xBFFF) {
+            if (cartridge != null)
+                cartridge.write(addr, data);
+        } else if (addr <= 0xDFFF) {
+            wram[addr & 0x1FFF] = data;
+        } else if (addr <= 0xFE9F) {
+            oam[addr & 0xFF] = data;
+        } else if (addr <= 0xFEFF) {
+            return;
+        } else if (addr <= 0xFF7F) {
+            if (addr == SC && data == 0x81) {
+                char c = (char) readByte(SB);
+                serialOutput.append(c);
+                writeByte(SC, 0);
+            }
+            if(addr == LY)
+                io_registers[LY & 0x7F] = 0;
+            else if(addr == DIV)
+                io_registers[DIV & 0x7F] = 0;
+            else if(addr == DMA)
+                executeDmaTransfer(data);
+            else if(addr == P1)
+                io_registers[P1 & 0x7F] = (data & 0x30) | (io_registers[P1 & 0x7F] & 0xCF);
+            else if(addr == STAT)
+                io_registers[STAT & 0x7F] = (data & 0x78) | (io_registers[STAT & 0x7F] & 0x07);
+            else
+                io_registers[addr & 0x7F] = data;
+        } else if (addr <= 0xFFFE) {
+            hram[addr & 0x7F] = data;
+        } else {
+            ie = data;
         }
-        if (addr == SB)
-            System.out.println("");
-
-        if(addr == LY)
-            memory[addr] = 0;
-        else if(addr == DIV)
-            memory[addr] = 0;
-        else if(addr == DMA)
-            executeDmaTransfer(data);
-        else if(addr == P1)
-            memory[P1] = (data & 0x30) | (memory[P1] & 0xCF);
-        else if(addr == STAT)
-            memory[STAT] = (data & 0x78) | (memory[STAT] & 0x07);
-        else if(addr <= 0x3FFF)
-            cartridge.write(addr, data);
-        /*
-        //VRAM Lock during transfer causes bugs for some reason
-        else if (addr >= 0x8000 && addr <= 0x9FFF && (ppuMode == LCDMode.TRANSFER) && readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
-            return;
-        */
-        else if (addr >= 0xFE00 && addr <= 0xFE9F && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
-            return;
-        else
-            memory[addr] = data;
-
         for (IMMUListener listener : listeners)
             listener.onWriteToMMU(addr, data);
     }
 
+    public void writeRaw(int addr, int data) {
+        addr &= 0xFFFF;
+        data &= 0xFF;
+        if (addr <= 0x7FFF) {
+            if (cartridge != null)
+                cartridge.write(addr, data);
+        } else if (addr <= 0x9FFF) {
+            vram[addr & 0x1FFF] = data;
+        } else if (addr <= 0xBFFF) {
+            if (cartridge != null)
+                cartridge.write(addr, data);
+        } else if (addr <= 0xDFFF) {
+            wram[addr & 0x1FFF] = data;
+        } else if (addr <= 0xFE9F) {
+            oam[addr & 0xFF] = data;
+        } else if (addr <= 0xFEFF) {
+        } else if (addr <= 0xFF7F) {
+            if (addr == SC && data == 0x81) {
+                char c = (char) readByte(SB);
+                serialOutput.append(c);
+                writeByte(SC, 0);
+            } else {
+                io_registers[addr & 0x7F] = data;
+            }
+        } else if (addr <= 0xFFFE) {
+            hram[addr & 0x7F] = data;
+        } else {
+            ie = data;
+        }
+    }
+
     private void executeDmaTransfer(int data) {
-        memory[DMA] = data;
+        io_registers[DMA & 0x7F] = data & 0xFF;
         int start = data << 8;
 
         for (int i = 0x0; i <= 0x9F; i++)
             writeRaw(0xFE00 | i, readByte(start | i, true));
-    }
-
-    public void writeRaw(int addr, int data) {
-        memory[addr] = data & 0xFF;
     }
 
     public boolean readIORegisterBit(int reg, int flag) {
@@ -183,9 +243,9 @@ public class MMU {
 
     public void writeIORegisterBit(int register, int flag, boolean value) {
         if(value)
-            memory[register] |= flag;
+            io_registers[register & 0x7F] |= flag;
         else
-            memory[register] &= ~flag;
+            io_registers[register & 0x7F] &= ~flag;
     }
 
     public LCDMode readLcdMode() {
@@ -207,16 +267,14 @@ public class MMU {
         serialOutput = new StringBuilder();
     }
 
-    public void addBreakpoint(int addr) {
-        breakpoints.add(addr);
-    }
-
     public void reset() {
-        Arrays.fill(memory, 0);
+        Arrays.fill(bootstrap, 0);
+        Arrays.fill(vram, 0);
+        Arrays.fill(wram, 0);
+        Arrays.fill(oam, 0);
+        Arrays.fill(io_registers, 0);
+        Arrays.fill(hram, 0);
+        ie = 0;
         loadBootstrap();
-    }
-
-    public void removeBreakpoint(int addr) {
-        breakpoints.remove(addr);
     }
 }

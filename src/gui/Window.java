@@ -118,7 +118,7 @@ public class Window {
 
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        windowPtr = glfwCreateWindow(160*3, 160*3, "GBemu", NULL, NULL);
+        windowPtr = glfwCreateWindow(160*3, 144*3+10, "GBemu", NULL, NULL);
 
         if (windowPtr == NULL) {
             System.out.println("Unable to create window");
