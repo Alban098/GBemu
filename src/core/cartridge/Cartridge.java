@@ -13,11 +13,12 @@ import java.nio.file.Paths;
 public class Cartridge {
 
     public final String title;
+    private final MemoryBankController mbc;
+    private final int type;
 
     private final int[] rom;
     private final int[] ram;
 
-    private final MemoryBankController mbc;
 
     public Cartridge(String file) throws Exception {
         Path path = Paths.get(file);
@@ -27,7 +28,7 @@ public class Cartridge {
 
         title = getTitle(bytes);
 
-        int type = bytes[0x147];
+        type = bytes[0x147];
         int nb_rom_bank = bytes[0x148] << 2;
         int nb_ram_bank;
         switch (bytes[0x149]) {
@@ -73,7 +74,7 @@ public class Cartridge {
             int mapped = mbc.mapRAMAddr(addr);
             if (mapped >= 0x00)
                 ram[mapped] = data;
-        } else {
+        } else if (addr <= 0x7FFF){
             mbc.write(addr, data);
         }
     }
@@ -84,10 +85,11 @@ public class Cartridge {
             if (mapped >= 0x00)
                 return ram[mapped];
             return 0x00;
+        } else if (addr <= 0x7FFF) {
+            int mappedAddr = mbc.mapROMAddr(addr);
+            if (mappedAddr >= 0x00)
+                return rom[mappedAddr];
         }
-        int mappedAddr = mbc.mapROMAddr(addr);
-        if (mappedAddr >= 0x00)
-            return rom[addr & 0x7FFF];
         return 0x00;
     }
 }

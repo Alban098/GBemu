@@ -12,10 +12,8 @@ public class Main {
 
     private static AudioContext ac;
 
-    public static void main(String[] args) throws Exception {
-        String rom = "Dr. Mario (World).gb";
+    public static void main(String[] args) {
         GameBoy gb = new GameBoy();
-        //gb.insertCartridge("roms\\" + rom);
         launchSoundEngine(gb);
         Window window = new Window(gb);
         window.init();
@@ -28,7 +26,7 @@ public class Main {
     public static void launchSoundEngine(GameBoy gameBoy) {
         JavaSoundAudioIO jsaIO = new JavaSoundAudioIO();
         JavaSoundAudioIO.printMixerInfo();
-        jsaIO.selectMixer(3);
+        jsaIO.selectMixer(10);
         ac = new AudioContext(jsaIO);
         Function audioProcessor = new Function(new WaveShaper(ac)) {
             public float calculate() {

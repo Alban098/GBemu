@@ -7,16 +7,13 @@ import core.memory.MMU;
 public class InputManager {
 
     private int requestedState = 0x00;
-    private final GameBoy gameboy;
     private final MMU memory;
 
     public InputManager(GameBoy gameboy) {
-        this.gameboy = gameboy;
         this.memory = gameboy.getMemory();
     }
 
     public void clock() {
-        //todo Split check for button and DPAD and dissociate button mask
         boolean irq = false;
         int newState = 0;
         if (!memory.readIORegisterBit(MMU.P1, Flags.P1_BUTTON)) {

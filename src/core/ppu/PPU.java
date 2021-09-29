@@ -143,7 +143,6 @@ public class PPU {
             Set<Sprite> sprites = new TreeSet<>();
 
             //Sprites fetch
-
             int foundSprites = 0;
             while(foundSprites < MAX_SPRITES_PER_SCANLINE && oamAddr < MMU.OAM_END) {
                 spriteY = memory.readByte(oamAddr++, true);
@@ -175,8 +174,8 @@ public class PPU {
                 }
 
                 //Window
-                if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_ON) && (x - wx - 7> 0) && (y - wy > 0) && (x - wx < 160) && (y - wy < 144) && wx < 166 && wy < 143) {
-                    tileIdAddr = tileWINMapAddr | ((x - wx - 7) >> 3);
+                if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_ON) && (x - (wx - 7) > 0) && (y - wy> 0) && (x - wx < 160) && (y - wy < 144) && wx < 166 && wy < 143) {
+                    tileIdAddr = tileWINMapAddr | ((x - (wx - 7)) >> 3);
                     tileId = memory.readByte(tileIdAddr, true);
                     if (!mode1)
                         tileId = signedByte(tileId);
@@ -184,12 +183,13 @@ public class PPU {
                             palettes.getBgPalette(),
                             mode1 ? 0 : 2,
                             tileId,
-                            (x - wx - 7) & 0x7,
+                            (x - (wx - 7)) & 0x7,
                             (y - wy) & 0x7
                     );
                 }
 
                 //Sprites
+                //TODO fix sprite priority over background and window
                 if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_ON)) {
                     for (Sprite sprite : sprites) {
                         if (sprite.x - 8 <= x && sprite.x > x) {
