@@ -3,8 +3,8 @@ package gui;
 import core.Flags;
 import core.GameBoy;
 import core.GameBoyState;
+import core.cpu.Instruction;
 import core.memory.MMU;
-import core.cpu.LR35902;
 import core.cpu.State;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
@@ -61,7 +61,7 @@ public class CPULayer extends AbstractDebugLayer {
             ImGui.treePop();
         }
 
-        State cpuState = gameboy.getCpu().getCpuState();
+        State cpuState = gameboy.getDebugger().getCpuState();
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         if (ImGui.treeNode("Flags")) {
@@ -136,9 +136,9 @@ public class CPULayer extends AbstractDebugLayer {
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         if (ImGui.treeNode("Code Execution")) {
-            Queue<LR35902.Instruction> instructions = gameboy.getCpu().getInstructionQueue();
+            Queue<Instruction> instructions = gameboy.getDebugger().getInstructionQueue();
             ImGui.textColored(255, 255, 0, 255, cpuState.getInstruction().toString());
-            for (LR35902.Instruction instruction : instructions)
+            for (Instruction instruction : instructions)
                 ImGui.text(instruction.toString());
             ImGui.treePop();
         }

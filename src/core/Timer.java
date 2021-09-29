@@ -9,8 +9,8 @@ public class Timer {
     private int clockTima = 0;
     private int pendingOverflow = -1;
 
-    public Timer(MMU memory) {
-        this.memory = memory;
+    public Timer(GameBoy gameboy) {
+        this.memory = gameboy.getMemory();
     }
 
     public void clock() {

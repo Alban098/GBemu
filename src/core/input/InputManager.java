@@ -1,15 +1,18 @@
 package core.input;
 
 import core.Flags;
+import core.GameBoy;
 import core.memory.MMU;
 
 public class InputManager {
 
     private int requestedState = 0x00;
+    private final GameBoy gameboy;
     private final MMU memory;
 
-    public InputManager(MMU memory) {
-        this.memory = memory;
+    public InputManager(GameBoy gameboy) {
+        this.gameboy = gameboy;
+        this.memory = gameboy.getMemory();
     }
 
     public void clock() {

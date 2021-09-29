@@ -27,6 +27,7 @@ public class PPU {
     private final ByteBuffer oam_buffer;
 
     private final MMU memory;
+    private final GameBoy gameboy;
 
     private final ColorPalettes palettes;
 
@@ -35,7 +36,9 @@ public class PPU {
     private int off_cycles = 0;
 
 
-    public PPU(MMU memory) {
+    public PPU(GameBoy gameboy) {
+        this.gameboy = gameboy;
+        this.memory = gameboy.getMemory();
         screen_buffer = BufferUtils.createByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
         oam_buffer = BufferUtils.createByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
         tileMaps = new ByteBuffer[]{
@@ -48,7 +51,6 @@ public class PPU {
                 BufferUtils.createByteBuffer(128 * 64 * 4)
         };
         palettes = new ColorPalettes(memory);
-        this.memory = memory;
     }
 
     public ByteBuffer getScreenBuffer() {
@@ -62,7 +64,7 @@ public class PPU {
             off_cycles++;
             if (off_cycles >= LR35902.CPU_CYCLES_PER_FRAME) {
                 screen_buffer.clear();
-                if (GameBoy.DEBUG) {
+                if (gameboy.isDebuggerHooked()) {
                     computeTileTables();
                     computeTileMaps();
                     computeOAM();
@@ -86,7 +88,7 @@ public class PPU {
 
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT) {
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, true);
-                if (GameBoy.DEBUG) {
+                if (gameboy.isDebuggerHooked()) {
                     computeTileTables();
                     computeTileMaps();
                     computeOAM();

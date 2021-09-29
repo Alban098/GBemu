@@ -73,7 +73,7 @@ public class MMU {
     public static final int TILE_BLOCK_START    = 0x8000;
 
     private final List<IMMUListener> listeners;
-    private final GameBoy gameBoy;
+    private final GameBoy gameboy;
 
     private Cartridge cartridge;
     private LCDMode ppuMode = LCDMode.H_BLANK;
@@ -84,7 +84,7 @@ public class MMU {
     private int dma_remaining_cycles = 0;
 
     public MMU(GameBoy gb) {
-        gameBoy = gb;
+        gameboy = gb;
         memory = new int[0x10000];
         breakpoints = new HashSet<>();
         serialOutput = new StringBuilder();
@@ -131,15 +131,13 @@ public class MMU {
     public void writeByte(int addr, int data) {
         addr &= 0xFFFF;
         data &= 0xFF;
-        if (GameBoy.DEBUG && breakpoints.contains(addr)) {
-            gameBoy.setState(GameBoyState.DEBUG);
-            Logger.log(Logger.Type.WARNING, "Breakpoint for write to $" + String.format("%04X", addr) + " reached");
-        }
         if (addr == SC && data == 0x81) {
             char c = (char) readByte(SB);
             serialOutput.append(c);
             writeByte(SC, 0);
         }
+        if (addr == SB)
+            System.out.println("");
 
         if(addr == LY)
             memory[addr] = 0;

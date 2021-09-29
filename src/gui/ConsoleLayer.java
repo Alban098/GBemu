@@ -1,6 +1,7 @@
 package gui;
 
 import core.GameBoy;
+import debug.BreakPoint;
 import debug.Logger;
 import imgui.ImGui;
 import imgui.type.ImString;
@@ -45,14 +46,19 @@ public class ConsoleLayer extends AbstractDebugLayer {
                     case "-m" -> {
                         if ("-r".equals(command.args.get(1))) {
                             try {
-                                gameBoy.removeMemoryBreakpoint(Integer.decode("0x" + command.args.get(1)));
-                                Logger.log(Logger.Type.INFO, "Breakpoint created");
+                                gameBoy.removeBreakpoint(Integer.decode("0x" + command.args.get(2)));
+                                Logger.log(Logger.Type.INFO, "Breakpoint removed");
                             } catch (Exception e) {
-                                Logger.log(Logger.Type.ERROR, "Error creating breakpoint : " + e.getMessage());
+                                Logger.log(Logger.Type.ERROR, "Error removing breakpoint : " + e.getMessage());
                             }
                         } else {
                             try {
-                                gameBoy.addMemoryBreakpoint(Integer.decode("0x" + command.args.get(1)));
+                                BreakPoint.Type type = BreakPoint.Type.WRITE;
+                                switch (command.args.get(2)) {
+                                    case "/r" -> type = BreakPoint.Type.READ;
+                                    case "/w" -> type = BreakPoint.Type.WRITE;
+                                }
+                                gameBoy.addBreakpoint(Integer.decode("0x" + command.args.get(1)), type);
                                 Logger.log(Logger.Type.INFO, "Breakpoint created");
                             } catch (Exception e) {
                                 Logger.log(Logger.Type.ERROR, "Error creating breakpoint : " + e.getMessage());
@@ -62,14 +68,14 @@ public class ConsoleLayer extends AbstractDebugLayer {
                     case "-r" -> {
                         try {
                             gameBoy.removeBreakpoint(Integer.decode("0x" + command.args.get(1)));
-                            Logger.log(Logger.Type.INFO,  "Breakpoint created");
+                            Logger.log(Logger.Type.INFO,  "Breakpoint removed");
                         } catch (Exception e) {
-                            Logger.log(Logger.Type.ERROR,"Error creating breakpoint : " + e.getMessage());
+                            Logger.log(Logger.Type.ERROR,"Error removing breakpoint : " + e.getMessage());
                         }
                     }
                     default -> {
                         try {
-                            gameBoy.addBreakpoint(Integer.decode("0x" + command.args.get(0)));
+                            gameBoy.addBreakpoint(Integer.decode("0x" + command.args.get(0)), BreakPoint.Type.EXEC);
                             Logger.log(Logger.Type.INFO,  "Breakpoint created");
                         } catch (Exception e) {
                             Logger.log(Logger.Type.ERROR,"Error creating breakpoint : " + e.getMessage());
@@ -79,10 +85,12 @@ public class ConsoleLayer extends AbstractDebugLayer {
             }
             case "help" -> {
                 Logger.log(Logger.Type.INFO, "================= break =================");
-                Logger.log(Logger.Type.INFO, " break (-r)/(-m)/(-m -r) addr");
+                Logger.log(Logger.Type.INFO, " break (-r)/(-m)/(-m -r) addr [/r or /w if -m]");
                 Logger.log(Logger.Type.INFO, " -r : remove breakpoint at addr");
                 Logger.log(Logger.Type.INFO, " -m : add memory breakpoint at addr");
                 Logger.log(Logger.Type.INFO, " -m -r : remove memory breakpoint at addr");
+                Logger.log(Logger.Type.INFO, " /r : memory breakpoint on read to addr (only if -m)");
+                Logger.log(Logger.Type.INFO, " /w : memory breakpoint on write to addr (only if -m)");
                 Logger.log(Logger.Type.INFO, " addr : address in hex, ex:C5F6");
             }
             default -> Logger.log(Logger.Type.WARNING, "Unknown command !");

@@ -10,7 +10,7 @@ public class State {
     private final RegisterWord hl;
     private final RegisterWord sp;
     private final RegisterWord pc;
-    private final LR35902.Instruction instruction;
+    private final Instruction instruction;
 
     public State(LR35902 cpu) {
         af = new RegisterWord(0);
@@ -19,10 +19,10 @@ public class State {
         hl = new RegisterWord(0);
         sp = new RegisterWord(0);
         pc = new RegisterWord(0);
-        instruction = new LR35902.Instruction(0, "NOP", 1, null, cpu);
+        instruction = new Instruction(0, Instruction.Type.MISC, "NOP", 1, null, cpu);
     }
 
-    public void set(RegisterWord af, RegisterWord bc, RegisterWord de, RegisterWord hl, RegisterWord sp, RegisterWord pc, LR35902.Instruction instruction) {
+    public void set(RegisterWord af, RegisterWord bc, RegisterWord de, RegisterWord hl, RegisterWord sp, RegisterWord pc, Instruction instruction) {
         this.af.write(af.read());
         this.bc.write(bc.read());
         this.de.write(de.read());
@@ -56,7 +56,7 @@ public class State {
         return pc;
     }
 
-    public LR35902.Instruction getInstruction() {
+    public Instruction getInstruction() {
         return instruction;
     }
 }

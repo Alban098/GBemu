@@ -1,6 +1,7 @@
 package core.cartridge;
 
 import core.cartridge.mbc.MBC1;
+import core.cartridge.mbc.MBC3;
 import core.cartridge.mbc.MemoryBankController;
 import core.cartridge.mbc.NoMBC;
 
@@ -10,6 +11,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class Cartridge {
+
+    public final String title;
 
     private final int[] rom;
     private final int[] ram;
@@ -21,6 +24,8 @@ public class Cartridge {
 
         byte[] bytes = new byte[0];
         try { bytes = Files.readAllBytes(path); } catch (IOException e) { e.printStackTrace(); }
+
+        title = getTitle(bytes);
 
         int type = bytes[0x147];
         int nb_rom_bank = bytes[0x148] << 2;
@@ -35,7 +40,8 @@ public class Cartridge {
 
         switch(type) {
             case 0x00 -> mbc = new NoMBC(2, 0);
-            case 0x01 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank);
+            case 0x01, 0x02, 0x03 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank);
+            case 0x0F, 0x10, 0x11, 0x12, 0x13 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank);
             default -> throw new Exception("MBC not implemented yet");
         }
 
@@ -50,10 +56,20 @@ public class Cartridge {
         }
     }
 
+    private String getTitle(byte[] bytes) {
+        StringBuilder title = new StringBuilder();
+        for (int i = 0x134; i < 0x142; i++) {
+            if (bytes[i] == 0x00)
+                break;
+            title.append((char) bytes[i]);
+        }
+        return title.toString();
+    }
+
     public void write(int addr, int data) {
         addr &= 0xFFFF;
         data &= 0xFF;
-        if (addr >= 0x8000 && addr <= 0x9FFF) {
+        if (addr >= 0xA000 && addr <= 0xBFFF) {
             int mapped = mbc.mapRAMAddr(addr);
             if (mapped >= 0x00)
                 ram[mapped] = data;
@@ -63,7 +79,7 @@ public class Cartridge {
     }
 
     public int read(int addr) {
-        if (addr >= 0x8000 && addr <= 0x9FFF) {
+        if (addr >= 0xA000 && addr <= 0xBFFF) {
             int mapped = mbc.mapRAMAddr(addr);
             if (mapped >= 0x00)
                 return ram[mapped];

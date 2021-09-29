@@ -7,6 +7,8 @@ import core.input.State;
 import core.input.Button;
 import core.memory.MMU;
 import core.ppu.PPU;
+import debug.BreakPoint;
+import debug.Debugger;
 import debug.Logger;
 
 public class GameBoy {
@@ -40,18 +42,31 @@ public class GameBoy {
     private final APU apu;
     private final Timer timer;
     private final InputManager inputManager;
+    private final Debugger debugger;
 
     private GameBoyState currentState = GameBoyState.PAUSED;
 
     public GameBoy() {
         memory = new MMU(this);
-        cpu = new LR35902(memory, this);
-        ppu = new PPU(memory);
-        apu = new APU(memory);
-        timer = new Timer(memory);
-        inputManager = new InputManager(memory);
-        if (!GameBoy.DEBUG)
-            currentState = GameBoyState.RUNNING;
+        cpu = new LR35902(this);
+        ppu = new PPU(this);
+        apu = new APU(this);
+        timer = new Timer(this);
+        inputManager = new InputManager(this);
+        debugger = new Debugger(this);
+        currentState = GameBoyState.RUNNING;
+    }
+
+    public Debugger getDebugger() {
+        return debugger;
+    }
+
+    public void hookDebugger(boolean hook) {
+        if (hook)
+            cpu.hookDebugger(debugger);
+        else
+            cpu.hookDebugger(null);
+        debugger.setHooked(hook);
     }
 
     public void insertCartridge(String file) throws Exception {
@@ -172,19 +187,12 @@ public class GameBoy {
         return apu.getNextSample();
     }
 
-    public void addBreakpoint(int addr) {
-        cpu.addBreakpoint(addr);
+    public void addBreakpoint(int addr, BreakPoint.Type type) {
+        debugger.addBreakpoint(addr, type);
     }
 
     public void removeBreakpoint(int addr) {
-        cpu.removeBreakpoint(addr);
-    }
-    public void removeMemoryBreakpoint(int addr) {
-        memory.removeBreakpoint(addr);
-    }
-
-    public void addMemoryBreakpoint(int addr) {
-        memory.addBreakpoint(addr);
+        debugger.removeBreakpoint(addr);
     }
 
     public void setButtonState(Button button, State state) {
@@ -193,5 +201,9 @@ public class GameBoy {
 
     public boolean hasCartridge() {
         return hasCartridge;
+    }
+
+    public boolean isDebuggerHooked() {
+        return debugger.isHooked();
     }
 }

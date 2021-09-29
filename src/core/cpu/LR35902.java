@@ -2,16 +2,13 @@ package core.cpu;
 
 import core.Flags;
 import core.GameBoy;
-import core.GameBoyState;
 import core.memory.MMU;
 import core.apu.APU;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
-import debug.Logger;
+import debug.Debugger;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Supplier;
 
 import static core.BitUtils.*;
 
@@ -28,20 +25,17 @@ public class LR35902 {
     public static final int CPU_CYCLES_64HZ = CPU_CYCLES_PER_SEC / 64;
     public static float CPU_CYCLES_PER_SAMPLE = (float)CPU_CYCLES_PER_SEC / APU.SAMPLE_RATE;
 
-    private static final int DECOMPILE_SIZE = 0x08;
-    private final List<Instruction> opcodes;
-    private final List<Instruction> cb_opcodes;
-
-    private final GameBoy gameBoy;
+    public final List<Instruction> opcodes;
+    public final List<Instruction> cb_opcodes;
 
     private final RegisterWord af;
-    private final RegisterWord bc;
-    private final RegisterWord de;
-    private final RegisterWord hl;
+    protected final RegisterWord bc;
+    protected final RegisterWord de;
+    protected final RegisterWord hl;
     private final RegisterByte a;
     private final RegisterByte f;
     private final RegisterByte b;
-    private final RegisterByte c;
+    protected final RegisterByte c;
     private final RegisterByte d;
     private final RegisterByte e;
     private final RegisterByte h;
@@ -52,18 +46,15 @@ public class LR35902 {
     private final RegisterByte tmp_reg;
     private final State cpuState;
     private final MMU memory;
-    private final Queue<Instruction> instructionQueue;
 
     private int opcode_mcycle = 0;
     private boolean halted = false;
     private boolean IME = false;
     private Instruction next_instr;
 
-    private final Set<Integer> breakpoints;
+    private Debugger debugger;
 
-    public LR35902(MMU memory, GameBoy gb) {
-        gameBoy = gb;
-        breakpoints = new HashSet<>();
+    public LR35902(GameBoy gameboy) {
         af = new RegisterWord(0x01B0);
         a = af.getHigh();
         f = af.getLow();
@@ -84,545 +75,538 @@ public class LR35902 {
         pc = new RegisterWord(GameBoy.ENABLE_BOOTSTRAP ? 0 : 0x0100);
 
         tmp_reg = new RegisterByte(0x00);
-        this.memory = memory;
+        this.memory = gameboy.getMemory();
         cpuState = new State(this);
 
-        instructionQueue = new ConcurrentLinkedQueue<>();
-        for (int i = 0; i < DECOMPILE_SIZE; i++)
-            instructionQueue.add(new Instruction(0, "NOP", 1, null, this));
-
         opcodes = new ArrayList<>();
-        opcodes.add(new Instruction(0x00, "NOP", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0x01, "LD BC,d16", 3, this::opcode_0x01_ld, this));
-        opcodes.add(new Instruction(0x02, "LD (BC),A", 1, this::opcode_0x02_ld, this));
-        opcodes.add(new Instruction(0x03, "INC BC", 1, this::opcode_0x03_inc, this));
-        opcodes.add(new Instruction(0x04, "INC B", 1, this::opcode_0X04_inc, this));
-        opcodes.add(new Instruction(0x05, "DEC B", 1, this::opcode_0x05_dec, this));
-        opcodes.add(new Instruction(0x06, "LD B,d8", 2, this::opcode_0x06_ld, this));
-        opcodes.add(new Instruction(0x07, "RLCA", 1, this::opcode_0x07_rlca, this));
-        opcodes.add(new Instruction(0x08, "LD (d16),SP", 3, this::opcode_0x08_ld, this));
-        opcodes.add(new Instruction(0x09, "ADD HL,BC", 1, this::opcode_0x09_add, this));
-        opcodes.add(new Instruction(0x0A, "LD A,(BC)", 1, this::opcode_0x0A_ld, this));
-        opcodes.add(new Instruction(0x0B, "DEC BC", 1, this::opcode_0x0B_dec, this));
-        opcodes.add(new Instruction(0x0C, "INC C", 1, this::opcode_0x0C_inc, this));
-        opcodes.add(new Instruction(0x0D, "DEC C", 1, this::opcode_0x0D_dec, this));
-        opcodes.add(new Instruction(0x0E, "LD C,d8", 2, this::opcode_0x0E_ld, this));
-        opcodes.add(new Instruction(0x0F, "RRCA", 1, this::opcode_0x0F_rrca, this));
-        opcodes.add(new Instruction(0x10, "STOP", 2, this::opcode_0x10_stop, this));
-        opcodes.add(new Instruction(0x11, "LD DE,d16", 3, this::opcode_0x11_ld, this));
-        opcodes.add(new Instruction(0x12, "LD (DE),A", 1, this::opcode_0x12_ld, this));
-        opcodes.add(new Instruction(0x13, "INC DE", 1, this::opcode_0x13_inc, this));
-        opcodes.add(new Instruction(0x14, "INC D", 1, this::opcode_0x14_inc, this));
-        opcodes.add(new Instruction(0x15, "DEC D", 1, this::opcode_0x15_dec, this));
-        opcodes.add(new Instruction(0x16, "LD D,d8", 2, this::opcode_0x16_ld, this));
-        opcodes.add(new Instruction(0x17, "RLA", 1, this::opcode_0x17_rla, this));
-        opcodes.add(new Instruction(0x18, "JR r8", 2, this::opcode_0x18_jr, this));
-        opcodes.add(new Instruction(0x19, "ADD HL,DE", 1, this::opcode_0x19_add, this));
-        opcodes.add(new Instruction(0x1A, "LD A,(DE)", 1, this::opcode_0x1A_ld, this));
-        opcodes.add(new Instruction(0x1B, "DEC DE", 1, this::opcode_0x1B_dec, this));
-        opcodes.add(new Instruction(0x1C, "INC E", 1, this::opcode_0x1C_inc, this));
-        opcodes.add(new Instruction(0x1D, "DEC E", 1, this::opcode_0x1D_dec, this));
-        opcodes.add(new Instruction(0x1E, "LD E,d8", 2, this::opcode_0x1E_ld, this));
-        opcodes.add(new Instruction(0x1F, "RRA", 1, this::opcode_0x1F_rra, this));
-        opcodes.add(new Instruction(0x20, "JR NZ,r8", 2, this::opcode_0x20_jr, this));
-        opcodes.add(new Instruction(0x21, "LD HL,d16", 3, this::opcode_0x21_ld, this));
-        opcodes.add(new Instruction(0x22, "LD (HL+),A", 1, this::opcode_0x22_ld, this));
-        opcodes.add(new Instruction(0x23, "INC HL", 1, this::opcode_0x23_inc, this));
-        opcodes.add(new Instruction(0x24, "INC H", 1, this::opcode_0x24_inc, this));
-        opcodes.add(new Instruction(0x25, "DEC H", 1, this::opcode_0x25_dec, this));
-        opcodes.add(new Instruction(0x26, "LD H,d8", 2, this::opcode_0x26_ld, this));
-        opcodes.add(new Instruction(0x27, "DAA", 1, this::opcode_0x27_daa, this));
-        opcodes.add(new Instruction(0x28, "JR Z,r8", 2, this::opcode_0x28_jr, this));
-        opcodes.add(new Instruction(0x29, "ADD HL,HL", 1, this::opcode_0x29_add, this));
-        opcodes.add(new Instruction(0x2A, "LD A,(HL+)", 1, this::opcode_0x2A_ld, this));
-        opcodes.add(new Instruction(0x2B, "DEC HL", 1, this::opcode_0x2B_dec, this));
-        opcodes.add(new Instruction(0x2C, "INC L", 1, this::opcode_0x2C_inc, this));
-        opcodes.add(new Instruction(0x2D, "DEC L", 1, this::opcode_0x2D_dec, this));
-        opcodes.add(new Instruction(0x2E, "LD L,d8", 2, this::opcode_0x2E_ld, this));
-        opcodes.add(new Instruction(0x2F, "CPL", 1, this::opcode_0x2F_cpl, this));
-        opcodes.add(new Instruction(0x30, "JR NC,r8", 2, this::opcode_0x30_jr, this));
-        opcodes.add(new Instruction(0x31, "LD SP,d16", 3, this::opcode_0x31_ld, this));
-        opcodes.add(new Instruction(0x32, "LD (HL-),A", 1, this::opcode_0x32_ld, this));
-        opcodes.add(new Instruction(0x33, "INC SP", 1, this::opcode_0x33_inc, this));
-        opcodes.add(new Instruction(0x34, "INC (HL)", 1, this::opcode_0x34_inc, this));
-        opcodes.add(new Instruction(0x35, "DEC (HL)", 1, this::opcode_0x35_dec, this));
-        opcodes.add(new Instruction(0x36, "LD (HL),d8", 2, this::opcode_0x36_ld, this));
-        opcodes.add(new Instruction(0x37, "SCF", 1, this::opcode_0x37_scf, this));
-        opcodes.add(new Instruction(0x38, "JR C,r8", 2, this::opcode_0x38_jr, this));
-        opcodes.add(new Instruction(0x39, "ADD HL,SP", 1, this::opcode_0x39_add, this));
-        opcodes.add(new Instruction(0x3A, "LD A,(HL-)", 1, this::opcode_0x3A_ld, this));
-        opcodes.add(new Instruction(0x3B, "DEC SP", 1, this::opcode_0x3B_dec, this));
-        opcodes.add(new Instruction(0x3C, "INC A", 1, this::opcode_0x3C_inc, this));
-        opcodes.add(new Instruction(0x3D, "DEC A", 1, this::opcode_0x3D_dec, this));
-        opcodes.add(new Instruction(0x3E, "LD A,d8", 2, this::opcode_0x3E_ld, this));
-        opcodes.add(new Instruction(0x3F, "CCF", 1, this::opcode_0x3F_ccf, this));
-        opcodes.add(new Instruction(0x40, "LD B,B", 1, this::opcode_0x40_ld, this));
-        opcodes.add(new Instruction(0x41, "LD B,C", 1, this::opcode_0x41_ld, this));
-        opcodes.add(new Instruction(0x42, "LD B,D", 1, this::opcode_0x42_ld, this));
-        opcodes.add(new Instruction(0x43, "LD B,E", 1, this::opcode_0x43_ld, this));
-        opcodes.add(new Instruction(0x44, "LD B,H", 1, this::opcode_0x44_ld, this));
-        opcodes.add(new Instruction(0x45, "LD B,L", 1, this::opcode_0x45_ld, this));
-        opcodes.add(new Instruction(0x46, "LD B,(HL)", 1, this::opcode_0x46_ld, this));
-        opcodes.add(new Instruction(0x47, "LD B,A", 1, this::opcode_0x47_ld, this));
-        opcodes.add(new Instruction(0x48, "LD C,B", 1, this::opcode_0x48_ld, this));
-        opcodes.add(new Instruction(0x49, "LD C,C", 1, this::opcode_0x49_ld, this));
-        opcodes.add(new Instruction(0x4A, "LD C,D", 1, this::opcode_0x4A_ld, this));
-        opcodes.add(new Instruction(0x4B, "LD C,E", 1, this::opcode_0x4B_ld, this));
-        opcodes.add(new Instruction(0x4C, "LD C,H", 1, this::opcode_0x4C_ld, this));
-        opcodes.add(new Instruction(0x4D, "LD C,L", 1, this::opcode_0x4D_ld, this));
-        opcodes.add(new Instruction(0x4E, "LD C,(HL)", 1, this::opcode_0x4E_ld, this));
-        opcodes.add(new Instruction(0x4F, "LD C,A", 1, this::opcode_0x4F_ld, this));
-        opcodes.add(new Instruction(0x50, "LD D,B", 1, this::opcode_0x50_ld, this));
-        opcodes.add(new Instruction(0x51, "LD D,C", 1, this::opcode_0x51_ld, this));
-        opcodes.add(new Instruction(0x52, "LD D,D", 1, this::opcode_0x52_ld, this));
-        opcodes.add(new Instruction(0x53, "LD D,E", 1, this::opcode_0x53_ld, this));
-        opcodes.add(new Instruction(0x54, "LD D,H", 1, this::opcode_0x54_ld, this));
-        opcodes.add(new Instruction(0x55, "LD D,L", 1, this::opcode_0x55_ld, this));
-        opcodes.add(new Instruction(0x56, "LD D,(HL)", 1, this::opcode_0x56_ld, this));
-        opcodes.add(new Instruction(0x57, "LD D,A", 1, this::opcode_0x57_ld, this));
-        opcodes.add(new Instruction(0x58, "LD E,B", 1, this::opcode_0x58_ld, this));
-        opcodes.add(new Instruction(0x59, "LD E,C", 1, this::opcode_0x59_ld, this));
-        opcodes.add(new Instruction(0x5A, "LD E,D", 1, this::opcode_0x5A_ld, this));
-        opcodes.add(new Instruction(0x5B, "LD E,E", 1, this::opcode_0x5B_ld, this));
-        opcodes.add(new Instruction(0x5C, "LD E,H", 1, this::opcode_0x5C_ld, this));
-        opcodes.add(new Instruction(0x5D, "LD E,L", 1, this::opcode_0x5D_ld, this));
-        opcodes.add(new Instruction(0x5E, "LD E,(HL)", 1, this::opcode_0x5E_ld, this));
-        opcodes.add(new Instruction(0x5F, "LD E,A", 1, this::opcode_0x5F_ld, this));
-        opcodes.add(new Instruction(0x60, "LD H,B", 1, this::opcode_0x60_ld, this));
-        opcodes.add(new Instruction(0x61, "LD H,C", 1, this::opcode_0x61_ld, this));
-        opcodes.add(new Instruction(0x62, "LD H,D", 1, this::opcode_0x62_ld, this));
-        opcodes.add(new Instruction(0x63, "LD H,E", 1, this::opcode_0x63_ld, this));
-        opcodes.add(new Instruction(0x64, "LD H,H", 1, this::opcode_0x64_ld, this));
-        opcodes.add(new Instruction(0x65, "LD H,L", 1, this::opcode_0x65_ld, this));
-        opcodes.add(new Instruction(0x66, "LD H,(HL)", 1, this::opcode_0x66_ld, this));
-        opcodes.add(new Instruction(0x67, "LD H,A", 1, this::opcode_0x67_ld, this));
-        opcodes.add(new Instruction(0x68, "LD L,B", 1, this::opcode_0x68_ld, this));
-        opcodes.add(new Instruction(0x69, "LD L,C", 1, this::opcode_0x69_ld, this));
-        opcodes.add(new Instruction(0x6A, "LD L,D", 1, this::opcode_0x6A_ld, this));
-        opcodes.add(new Instruction(0x6B, "LD L,E", 1, this::opcode_0x6B_ld, this));
-        opcodes.add(new Instruction(0x6C, "LD L,H", 1, this::opcode_0x6C_ld, this));
-        opcodes.add(new Instruction(0x6D, "LD L,L", 1, this::opcode_0x6D_ld, this));
-        opcodes.add(new Instruction(0x6E, "LD L,(HL)", 1, this::opcode_0x6E_ld, this));
-        opcodes.add(new Instruction(0x6F, "LD L,A", 1, this::opcode_0x6F_ld, this));
-        opcodes.add(new Instruction(0x70, "LD (HL),B", 1, this::opcode_0x70_ld, this));
-        opcodes.add(new Instruction(0x71, "LD (HL),C", 1, this::opcode_0x71_ld, this));
-        opcodes.add(new Instruction(0x72, "LD (HL),D", 1, this::opcode_0x72_ld, this));
-        opcodes.add(new Instruction(0x73, "LD (HL),E", 1, this::opcode_0x73_ld, this));
-        opcodes.add(new Instruction(0x74, "LD (HL),H", 1, this::opcode_0x74_ld, this));
-        opcodes.add(new Instruction(0x75, "LD (HL),L", 1, this::opcode_0x75_ld, this));
-        opcodes.add(new Instruction(0x76, "HALT", 1, this::opcode_0x76_halt, this));
-        opcodes.add(new Instruction(0x77, "LD (HL),A", 1, this::opcode_0x77_ld, this));
-        opcodes.add(new Instruction(0x78, "LD A,B", 1, this::opcode_0x78_ld, this));
-        opcodes.add(new Instruction(0x79, "LD A,C", 1, this::opcode_0x79_ld, this));
-        opcodes.add(new Instruction(0x7A, "LD A,D", 1, this::opcode_0x7A_ld, this));
-        opcodes.add(new Instruction(0x7B, "LD A,E", 1, this::opcode_0x7B_ld, this));
-        opcodes.add(new Instruction(0x7C, "LD A,H", 1, this::opcode_0x7C_ld, this));
-        opcodes.add(new Instruction(0x7D, "LD A,L", 1, this::opcode_0x7D_ld, this));
-        opcodes.add(new Instruction(0x7E, "LD A,(HL)", 1, this::opcode_0x7E_ld, this));
-        opcodes.add(new Instruction(0x7F, "LD A,A", 1, this::opcode_0x7F_ld, this));
-        opcodes.add(new Instruction(0x80, "ADD A,B", 1, this::opcode_0x80_add, this));
-        opcodes.add(new Instruction(0x81, "ADD A,C", 1, this::opcode_0x81_add, this));
-        opcodes.add(new Instruction(0x82, "ADD A,D", 1, this::opcode_0x82_add, this));
-        opcodes.add(new Instruction(0x83, "ADD A,E", 1, this::opcode_0x83_add, this));
-        opcodes.add(new Instruction(0x84, "ADD A,H", 1, this::opcode_0x84_add, this));
-        opcodes.add(new Instruction(0x85, "ADD A,L", 1, this::opcode_0x85_add, this));
-        opcodes.add(new Instruction(0x86, "ADD A,(HL)", 1, this::opcode_0x86_add, this));
-        opcodes.add(new Instruction(0x87, "ADD A,A", 1, this::opcode_0x87_add, this));
-        opcodes.add(new Instruction(0x88, "ADC A,B", 1, this::opcode_0x88_adc, this));
-        opcodes.add(new Instruction(0x89, "ADC A,C", 1, this::opcode_0x89_adc, this));
-        opcodes.add(new Instruction(0x8A, "ADC A,D", 1, this::opcode_0x8A_adc, this));
-        opcodes.add(new Instruction(0x8B, "ADC A,E", 1, this::opcode_0x8B_adc, this));
-        opcodes.add(new Instruction(0x8C, "ADC A,H", 1, this::opcode_0x8C_adc, this));
-        opcodes.add(new Instruction(0x8D, "ADC A,L", 1, this::opcode_0x8D_adc, this));
-        opcodes.add(new Instruction(0x8E, "ADC A,(HL)", 1, this::opcode_0x8E_adc, this));
-        opcodes.add(new Instruction(0x8F, "ADC A,A", 1, this::opcode_0x8F_adc, this));
-        opcodes.add(new Instruction(0x90, "SUB B", 1, this::opcode_0x90_sub, this));
-        opcodes.add(new Instruction(0x91, "SUB C", 1, this::opcode_0x91_sub, this));
-        opcodes.add(new Instruction(0x92, "SUB D", 1, this::opcode_0x92_sub, this));
-        opcodes.add(new Instruction(0x93, "SUB E", 1, this::opcode_0x93_sub, this));
-        opcodes.add(new Instruction(0x94, "SUB H", 1, this::opcode_0x94_sub, this));
-        opcodes.add(new Instruction(0x95, "SUB L", 1, this::opcode_0x95_sub, this));
-        opcodes.add(new Instruction(0x96, "SUB (HL)", 1, this::opcode_0x96_sub, this));
-        opcodes.add(new Instruction(0x97, "SUB A", 1, this::opcode_0x97_sub, this));
-        opcodes.add(new Instruction(0x98, "SBC A,B", 1, this::opcode_0x98_sbc, this));
-        opcodes.add(new Instruction(0x99, "SBC A,C", 1, this::opcode_0x99_sbc, this));
-        opcodes.add(new Instruction(0x9A, "SBC A,D", 1, this::opcode_0x9A_sbc, this));
-        opcodes.add(new Instruction(0x9B, "SBC A,E", 1, this::opcode_0x9B_sbc, this));
-        opcodes.add(new Instruction(0x9C, "SBC A,H", 1, this::opcode_0x9C_sbc, this));
-        opcodes.add(new Instruction(0x9D, "SBC A,L", 1, this::opcode_0x9D_sbc, this));
-        opcodes.add(new Instruction(0x9E, "SBC A,(HL)", 1, this::opcode_0x9E_sbc, this));
-        opcodes.add(new Instruction(0x9F, "SBC A,A", 1, this::opcode_0x9F_sbc, this));
-        opcodes.add(new Instruction(0xA0, "AND B", 1, this::opcode_0xA0_and, this));
-        opcodes.add(new Instruction(0xA1, "AND C", 1, this::opcode_0xA1_and, this));
-        opcodes.add(new Instruction(0xA2, "AND D", 1, this::opcode_0xA2_and, this));
-        opcodes.add(new Instruction(0xA3, "AND E", 1, this::opcode_0xA3_and, this));
-        opcodes.add(new Instruction(0xA4, "AND H", 1, this::opcode_0xA4_and, this));
-        opcodes.add(new Instruction(0xA5, "AND L", 1, this::opcode_0xA5_and, this));
-        opcodes.add(new Instruction(0xA6, "AND (HL)", 1, this::opcode_0xA6_and, this));
-        opcodes.add(new Instruction(0xA7, "AND A", 1, this::opcode_0xA7_and, this));
-        opcodes.add(new Instruction(0xA8, "XOR B", 1, this::opcode_0xA8_xor, this));
-        opcodes.add(new Instruction(0xA9, "XOR C", 1, this::opcode_0xA9_xor, this));
-        opcodes.add(new Instruction(0xAA, "XOR D", 1, this::opcode_0xAA_xor, this));
-        opcodes.add(new Instruction(0xAB, "XOR E", 1, this::opcode_0xAB_xor, this));
-        opcodes.add(new Instruction(0xAC, "XOR H", 1, this::opcode_0xAC_xor, this));
-        opcodes.add(new Instruction(0xAD, "XOR L", 1, this::opcode_0xAD_xor, this));
-        opcodes.add(new Instruction(0xAE, "XOR (HL)", 1, this::opcode_0xAE_xor, this));
-        opcodes.add(new Instruction(0xAF, "XOR A", 1, this::opcode_0xAF_xor, this));
-        opcodes.add(new Instruction(0xB0, "OR B", 1, this::opcode_0xB0_or, this));
-        opcodes.add(new Instruction(0xB1, "OR C", 1, this::opcode_0xB1_or, this));
-        opcodes.add(new Instruction(0xB2, "OR D", 1, this::opcode_0xB2_or, this));
-        opcodes.add(new Instruction(0xB3, "OR E", 1, this::opcode_0xB3_or, this));
-        opcodes.add(new Instruction(0xB4, "OR H", 1, this::opcode_0xB4_or, this));
-        opcodes.add(new Instruction(0xB5, "OR L", 1, this::opcode_0xB5_or, this));
-        opcodes.add(new Instruction(0xB6, "OR (HL)", 1, this::opcode_0xB6_or, this));
-        opcodes.add(new Instruction(0xB7, "OR A", 1, this::opcode_0xB7_or, this));
-        opcodes.add(new Instruction(0xB8, "CP B", 1, this::opcode_0xB8_cp, this));
-        opcodes.add(new Instruction(0xB9, "CP C", 1, this::opcode_0xB9_cp, this));
-        opcodes.add(new Instruction(0xBA, "CP D", 1, this::opcode_0xBA_cp, this));
-        opcodes.add(new Instruction(0xBB, "CP E", 1, this::opcode_0xBB_cp, this));
-        opcodes.add(new Instruction(0xBC, "CP H", 1, this::opcode_0xBC_cp, this));
-        opcodes.add(new Instruction(0xBD, "CP L", 1, this::opcode_0xBD_cp, this));
-        opcodes.add(new Instruction(0xBE, "CP (HL)", 1, this::opcode_0xBE_cp, this));
-        opcodes.add(new Instruction(0xBF, "CP A", 1, this::opcode_0xBF_cp, this));
-        opcodes.add(new Instruction(0xC0, "RET NZ", 1, this::opcode_0xC0_ret, this));
-        opcodes.add(new Instruction(0xC1, "POP BC", 1, this::opcode_0xC1_pop, this));
-        opcodes.add(new Instruction(0xC2, "JP NZ,a16", 3, this::opcode_0xC2_jp, this));
-        opcodes.add(new Instruction(0xC3, "JP a16", 3, this::opcode_0xC3_jp, this));
-        opcodes.add(new Instruction(0xC4, "CALL NZ,a16", 3, this::opcode_0xC4_call, this));
-        opcodes.add(new Instruction(0xC5, "PUSH BC", 1, this::opcode_0xC5_push, this));
-        opcodes.add(new Instruction(0xC6, "ADD A,d8", 2, this::opcode_0xC6_add, this));
-        opcodes.add(new Instruction(0xC7, "RST 00H", 1, this::opcode_0xC7_rst, this));
-        opcodes.add(new Instruction(0xC8, "RET Z", 1, this::opcode_0xC8_ret, this));
-        opcodes.add(new Instruction(0xC9, "RET", 1, this::opcode_0xC9_ret, this));
-        opcodes.add(new Instruction(0xCA, "JP Z,a16", 3, this::opcode_0xCA_jp, this));
-        opcodes.add(new Instruction(0xCB, "PREFIX CB", 1, this::prefix, this));
-        opcodes.add(new Instruction(0xCC, "CALL Z,a16", 3, this::opcode_0xCC_call, this));
-        opcodes.add(new Instruction(0xCD, "CALL a16", 3, this::opcode_0xCD_call, this));
-        opcodes.add(new Instruction(0xCE, "ADC A,d8", 2, this::opcode_0xCE_adc, this));
-        opcodes.add(new Instruction(0xCF, "RST 08H", 1, this::opcode_0xCF_rst, this));
-        opcodes.add(new Instruction(0xD0, "RET NC", 1, this::opcode_0xD0_ret, this));
-        opcodes.add(new Instruction(0xD1, "POP DE", 1, this::opcode_0xD1_pop, this));
-        opcodes.add(new Instruction(0xD2, "JP NC,a16", 3, this::opcode_0xD2_jp, this));
-        opcodes.add(new Instruction(0xD3, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xD4, "CALL NC,a16", 3, this::opcode_0xD4_call, this));
-        opcodes.add(new Instruction(0xD5, "PUSH DE", 1, this::opcode_0xD5_push, this));
-        opcodes.add(new Instruction(0xD6, "SUB d8", 2, this::opcode_0xD6_sub, this));
-        opcodes.add(new Instruction(0xD7, "RST 10H", 1, this::opcode_0xD7_rst, this));
-        opcodes.add(new Instruction(0xD8, "RET C", 1, this::opcode_0xD8_ret, this));
-        opcodes.add(new Instruction(0xD9, "RETI", 1, this::opcode_0xD9_reti, this));
-        opcodes.add(new Instruction(0xDA, "JP C,a16", 3, this::opcode_0xDA_jp, this));
-        opcodes.add(new Instruction(0xDB, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xDC, "CALL C,a16", 3, this::opcode_0xDC_call, this));
-        opcodes.add(new Instruction(0xDD, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xDE, "SBC A,d8", 2, this::opcode_0xDE_sbc, this));
-        opcodes.add(new Instruction(0xDF, "RST 18H", 1, this::opcode_0xDF_rst, this));
-        opcodes.add(new Instruction(0xE0, "LD (FFa8),A", 2, this::opcode_0xE0_ldh, this));
-        opcodes.add(new Instruction(0xE1, "POP HL", 1, this::opcode_0xE1_pop, this));
-        opcodes.add(new Instruction(0xE2, "LD (C),A", 1, this::opcode_0xE2_ld, this));
-        opcodes.add(new Instruction(0xE3, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xE4, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xE5, "PUSH HL", 1, this::opcode_0xE5_push, this));
-        opcodes.add(new Instruction(0xE6, "AND d8", 2, this::opcode_0xE6_and, this));
-        opcodes.add(new Instruction(0xE7, "RST 20H", 1, this::opcode_0xE7_rst, this));
-        opcodes.add(new Instruction(0xE8, "ADD SP,r8", 2, this::opcode_0xE8_add, this));
-        opcodes.add(new Instruction(0xE9, "JP (HL)", 1, this::opcode_0xE9_jp, this));
-        opcodes.add(new Instruction(0xEA, "LD (a16),A", 3, this::opcode_0xEA_ld, this));
-        opcodes.add(new Instruction(0xEB, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xEC, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xED, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xEE, "XOR d8", 2, this::opcode_0xEE_xor, this));
-        opcodes.add(new Instruction(0xEF, "RST 28H", 1, this::opcode_0xEF_rst, this));
-        opcodes.add(new Instruction(0xF0, "LD A,(FFa8)", 2, this::opcode_0xF0_ldh, this));
-        opcodes.add(new Instruction(0xF1, "POP AF", 1, this::opcode_0xF1_pop, this));
-        opcodes.add(new Instruction(0xF2, "LD A,(C)", 1, this::opcode_0xF2_ld, this));
-        opcodes.add(new Instruction(0xF3, "DI", 1, this::opcode_0xF3_di, this));
-        opcodes.add(new Instruction(0xF4, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xF5, "PUSH AF", 1, this::opcode_0xF5_push, this));
-        opcodes.add(new Instruction(0xF6, "OR d8", 2, this::opcode_0xF6_or, this));
-        opcodes.add(new Instruction(0xF7, "RST 30H", 1, this::opcode_0xF7_rst, this));
-        opcodes.add(new Instruction(0xF8, "LD HL,SP+r8", 2, this::opcode_0xF8_ld, this));
-        opcodes.add(new Instruction(0xF9, "LD SP,HL", 1, this::opcode_0xF9_ld, this));
-        opcodes.add(new Instruction(0xFA, "LD A,(a16)", 3, this::opcode_0xFA_ld, this));
-        opcodes.add(new Instruction(0xFB, "EI", 1, this::opcode_0xFB_ei, this));
-        opcodes.add(new Instruction(0xFC, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xFD, "", 1, this::opcode_0x00_nop, this));
-        opcodes.add(new Instruction(0xFE, "CP d8", 2, this::opcode_0xFE_cp, this));
-        opcodes.add(new Instruction(0xFF, "RST 38H", 1, this::opcode_0xFF_rst, this));
+        opcodes.add(new Instruction(0x00, Instruction.Type.MISC, "NOP", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0x01, Instruction.Type.MISC, "LD BC,d16", 3, this::opcode_0x01_ld, this));
+        opcodes.add(new Instruction(0x02, Instruction.Type.W, "LD (BC),A", 1, this::opcode_0x02_ld, this));
+        opcodes.add(new Instruction(0x03, Instruction.Type.MISC, "INC BC", 1, this::opcode_0x03_inc, this));
+        opcodes.add(new Instruction(0x04, Instruction.Type.MISC, "INC B", 1, this::opcode_0X04_inc, this));
+        opcodes.add(new Instruction(0x05, Instruction.Type.MISC, "DEC B", 1, this::opcode_0x05_dec, this));
+        opcodes.add(new Instruction(0x06, Instruction.Type.R, "LD B,d8", 2, this::opcode_0x06_ld, this));
+        opcodes.add(new Instruction(0x07, Instruction.Type.MISC, "RLCA", 1, this::opcode_0x07_rlca, this));
+        opcodes.add(new Instruction(0x08, Instruction.Type.W, "LD (d16),SP", 3, this::opcode_0x08_ld, this));
+        opcodes.add(new Instruction(0x09, Instruction.Type.MISC, "ADD HL,BC", 1, this::opcode_0x09_add, this));
+        opcodes.add(new Instruction(0x0A, Instruction.Type.R, "LD A,(BC)", 1, this::opcode_0x0A_ld, this));
+        opcodes.add(new Instruction(0x0B, Instruction.Type.MISC, "DEC BC", 1, this::opcode_0x0B_dec, this));
+        opcodes.add(new Instruction(0x0C, Instruction.Type.MISC, "INC C", 1, this::opcode_0x0C_inc, this));
+        opcodes.add(new Instruction(0x0D, Instruction.Type.MISC, "DEC C", 1, this::opcode_0x0D_dec, this));
+        opcodes.add(new Instruction(0x0E, Instruction.Type.MISC, "LD C,d8", 2, this::opcode_0x0E_ld, this));
+        opcodes.add(new Instruction(0x0F, Instruction.Type.MISC, "RRCA", 1, this::opcode_0x0F_rrca, this));
+        opcodes.add(new Instruction(0x10, Instruction.Type.MISC, "STOP", 2, this::opcode_0x10_stop, this));
+        opcodes.add(new Instruction(0x11, Instruction.Type.MISC, "LD DE,d16", 3, this::opcode_0x11_ld, this));
+        opcodes.add(new Instruction(0x12, Instruction.Type.W, "LD (DE),A", 1, this::opcode_0x12_ld, this));
+        opcodes.add(new Instruction(0x13, Instruction.Type.MISC, "INC DE", 1, this::opcode_0x13_inc, this));
+        opcodes.add(new Instruction(0x14, Instruction.Type.MISC, "INC D", 1, this::opcode_0x14_inc, this));
+        opcodes.add(new Instruction(0x15, Instruction.Type.MISC, "DEC D", 1, this::opcode_0x15_dec, this));
+        opcodes.add(new Instruction(0x16, Instruction.Type.MISC, "LD D,d8", 2, this::opcode_0x16_ld, this));
+        opcodes.add(new Instruction(0x17, Instruction.Type.MISC, "RLA", 1, this::opcode_0x17_rla, this));
+        opcodes.add(new Instruction(0x18, Instruction.Type.JUMP, "JR r8", 2, this::opcode_0x18_jr, this));
+        opcodes.add(new Instruction(0x19, Instruction.Type.MISC, "ADD HL,DE", 1, this::opcode_0x19_add, this));
+        opcodes.add(new Instruction(0x1A, Instruction.Type.R, "LD A,(DE)", 1, this::opcode_0x1A_ld, this));
+        opcodes.add(new Instruction(0x1B, Instruction.Type.MISC, "DEC DE", 1, this::opcode_0x1B_dec, this));
+        opcodes.add(new Instruction(0x1C, Instruction.Type.MISC, "INC E", 1, this::opcode_0x1C_inc, this));
+        opcodes.add(new Instruction(0x1D, Instruction.Type.MISC, "DEC E", 1, this::opcode_0x1D_dec, this));
+        opcodes.add(new Instruction(0x1E, Instruction.Type.MISC, "LD E,d8", 2, this::opcode_0x1E_ld, this));
+        opcodes.add(new Instruction(0x1F, Instruction.Type.MISC, "RRA", 1, this::opcode_0x1F_rra, this));
+        opcodes.add(new Instruction(0x20, Instruction.Type.JUMP, "JR NZ,r8", 2, this::opcode_0x20_jr, this));
+        opcodes.add(new Instruction(0x21, Instruction.Type.MISC, "LD HL,d16", 3, this::opcode_0x21_ld, this));
+        opcodes.add(new Instruction(0x22, Instruction.Type.W, "LD (HL+),A", 1, this::opcode_0x22_ld, this));
+        opcodes.add(new Instruction(0x23, Instruction.Type.MISC, "INC HL", 1, this::opcode_0x23_inc, this));
+        opcodes.add(new Instruction(0x24, Instruction.Type.MISC, "INC H", 1, this::opcode_0x24_inc, this));
+        opcodes.add(new Instruction(0x25, Instruction.Type.MISC, "DEC H", 1, this::opcode_0x25_dec, this));
+        opcodes.add(new Instruction(0x26, Instruction.Type.MISC, "LD H,d8", 2, this::opcode_0x26_ld, this));
+        opcodes.add(new Instruction(0x27, Instruction.Type.MISC, "DAA", 1, this::opcode_0x27_daa, this));
+        opcodes.add(new Instruction(0x28, Instruction.Type.JUMP, "JR Z,r8", 2, this::opcode_0x28_jr, this));
+        opcodes.add(new Instruction(0x29, Instruction.Type.MISC, "ADD HL,HL", 1, this::opcode_0x29_add, this));
+        opcodes.add(new Instruction(0x2A, Instruction.Type.R, "LD A,(HL+)", 1, this::opcode_0x2A_ld, this));
+        opcodes.add(new Instruction(0x2B, Instruction.Type.MISC, "DEC HL", 1, this::opcode_0x2B_dec, this));
+        opcodes.add(new Instruction(0x2C, Instruction.Type.MISC, "INC L", 1, this::opcode_0x2C_inc, this));
+        opcodes.add(new Instruction(0x2D, Instruction.Type.MISC, "DEC L", 1, this::opcode_0x2D_dec, this));
+        opcodes.add(new Instruction(0x2E, Instruction.Type.MISC, "LD L,d8", 2, this::opcode_0x2E_ld, this));
+        opcodes.add(new Instruction(0x2F, Instruction.Type.MISC, "CPL", 1, this::opcode_0x2F_cpl, this));
+        opcodes.add(new Instruction(0x30, Instruction.Type.JUMP, "JR NC,r8", 2, this::opcode_0x30_jr, this));
+        opcodes.add(new Instruction(0x31, Instruction.Type.MISC, "LD SP,d16", 3, this::opcode_0x31_ld, this));
+        opcodes.add(new Instruction(0x32, Instruction.Type.W, "LD (HL-),A", 1, this::opcode_0x32_ld, this));
+        opcodes.add(new Instruction(0x33, Instruction.Type.MISC, "INC SP", 1, this::opcode_0x33_inc, this));
+        opcodes.add(new Instruction(0x34, Instruction.Type.W, "INC (HL)", 1, this::opcode_0x34_inc, this));
+        opcodes.add(new Instruction(0x35, Instruction.Type.W, "DEC (HL)", 1, this::opcode_0x35_dec, this));
+        opcodes.add(new Instruction(0x36, Instruction.Type.W, "LD (HL),d8", 2, this::opcode_0x36_ld, this));
+        opcodes.add(new Instruction(0x37, Instruction.Type.MISC, "SCF", 1, this::opcode_0x37_scf, this));
+        opcodes.add(new Instruction(0x38, Instruction.Type.JUMP, "JR C,r8", 2, this::opcode_0x38_jr, this));
+        opcodes.add(new Instruction(0x39, Instruction.Type.MISC, "ADD HL,SP", 1, this::opcode_0x39_add, this));
+        opcodes.add(new Instruction(0x3A, Instruction.Type.R, "LD A,(HL-)", 1, this::opcode_0x3A_ld, this));
+        opcodes.add(new Instruction(0x3B, Instruction.Type.MISC, "DEC SP", 1, this::opcode_0x3B_dec, this));
+        opcodes.add(new Instruction(0x3C, Instruction.Type.MISC, "INC A", 1, this::opcode_0x3C_inc, this));
+        opcodes.add(new Instruction(0x3D, Instruction.Type.MISC, "DEC A", 1, this::opcode_0x3D_dec, this));
+        opcodes.add(new Instruction(0x3E, Instruction.Type.MISC, "LD A,d8", 2, this::opcode_0x3E_ld, this));
+        opcodes.add(new Instruction(0x3F, Instruction.Type.MISC, "CCF", 1, this::opcode_0x3F_ccf, this));
+        opcodes.add(new Instruction(0x40, Instruction.Type.MISC, "LD B,B", 1, this::opcode_0x40_ld, this));
+        opcodes.add(new Instruction(0x41, Instruction.Type.MISC, "LD B,C", 1, this::opcode_0x41_ld, this));
+        opcodes.add(new Instruction(0x42, Instruction.Type.MISC, "LD B,D", 1, this::opcode_0x42_ld, this));
+        opcodes.add(new Instruction(0x43, Instruction.Type.MISC, "LD B,E", 1, this::opcode_0x43_ld, this));
+        opcodes.add(new Instruction(0x44, Instruction.Type.MISC, "LD B,H", 1, this::opcode_0x44_ld, this));
+        opcodes.add(new Instruction(0x45, Instruction.Type.MISC, "LD B,L", 1, this::opcode_0x45_ld, this));
+        opcodes.add(new Instruction(0x46, Instruction.Type.R, "LD B,(HL)", 1, this::opcode_0x46_ld, this));
+        opcodes.add(new Instruction(0x47, Instruction.Type.MISC, "LD B,A", 1, this::opcode_0x47_ld, this));
+        opcodes.add(new Instruction(0x48, Instruction.Type.MISC, "LD C,B", 1, this::opcode_0x48_ld, this));
+        opcodes.add(new Instruction(0x49, Instruction.Type.MISC, "LD C,C", 1, this::opcode_0x49_ld, this));
+        opcodes.add(new Instruction(0x4A, Instruction.Type.MISC, "LD C,D", 1, this::opcode_0x4A_ld, this));
+        opcodes.add(new Instruction(0x4B, Instruction.Type.MISC, "LD C,E", 1, this::opcode_0x4B_ld, this));
+        opcodes.add(new Instruction(0x4C, Instruction.Type.MISC, "LD C,H", 1, this::opcode_0x4C_ld, this));
+        opcodes.add(new Instruction(0x4D, Instruction.Type.MISC, "LD C,L", 1, this::opcode_0x4D_ld, this));
+        opcodes.add(new Instruction(0x4E, Instruction.Type.R, "LD C,(HL)", 1, this::opcode_0x4E_ld, this));
+        opcodes.add(new Instruction(0x4F, Instruction.Type.MISC, "LD C,A", 1, this::opcode_0x4F_ld, this));
+        opcodes.add(new Instruction(0x50, Instruction.Type.MISC, "LD D,B", 1, this::opcode_0x50_ld, this));
+        opcodes.add(new Instruction(0x51, Instruction.Type.MISC, "LD D,C", 1, this::opcode_0x51_ld, this));
+        opcodes.add(new Instruction(0x52, Instruction.Type.MISC, "LD D,D", 1, this::opcode_0x52_ld, this));
+        opcodes.add(new Instruction(0x53, Instruction.Type.MISC, "LD D,E", 1, this::opcode_0x53_ld, this));
+        opcodes.add(new Instruction(0x54, Instruction.Type.MISC, "LD D,H", 1, this::opcode_0x54_ld, this));
+        opcodes.add(new Instruction(0x55, Instruction.Type.MISC, "LD D,L", 1, this::opcode_0x55_ld, this));
+        opcodes.add(new Instruction(0x56, Instruction.Type.R, "LD D,(HL)", 1, this::opcode_0x56_ld, this));
+        opcodes.add(new Instruction(0x57, Instruction.Type.MISC, "LD D,A", 1, this::opcode_0x57_ld, this));
+        opcodes.add(new Instruction(0x58, Instruction.Type.MISC, "LD E,B", 1, this::opcode_0x58_ld, this));
+        opcodes.add(new Instruction(0x59, Instruction.Type.MISC, "LD E,C", 1, this::opcode_0x59_ld, this));
+        opcodes.add(new Instruction(0x5A, Instruction.Type.MISC, "LD E,D", 1, this::opcode_0x5A_ld, this));
+        opcodes.add(new Instruction(0x5B, Instruction.Type.MISC, "LD E,E", 1, this::opcode_0x5B_ld, this));
+        opcodes.add(new Instruction(0x5C, Instruction.Type.MISC, "LD E,H", 1, this::opcode_0x5C_ld, this));
+        opcodes.add(new Instruction(0x5D, Instruction.Type.MISC, "LD E,L", 1, this::opcode_0x5D_ld, this));
+        opcodes.add(new Instruction(0x5E, Instruction.Type.R, "LD E,(HL)", 1, this::opcode_0x5E_ld, this));
+        opcodes.add(new Instruction(0x5F, Instruction.Type.MISC, "LD E,A", 1, this::opcode_0x5F_ld, this));
+        opcodes.add(new Instruction(0x60, Instruction.Type.MISC, "LD H,B", 1, this::opcode_0x60_ld, this));
+        opcodes.add(new Instruction(0x61, Instruction.Type.MISC, "LD H,C", 1, this::opcode_0x61_ld, this));
+        opcodes.add(new Instruction(0x62, Instruction.Type.MISC, "LD H,D", 1, this::opcode_0x62_ld, this));
+        opcodes.add(new Instruction(0x63, Instruction.Type.MISC, "LD H,E", 1, this::opcode_0x63_ld, this));
+        opcodes.add(new Instruction(0x64, Instruction.Type.MISC, "LD H,H", 1, this::opcode_0x64_ld, this));
+        opcodes.add(new Instruction(0x65, Instruction.Type.MISC, "LD H,L", 1, this::opcode_0x65_ld, this));
+        opcodes.add(new Instruction(0x66, Instruction.Type.R, "LD H,(HL)", 1, this::opcode_0x66_ld, this));
+        opcodes.add(new Instruction(0x67, Instruction.Type.MISC, "LD H,A", 1, this::opcode_0x67_ld, this));
+        opcodes.add(new Instruction(0x68, Instruction.Type.MISC, "LD L,B", 1, this::opcode_0x68_ld, this));
+        opcodes.add(new Instruction(0x69, Instruction.Type.MISC, "LD L,C", 1, this::opcode_0x69_ld, this));
+        opcodes.add(new Instruction(0x6A, Instruction.Type.MISC, "LD L,D", 1, this::opcode_0x6A_ld, this));
+        opcodes.add(new Instruction(0x6B, Instruction.Type.MISC, "LD L,E", 1, this::opcode_0x6B_ld, this));
+        opcodes.add(new Instruction(0x6C, Instruction.Type.MISC, "LD L,H", 1, this::opcode_0x6C_ld, this));
+        opcodes.add(new Instruction(0x6D, Instruction.Type.MISC, "LD L,L", 1, this::opcode_0x6D_ld, this));
+        opcodes.add(new Instruction(0x6E, Instruction.Type.R, "LD L,(HL)", 1, this::opcode_0x6E_ld, this));
+        opcodes.add(new Instruction(0x6F, Instruction.Type.MISC, "LD L,A", 1, this::opcode_0x6F_ld, this));
+        opcodes.add(new Instruction(0x70, Instruction.Type.W, "LD (HL),B", 1, this::opcode_0x70_ld, this));
+        opcodes.add(new Instruction(0x71, Instruction.Type.W, "LD (HL),C", 1, this::opcode_0x71_ld, this));
+        opcodes.add(new Instruction(0x72, Instruction.Type.W, "LD (HL),D", 1, this::opcode_0x72_ld, this));
+        opcodes.add(new Instruction(0x73, Instruction.Type.W, "LD (HL),E", 1, this::opcode_0x73_ld, this));
+        opcodes.add(new Instruction(0x74, Instruction.Type.W, "LD (HL),H", 1, this::opcode_0x74_ld, this));
+        opcodes.add(new Instruction(0x75, Instruction.Type.W, "LD (HL),L", 1, this::opcode_0x75_ld, this));
+        opcodes.add(new Instruction(0x76, Instruction.Type.MISC, "HALT", 1, this::opcode_0x76_halt, this));
+        opcodes.add(new Instruction(0x77, Instruction.Type.W, "LD (HL),A", 1, this::opcode_0x77_ld, this));
+        opcodes.add(new Instruction(0x78, Instruction.Type.MISC, "LD A,B", 1, this::opcode_0x78_ld, this));
+        opcodes.add(new Instruction(0x79, Instruction.Type.MISC, "LD A,C", 1, this::opcode_0x79_ld, this));
+        opcodes.add(new Instruction(0x7A, Instruction.Type.MISC, "LD A,D", 1, this::opcode_0x7A_ld, this));
+        opcodes.add(new Instruction(0x7B, Instruction.Type.MISC, "LD A,E", 1, this::opcode_0x7B_ld, this));
+        opcodes.add(new Instruction(0x7C, Instruction.Type.MISC, "LD A,H", 1, this::opcode_0x7C_ld, this));
+        opcodes.add(new Instruction(0x7D, Instruction.Type.MISC, "LD A,L", 1, this::opcode_0x7D_ld, this));
+        opcodes.add(new Instruction(0x7E, Instruction.Type.R, "LD A,(HL)", 1, this::opcode_0x7E_ld, this));
+        opcodes.add(new Instruction(0x7F, Instruction.Type.MISC, "LD A,A", 1, this::opcode_0x7F_ld, this));
+        opcodes.add(new Instruction(0x80, Instruction.Type.MISC, "ADD A,B", 1, this::opcode_0x80_add, this));
+        opcodes.add(new Instruction(0x81, Instruction.Type.MISC, "ADD A,C", 1, this::opcode_0x81_add, this));
+        opcodes.add(new Instruction(0x82, Instruction.Type.MISC, "ADD A,D", 1, this::opcode_0x82_add, this));
+        opcodes.add(new Instruction(0x83, Instruction.Type.MISC, "ADD A,E", 1, this::opcode_0x83_add, this));
+        opcodes.add(new Instruction(0x84, Instruction.Type.MISC, "ADD A,H", 1, this::opcode_0x84_add, this));
+        opcodes.add(new Instruction(0x85, Instruction.Type.MISC, "ADD A,L", 1, this::opcode_0x85_add, this));
+        opcodes.add(new Instruction(0x86, Instruction.Type.R, "ADD A,(HL)", 1, this::opcode_0x86_add, this));
+        opcodes.add(new Instruction(0x87, Instruction.Type.MISC, "ADD A,A", 1, this::opcode_0x87_add, this));
+        opcodes.add(new Instruction(0x88, Instruction.Type.MISC, "ADC A,B", 1, this::opcode_0x88_adc, this));
+        opcodes.add(new Instruction(0x89, Instruction.Type.MISC, "ADC A,C", 1, this::opcode_0x89_adc, this));
+        opcodes.add(new Instruction(0x8A, Instruction.Type.MISC, "ADC A,D", 1, this::opcode_0x8A_adc, this));
+        opcodes.add(new Instruction(0x8B, Instruction.Type.MISC, "ADC A,E", 1, this::opcode_0x8B_adc, this));
+        opcodes.add(new Instruction(0x8C, Instruction.Type.MISC, "ADC A,H", 1, this::opcode_0x8C_adc, this));
+        opcodes.add(new Instruction(0x8D, Instruction.Type.MISC, "ADC A,L", 1, this::opcode_0x8D_adc, this));
+        opcodes.add(new Instruction(0x8E, Instruction.Type.R, "ADC A,(HL)", 1, this::opcode_0x8E_adc, this));
+        opcodes.add(new Instruction(0x8F, Instruction.Type.MISC, "ADC A,A", 1, this::opcode_0x8F_adc, this));
+        opcodes.add(new Instruction(0x90, Instruction.Type.MISC, "SUB B", 1, this::opcode_0x90_sub, this));
+        opcodes.add(new Instruction(0x91, Instruction.Type.MISC, "SUB C", 1, this::opcode_0x91_sub, this));
+        opcodes.add(new Instruction(0x92, Instruction.Type.MISC, "SUB D", 1, this::opcode_0x92_sub, this));
+        opcodes.add(new Instruction(0x93, Instruction.Type.MISC, "SUB E", 1, this::opcode_0x93_sub, this));
+        opcodes.add(new Instruction(0x94, Instruction.Type.MISC, "SUB H", 1, this::opcode_0x94_sub, this));
+        opcodes.add(new Instruction(0x95, Instruction.Type.MISC, "SUB L", 1, this::opcode_0x95_sub, this));
+        opcodes.add(new Instruction(0x96, Instruction.Type.R, "SUB (HL)", 1, this::opcode_0x96_sub, this));
+        opcodes.add(new Instruction(0x97, Instruction.Type.MISC, "SUB A", 1, this::opcode_0x97_sub, this));
+        opcodes.add(new Instruction(0x98, Instruction.Type.MISC, "SBC A,B", 1, this::opcode_0x98_sbc, this));
+        opcodes.add(new Instruction(0x99, Instruction.Type.MISC, "SBC A,C", 1, this::opcode_0x99_sbc, this));
+        opcodes.add(new Instruction(0x9A, Instruction.Type.MISC, "SBC A,D", 1, this::opcode_0x9A_sbc, this));
+        opcodes.add(new Instruction(0x9B, Instruction.Type.MISC, "SBC A,E", 1, this::opcode_0x9B_sbc, this));
+        opcodes.add(new Instruction(0x9C, Instruction.Type.MISC, "SBC A,H", 1, this::opcode_0x9C_sbc, this));
+        opcodes.add(new Instruction(0x9D, Instruction.Type.MISC, "SBC A,L", 1, this::opcode_0x9D_sbc, this));
+        opcodes.add(new Instruction(0x9E, Instruction.Type.R, "SBC A,(HL)", 1, this::opcode_0x9E_sbc, this));
+        opcodes.add(new Instruction(0x9F, Instruction.Type.MISC, "SBC A,A", 1, this::opcode_0x9F_sbc, this));
+        opcodes.add(new Instruction(0xA0, Instruction.Type.MISC, "AND B", 1, this::opcode_0xA0_and, this));
+        opcodes.add(new Instruction(0xA1, Instruction.Type.MISC, "AND C", 1, this::opcode_0xA1_and, this));
+        opcodes.add(new Instruction(0xA2, Instruction.Type.MISC, "AND D", 1, this::opcode_0xA2_and, this));
+        opcodes.add(new Instruction(0xA3, Instruction.Type.MISC, "AND E", 1, this::opcode_0xA3_and, this));
+        opcodes.add(new Instruction(0xA4, Instruction.Type.MISC, "AND H", 1, this::opcode_0xA4_and, this));
+        opcodes.add(new Instruction(0xA5, Instruction.Type.MISC, "AND L", 1, this::opcode_0xA5_and, this));
+        opcodes.add(new Instruction(0xA6, Instruction.Type.R, "AND (HL)", 1, this::opcode_0xA6_and, this));
+        opcodes.add(new Instruction(0xA7, Instruction.Type.MISC, "AND A", 1, this::opcode_0xA7_and, this));
+        opcodes.add(new Instruction(0xA8, Instruction.Type.MISC, "XOR B", 1, this::opcode_0xA8_xor, this));
+        opcodes.add(new Instruction(0xA9, Instruction.Type.MISC, "XOR C", 1, this::opcode_0xA9_xor, this));
+        opcodes.add(new Instruction(0xAA, Instruction.Type.MISC, "XOR D", 1, this::opcode_0xAA_xor, this));
+        opcodes.add(new Instruction(0xAB, Instruction.Type.MISC, "XOR E", 1, this::opcode_0xAB_xor, this));
+        opcodes.add(new Instruction(0xAC, Instruction.Type.MISC, "XOR H", 1, this::opcode_0xAC_xor, this));
+        opcodes.add(new Instruction(0xAD, Instruction.Type.MISC, "XOR L", 1, this::opcode_0xAD_xor, this));
+        opcodes.add(new Instruction(0xAE, Instruction.Type.R, "XOR (HL)", 1, this::opcode_0xAE_xor, this));
+        opcodes.add(new Instruction(0xAF, Instruction.Type.MISC, "XOR A", 1, this::opcode_0xAF_xor, this));
+        opcodes.add(new Instruction(0xB0, Instruction.Type.MISC, "OR B", 1, this::opcode_0xB0_or, this));
+        opcodes.add(new Instruction(0xB1, Instruction.Type.MISC, "OR C", 1, this::opcode_0xB1_or, this));
+        opcodes.add(new Instruction(0xB2, Instruction.Type.MISC, "OR D", 1, this::opcode_0xB2_or, this));
+        opcodes.add(new Instruction(0xB3, Instruction.Type.MISC, "OR E", 1, this::opcode_0xB3_or, this));
+        opcodes.add(new Instruction(0xB4, Instruction.Type.MISC, "OR H", 1, this::opcode_0xB4_or, this));
+        opcodes.add(new Instruction(0xB5, Instruction.Type.MISC, "OR L", 1, this::opcode_0xB5_or, this));
+        opcodes.add(new Instruction(0xB6, Instruction.Type.R, "OR (HL)", 1, this::opcode_0xB6_or, this));
+        opcodes.add(new Instruction(0xB7, Instruction.Type.MISC, "OR A", 1, this::opcode_0xB7_or, this));
+        opcodes.add(new Instruction(0xB8, Instruction.Type.MISC, "CP B", 1, this::opcode_0xB8_cp, this));
+        opcodes.add(new Instruction(0xB9, Instruction.Type.MISC, "CP C", 1, this::opcode_0xB9_cp, this));
+        opcodes.add(new Instruction(0xBA, Instruction.Type.MISC, "CP D", 1, this::opcode_0xBA_cp, this));
+        opcodes.add(new Instruction(0xBB, Instruction.Type.MISC, "CP E", 1, this::opcode_0xBB_cp, this));
+        opcodes.add(new Instruction(0xBC, Instruction.Type.MISC, "CP H", 1, this::opcode_0xBC_cp, this));
+        opcodes.add(new Instruction(0xBD, Instruction.Type.MISC, "CP L", 1, this::opcode_0xBD_cp, this));
+        opcodes.add(new Instruction(0xBE, Instruction.Type.R, "CP (HL)", 1, this::opcode_0xBE_cp, this));
+        opcodes.add(new Instruction(0xBF, Instruction.Type.MISC, "CP A", 1, this::opcode_0xBF_cp, this));
+        opcodes.add(new Instruction(0xC0, Instruction.Type.JUMP, "RET NZ", 1, this::opcode_0xC0_ret, this));
+        opcodes.add(new Instruction(0xC1, Instruction.Type.MISC, "POP BC", 1, this::opcode_0xC1_pop, this));
+        opcodes.add(new Instruction(0xC2, Instruction.Type.JUMP, "JP NZ,a16", 3, this::opcode_0xC2_jp, this));
+        opcodes.add(new Instruction(0xC3, Instruction.Type.JUMP, "JP a16", 3, this::opcode_0xC3_jp, this));
+        opcodes.add(new Instruction(0xC4, Instruction.Type.JUMP, "CALL NZ,a16", 3, this::opcode_0xC4_call, this));
+        opcodes.add(new Instruction(0xC5, Instruction.Type.MISC, "PUSH BC", 1, this::opcode_0xC5_push, this));
+        opcodes.add(new Instruction(0xC6, Instruction.Type.MISC, "ADD A,d8", 2, this::opcode_0xC6_add, this));
+        opcodes.add(new Instruction(0xC7, Instruction.Type.MISC, "RST 00H", 1, this::opcode_0xC7_rst, this));
+        opcodes.add(new Instruction(0xC8, Instruction.Type.JUMP, "RET Z", 1, this::opcode_0xC8_ret, this));
+        opcodes.add(new Instruction(0xC9, Instruction.Type.JUMP, "RET", 1, this::opcode_0xC9_ret, this));
+        opcodes.add(new Instruction(0xCA, Instruction.Type.JUMP, "JP Z,a16", 3, this::opcode_0xCA_jp, this));
+        opcodes.add(new Instruction(0xCB, Instruction.Type.MISC, "PREFIX CB", 1, this::prefix, this));
+        opcodes.add(new Instruction(0xCC, Instruction.Type.JUMP, "CALL Z,a16", 3, this::opcode_0xCC_call, this));
+        opcodes.add(new Instruction(0xCD, Instruction.Type.JUMP, "CALL a16", 3, this::opcode_0xCD_call, this));
+        opcodes.add(new Instruction(0xCE, Instruction.Type.MISC, "ADC A,d8", 2, this::opcode_0xCE_adc, this));
+        opcodes.add(new Instruction(0xCF, Instruction.Type.MISC, "RST 08H", 1, this::opcode_0xCF_rst, this));
+        opcodes.add(new Instruction(0xD0, Instruction.Type.JUMP, "RET NC", 1, this::opcode_0xD0_ret, this));
+        opcodes.add(new Instruction(0xD1, Instruction.Type.MISC, "POP DE", 1, this::opcode_0xD1_pop, this));
+        opcodes.add(new Instruction(0xD2, Instruction.Type.JUMP, "JP NC,a16", 3, this::opcode_0xD2_jp, this));
+        opcodes.add(new Instruction(0xD3, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xD4, Instruction.Type.JUMP, "CALL NC,a16", 3, this::opcode_0xD4_call, this));
+        opcodes.add(new Instruction(0xD5, Instruction.Type.MISC, "PUSH DE", 1, this::opcode_0xD5_push, this));
+        opcodes.add(new Instruction(0xD6, Instruction.Type.MISC, "SUB d8", 2, this::opcode_0xD6_sub, this));
+        opcodes.add(new Instruction(0xD7, Instruction.Type.MISC, "RST 10H", 1, this::opcode_0xD7_rst, this));
+        opcodes.add(new Instruction(0xD8, Instruction.Type.JUMP, "RET C", 1, this::opcode_0xD8_ret, this));
+        opcodes.add(new Instruction(0xD9, Instruction.Type.JUMP, "RETI", 1, this::opcode_0xD9_reti, this));
+        opcodes.add(new Instruction(0xDA, Instruction.Type.JUMP, "JP C,a16", 3, this::opcode_0xDA_jp, this));
+        opcodes.add(new Instruction(0xDB, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xDC, Instruction.Type.JUMP, "CALL C,a16", 3, this::opcode_0xDC_call, this));
+        opcodes.add(new Instruction(0xDD, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xDE, Instruction.Type.MISC, "SBC A,d8", 2, this::opcode_0xDE_sbc, this));
+        opcodes.add(new Instruction(0xDF, Instruction.Type.MISC, "RST 18H", 1, this::opcode_0xDF_rst, this));
+        opcodes.add(new Instruction(0xE0, Instruction.Type.W, "LD (FFa8),A", 2, this::opcode_0xE0_ldh, this));
+        opcodes.add(new Instruction(0xE1, Instruction.Type.MISC, "POP HL", 1, this::opcode_0xE1_pop, this));
+        opcodes.add(new Instruction(0xE2, Instruction.Type.W, "LD (C),A", 1, this::opcode_0xE2_ld, this));
+        opcodes.add(new Instruction(0xE3, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xE4, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xE5, Instruction.Type.MISC, "PUSH HL", 1, this::opcode_0xE5_push, this));
+        opcodes.add(new Instruction(0xE6, Instruction.Type.MISC, "AND d8", 2, this::opcode_0xE6_and, this));
+        opcodes.add(new Instruction(0xE7, Instruction.Type.MISC, "RST 20H", 1, this::opcode_0xE7_rst, this));
+        opcodes.add(new Instruction(0xE8, Instruction.Type.MISC, "ADD SP,r8", 2, this::opcode_0xE8_add, this));
+        opcodes.add(new Instruction(0xE9, Instruction.Type.JUMP, "JP (HL)", 1, this::opcode_0xE9_jp, this));
+        opcodes.add(new Instruction(0xEA, Instruction.Type.W, "LD (a16),A", 3, this::opcode_0xEA_ld, this));
+        opcodes.add(new Instruction(0xEB, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xEC, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xED, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xEE, Instruction.Type.MISC, "XOR d8", 2, this::opcode_0xEE_xor, this));
+        opcodes.add(new Instruction(0xEF, Instruction.Type.MISC, "RST 28H", 1, this::opcode_0xEF_rst, this));
+        opcodes.add(new Instruction(0xF0, Instruction.Type.R, "LD A,(FFa8)", 2, this::opcode_0xF0_ldh, this));
+        opcodes.add(new Instruction(0xF1, Instruction.Type.MISC, "POP AF", 1, this::opcode_0xF1_pop, this));
+        opcodes.add(new Instruction(0xF2, Instruction.Type.R, "LD A,(C)", 1, this::opcode_0xF2_ld, this));
+        opcodes.add(new Instruction(0xF3, Instruction.Type.MISC, "DI", 1, this::opcode_0xF3_di, this));
+        opcodes.add(new Instruction(0xF4, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xF5, Instruction.Type.MISC, "PUSH AF", 1, this::opcode_0xF5_push, this));
+        opcodes.add(new Instruction(0xF6, Instruction.Type.MISC, "OR d8", 2, this::opcode_0xF6_or, this));
+        opcodes.add(new Instruction(0xF7, Instruction.Type.MISC, "RST 30H", 1, this::opcode_0xF7_rst, this));
+        opcodes.add(new Instruction(0xF8, Instruction.Type.MISC, "LD HL,SP+r8", 2, this::opcode_0xF8_ld, this));
+        opcodes.add(new Instruction(0xF9, Instruction.Type.MISC, "LD SP,HL", 1, this::opcode_0xF9_ld, this));
+        opcodes.add(new Instruction(0xFA, Instruction.Type.R, "LD A,(a16)", 3, this::opcode_0xFA_ld, this));
+        opcodes.add(new Instruction(0xFB, Instruction.Type.MISC, "EI", 1, this::opcode_0xFB_ei, this));
+        opcodes.add(new Instruction(0xFC, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xFD, Instruction.Type.MISC, "", 1, this::opcode_0x00_nop, this));
+        opcodes.add(new Instruction(0xFE, Instruction.Type.MISC, "CP d8", 2, this::opcode_0xFE_cp, this));
+        opcodes.add(new Instruction(0xFF, Instruction.Type.MISC, "RST 38H", 1, this::opcode_0xFF_rst, this));
 
         cb_opcodes = new ArrayList<>();
-        cb_opcodes.add(new Instruction(0x00, "RLC B", 1, this::opcode_0xCB00_rlc, this));
-        cb_opcodes.add(new Instruction(0x01, "RLC C", 1, this::opcode_0xCB01_rlc, this));
-        cb_opcodes.add(new Instruction(0x02, "RLC D", 1, this::opcode_0xCB02_rlc, this));
-        cb_opcodes.add(new Instruction(0x03, "RLC E", 1, this::opcode_0xCB03_rlc, this));
-        cb_opcodes.add(new Instruction(0x04, "RLC H", 1, this::opcode_0xCB04_rlc, this));
-        cb_opcodes.add(new Instruction(0x05, "RLC L", 1, this::opcode_0xCB05_rlc, this));
-        cb_opcodes.add(new Instruction(0x06, "RLC (HL)", 1, this::opcode_0xCB06_rlc, this));
-        cb_opcodes.add(new Instruction(0x07, "RLC A", 1, this::opcode_0xCB07_rlc, this));
-        cb_opcodes.add(new Instruction(0x08, "RRC B", 1, this::opcode_0xCB08_rrc, this));
-        cb_opcodes.add(new Instruction(0x09, "RRC C", 1, this::opcode_0xCB09_rrc, this));
-        cb_opcodes.add(new Instruction(0x0A, "RRC D", 1, this::opcode_0xCB0A_rrc, this));
-        cb_opcodes.add(new Instruction(0x0B, "RRC E", 1, this::opcode_0xCB0B_rrc, this));
-        cb_opcodes.add(new Instruction(0x0C, "RRC H", 1, this::opcode_0xCB0C_rrc, this));
-        cb_opcodes.add(new Instruction(0x0D, "RRC L", 1, this::opcode_0xCB0D_rrc, this));
-        cb_opcodes.add(new Instruction(0x0E, "RRC (HL)", 1, this::opcode_0xCB0E_rrc, this));
-        cb_opcodes.add(new Instruction(0x0F, "RRC A", 1, this::opcode_0xCB0F_rrc, this));
-        cb_opcodes.add(new Instruction(0x10, "RL B", 1, this::opcode_0xCB10_rl, this));
-        cb_opcodes.add(new Instruction(0x11, "RL C", 1, this::opcode_0xCB11_rl, this));
-        cb_opcodes.add(new Instruction(0x12, "RL D", 1, this::opcode_0xCB12_rl, this));
-        cb_opcodes.add(new Instruction(0x13, "RL E", 1, this::opcode_0xCB13_rl, this));
-        cb_opcodes.add(new Instruction(0x14, "RL H", 1, this::opcode_0xCB14_rl, this));
-        cb_opcodes.add(new Instruction(0x15, "RL L", 1, this::opcode_0xCB15_rl, this));
-        cb_opcodes.add(new Instruction(0x16, "RL (HL)", 1, this::opcode_0xCB16_rl, this));
-        cb_opcodes.add(new Instruction(0x17, "RL A", 1, this::opcode_0xCB17_rl, this));
-        cb_opcodes.add(new Instruction(0x18, "RR B", 1, this::opcode_0xCB18_rr, this));
-        cb_opcodes.add(new Instruction(0x19, "RR C", 1, this::opcode_0xCB19_rr, this));
-        cb_opcodes.add(new Instruction(0x1A, "RR D", 1, this::opcode_0xCB1A_rr, this));
-        cb_opcodes.add(new Instruction(0x1B, "RR E", 1, this::opcode_0xCB1B_rr, this));
-        cb_opcodes.add(new Instruction(0x1C, "RR H", 1, this::opcode_0xCB1C_rr, this));
-        cb_opcodes.add(new Instruction(0x1D, "RR L", 1, this::opcode_0xCB1D_rr, this));
-        cb_opcodes.add(new Instruction(0x1E, "RR (HL)", 1, this::opcode_0xCB1E_rr, this));
-        cb_opcodes.add(new Instruction(0x1F, "RR A", 1, this::opcode_0xCB1F_rr, this));
-        cb_opcodes.add(new Instruction(0x20, "SLA B", 1, this::opcode_0xCB20_sla, this));
-        cb_opcodes.add(new Instruction(0x21, "SLA C", 1, this::opcode_0xCB21_sla, this));
-        cb_opcodes.add(new Instruction(0x22, "SLA D", 1, this::opcode_0xCB22_sla, this));
-        cb_opcodes.add(new Instruction(0x23, "SLA E", 1, this::opcode_0xCB23_sla, this));
-        cb_opcodes.add(new Instruction(0x24, "SLA H", 1, this::opcode_0xCB24_sla, this));
-        cb_opcodes.add(new Instruction(0x25, "SLA L", 1, this::opcode_0xCB25_sla, this));
-        cb_opcodes.add(new Instruction(0x26, "SLA (HL)", 1, this::opcode_0xCB26_sla, this));
-        cb_opcodes.add(new Instruction(0x27, "SLA A", 1, this::opcode_0xCB27_sla, this));
-        cb_opcodes.add(new Instruction(0x28, "SRA B", 1, this::opcode_0xCB28_sra, this));
-        cb_opcodes.add(new Instruction(0x29, "SRA C", 1, this::opcode_0xCB29_sra, this));
-        cb_opcodes.add(new Instruction(0x2A, "SRA D", 1, this::opcode_0xCB2A_sra, this));
-        cb_opcodes.add(new Instruction(0x2B, "SRA E", 1, this::opcode_0xCB2B_sra, this));
-        cb_opcodes.add(new Instruction(0x2C, "SRA H", 1, this::opcode_0xCB2C_sra, this));
-        cb_opcodes.add(new Instruction(0x2D, "SRA L", 1, this::opcode_0xCB2D_sra, this));
-        cb_opcodes.add(new Instruction(0x2E, "SRA (HL)", 1, this::opcode_0xCB2E_sra, this));
-        cb_opcodes.add(new Instruction(0x2F, "SRA A", 1, this::opcode_0xCB2F_sra, this));
-        cb_opcodes.add(new Instruction(0x30, "SWAP B", 1, this::opcode_0xCB30_swap, this));
-        cb_opcodes.add(new Instruction(0x31, "SWAP C", 1, this::opcode_0xCB31_swap, this));
-        cb_opcodes.add(new Instruction(0x32, "SWAP D", 1, this::opcode_0xCB32_swap, this));
-        cb_opcodes.add(new Instruction(0x33, "SWAP E", 1, this::opcode_0xCB33_swap, this));
-        cb_opcodes.add(new Instruction(0x34, "SWAP H", 1, this::opcode_0xCB34_swap, this));
-        cb_opcodes.add(new Instruction(0x35, "SWAP L", 1, this::opcode_0xCB35_swap, this));
-        cb_opcodes.add(new Instruction(0x36, "SWAP (HL)", 1, this::opcode_0xCB36_swap, this));
-        cb_opcodes.add(new Instruction(0x37, "SWAP A", 1, this::opcode_0xCB37_swap, this));
-        cb_opcodes.add(new Instruction(0x38, "SRL B", 1, this::opcode_0xCB38_srl, this));
-        cb_opcodes.add(new Instruction(0x39, "SRL C", 1, this::opcode_0xCB39_srl, this));
-        cb_opcodes.add(new Instruction(0x3A, "SRL D", 1, this::opcode_0xCB3A_srl, this));
-        cb_opcodes.add(new Instruction(0x3B, "SRL E", 1, this::opcode_0xCB3B_srl, this));
-        cb_opcodes.add(new Instruction(0x3C, "SRL H", 1, this::opcode_0xCB3C_srl, this));
-        cb_opcodes.add(new Instruction(0x3D, "SRL L", 1, this::opcode_0xCB3D_srl, this));
-        cb_opcodes.add(new Instruction(0x3E, "SRL (HL)", 1, this::opcode_0xCB3E_srl, this));
-        cb_opcodes.add(new Instruction(0x3F, "SRL A", 1, this::opcode_0xCB3F_srl, this));
-        cb_opcodes.add(new Instruction(0x40, "BIT 0,B", 1, this::opcode_0xCB40_bit, this));
-        cb_opcodes.add(new Instruction(0x41, "BIT 0,C", 1, this::opcode_0xCB41_bit, this));
-        cb_opcodes.add(new Instruction(0x42, "BIT 0,D", 1, this::opcode_0xCB42_bit, this));
-        cb_opcodes.add(new Instruction(0x43, "BIT 0,E", 1, this::opcode_0xCB43_bit, this));
-        cb_opcodes.add(new Instruction(0x44, "BIT 0,H", 1, this::opcode_0xCB44_bit, this));
-        cb_opcodes.add(new Instruction(0x45, "BIT 0,L", 1, this::opcode_0xCB45_bit, this));
-        cb_opcodes.add(new Instruction(0x46, "BIT 0,(HL)", 1, this::opcode_0xCB46_bit, this));
-        cb_opcodes.add(new Instruction(0x47, "BIT 0,A", 1, this::opcode_0xCB47_bit, this));
-        cb_opcodes.add(new Instruction(0x48, "BIT 1,B", 1, this::opcode_0xCB48_bit, this));
-        cb_opcodes.add(new Instruction(0x49, "BIT 1,C", 1, this::opcode_0xCB49_bit, this));
-        cb_opcodes.add(new Instruction(0x4A, "BIT 1,D", 1, this::opcode_0xCB4A_bit, this));
-        cb_opcodes.add(new Instruction(0x4B, "BIT 1,E", 1, this::opcode_0xCB4B_bit, this));
-        cb_opcodes.add(new Instruction(0x4C, "BIT 1,H", 1, this::opcode_0xCB4C_bit, this));
-        cb_opcodes.add(new Instruction(0x4D, "BIT 1,L", 1, this::opcode_0xCB4D_bit, this));
-        cb_opcodes.add(new Instruction(0x4E, "BIT 1,(HL)", 1, this::opcode_0xCB4E_bit, this));
-        cb_opcodes.add(new Instruction(0x4F, "BIT 1,A", 1, this::opcode_0xCB4F_bit, this));
-        cb_opcodes.add(new Instruction(0x50, "BIT 2,B", 1, this::opcode_0xCB50_bit, this));
-        cb_opcodes.add(new Instruction(0x51, "BIT 2,C", 1, this::opcode_0xCB51_bit, this));
-        cb_opcodes.add(new Instruction(0x52, "BIT 2,D", 1, this::opcode_0xCB52_bit, this));
-        cb_opcodes.add(new Instruction(0x53, "BIT 2,E", 1, this::opcode_0xCB53_bit, this));
-        cb_opcodes.add(new Instruction(0x54, "BIT 2,H", 1, this::opcode_0xCB54_bit, this));
-        cb_opcodes.add(new Instruction(0x55, "BIT 2,L", 1, this::opcode_0xCB55_bit, this));
-        cb_opcodes.add(new Instruction(0x56, "BIT 2,(HL)", 1, this::opcode_0xCB56_bit, this));
-        cb_opcodes.add(new Instruction(0x57, "BIT 2,A", 1, this::opcode_0xCB57_bit, this));
-        cb_opcodes.add(new Instruction(0x58, "BIT 3,B", 1, this::opcode_0xCB58_bit, this));
-        cb_opcodes.add(new Instruction(0x59, "BIT 3,C", 1, this::opcode_0xCB59_bit, this));
-        cb_opcodes.add(new Instruction(0x5A, "BIT 3,D", 1, this::opcode_0xCB5A_bit, this));
-        cb_opcodes.add(new Instruction(0x5B, "BIT 3,E", 1, this::opcode_0xCB5B_bit, this));
-        cb_opcodes.add(new Instruction(0x5C, "BIT 3,H", 1, this::opcode_0xCB5C_bit, this));
-        cb_opcodes.add(new Instruction(0x5D, "BIT 3,L", 1, this::opcode_0xCB5D_bit, this));
-        cb_opcodes.add(new Instruction(0x5E, "BIT 3,(HL)", 1, this::opcode_0xCB5E_bit, this));
-        cb_opcodes.add(new Instruction(0x5F, "BIT 3,A", 1, this::opcode_0xCB5F_bit, this));
-        cb_opcodes.add(new Instruction(0x60, "BIT 4,B", 1, this::opcode_0xCB60_bit, this));
-        cb_opcodes.add(new Instruction(0x61, "BIT 4,C", 1, this::opcode_0xCB61_bit, this));
-        cb_opcodes.add(new Instruction(0x62, "BIT 4,D", 1, this::opcode_0xCB62_bit, this));
-        cb_opcodes.add(new Instruction(0x63, "BIT 4,E", 1, this::opcode_0xCB63_bit, this));
-        cb_opcodes.add(new Instruction(0x64, "BIT 4,H", 1, this::opcode_0xCB64_bit, this));
-        cb_opcodes.add(new Instruction(0x65, "BIT 4,L", 1, this::opcode_0xCB65_bit, this));
-        cb_opcodes.add(new Instruction(0x66, "BIT 4,(HL)", 1, this::opcode_0xCB66_bit, this));
-        cb_opcodes.add(new Instruction(0x67, "BIT 4,A", 1, this::opcode_0xCB67_bit, this));
-        cb_opcodes.add(new Instruction(0x68, "BIT 5,B", 1, this::opcode_0xCB68_bit, this));
-        cb_opcodes.add(new Instruction(0x69, "BIT 5,C", 1, this::opcode_0xCB69_bit, this));
-        cb_opcodes.add(new Instruction(0x6A, "BIT 5,D", 1, this::opcode_0xCB6A_bit, this));
-        cb_opcodes.add(new Instruction(0x6B, "BIT 5,E", 1, this::opcode_0xCB6B_bit, this));
-        cb_opcodes.add(new Instruction(0x6C, "BIT 5,H", 1, this::opcode_0xCB6C_bit, this));
-        cb_opcodes.add(new Instruction(0x6D, "BIT 5,L", 1, this::opcode_0xCB6D_bit, this));
-        cb_opcodes.add(new Instruction(0x6E, "BIT 5,(HL)", 1, this::opcode_0xCB6E_bit, this));
-        cb_opcodes.add(new Instruction(0x6F, "BIT 5,A", 1, this::opcode_0xCB6F_bit, this));
-        cb_opcodes.add(new Instruction(0x70, "BIT 6,B", 1, this::opcode_0xCB70_bit, this));
-        cb_opcodes.add(new Instruction(0x71, "BIT 6,C", 1, this::opcode_0xCB71_bit, this));
-        cb_opcodes.add(new Instruction(0x72, "BIT 6,D", 1, this::opcode_0xCB72_bit, this));
-        cb_opcodes.add(new Instruction(0x73, "BIT 6,E", 1, this::opcode_0xCB73_bit, this));
-        cb_opcodes.add(new Instruction(0x74, "BIT 6,H", 1, this::opcode_0xCB74_bit, this));
-        cb_opcodes.add(new Instruction(0x75, "BIT 6,L", 1, this::opcode_0xCB75_bit, this));
-        cb_opcodes.add(new Instruction(0x76, "BIT 6,(HL)", 1, this::opcode_0xCB76_bit, this));
-        cb_opcodes.add(new Instruction(0x77, "BIT 6,A", 1, this::opcode_0xCB77_bit, this));
-        cb_opcodes.add(new Instruction(0x78, "BIT 7,B", 1, this::opcode_0xCB78_bit, this));
-        cb_opcodes.add(new Instruction(0x79, "BIT 7,C", 1, this::opcode_0xCB79_bit, this));
-        cb_opcodes.add(new Instruction(0x7A, "BIT 7,D", 1, this::opcode_0xCB7A_bit, this));
-        cb_opcodes.add(new Instruction(0x7B, "BIT 7,E", 1, this::opcode_0xCB7B_bit, this));
-        cb_opcodes.add(new Instruction(0x7C, "BIT 7,H", 1, this::opcode_0xCB7C_bit, this));
-        cb_opcodes.add(new Instruction(0x7D, "BIT 7,L", 1, this::opcode_0xCB7D_bit, this));
-        cb_opcodes.add(new Instruction(0x7E, "BIT 7,(HL)", 1, this::opcode_0xCB7E_bit, this));
-        cb_opcodes.add(new Instruction(0x7F, "BIT 7,A", 1, this::opcode_0xCB7F_bit, this));
-        cb_opcodes.add(new Instruction(0x80, "RES 0,B", 1, this::opcode_0xCB80_res, this));
-        cb_opcodes.add(new Instruction(0x81, "RES 0,C", 1, this::opcode_0xCB81_res, this));
-        cb_opcodes.add(new Instruction(0x82, "RES 0,D", 1, this::opcode_0xCB82_res, this));
-        cb_opcodes.add(new Instruction(0x83, "RES 0,E", 1, this::opcode_0xCB83_res, this));
-        cb_opcodes.add(new Instruction(0x84, "RES 0,H", 1, this::opcode_0xCB84_res, this));
-        cb_opcodes.add(new Instruction(0x85, "RES 0,L", 1, this::opcode_0xCB85_res, this));
-        cb_opcodes.add(new Instruction(0x86, "RES 0,(HL)", 1, this::opcode_0xCB86_res, this));
-        cb_opcodes.add(new Instruction(0x87, "RES 0,A", 1, this::opcode_0xCB87_res, this));
-        cb_opcodes.add(new Instruction(0x88, "RES 1,B", 1, this::opcode_0xCB88_res, this));
-        cb_opcodes.add(new Instruction(0x89, "RES 1,C", 1, this::opcode_0xCB89_res, this));
-        cb_opcodes.add(new Instruction(0x8A, "RES 1,D", 1, this::opcode_0xCB8A_res, this));
-        cb_opcodes.add(new Instruction(0x8B, "RES 1,E", 1, this::opcode_0xCB8B_res, this));
-        cb_opcodes.add(new Instruction(0x8C, "RES 1,H", 1, this::opcode_0xCB8C_res, this));
-        cb_opcodes.add(new Instruction(0x8D, "RES 1,L", 1, this::opcode_0xCB8D_res, this));
-        cb_opcodes.add(new Instruction(0x8E, "RES 1,(HL)", 1, this::opcode_0xCB8E_res, this));
-        cb_opcodes.add(new Instruction(0x8F, "RES 1,A", 1, this::opcode_0xCB8F_res, this));
-        cb_opcodes.add(new Instruction(0x90, "RES 2,B", 1, this::opcode_0xCB90_res, this));
-        cb_opcodes.add(new Instruction(0x91, "RES 2,C", 1, this::opcode_0xCB91_res, this));
-        cb_opcodes.add(new Instruction(0x92, "RES 2,D", 1, this::opcode_0xCB92_res, this));
-        cb_opcodes.add(new Instruction(0x93, "RES 2,E", 1, this::opcode_0xCB93_res, this));
-        cb_opcodes.add(new Instruction(0x94, "RES 2,H", 1, this::opcode_0xCB94_res, this));
-        cb_opcodes.add(new Instruction(0x95, "RES 2,L", 1, this::opcode_0xCB95_res, this));
-        cb_opcodes.add(new Instruction(0x96, "RES 2,(HL)", 1, this::opcode_0xCB96_res, this));
-        cb_opcodes.add(new Instruction(0x97, "RES 2,A", 1, this::opcode_0xCB97_res, this));
-        cb_opcodes.add(new Instruction(0x98, "RES 3,B", 1, this::opcode_0xCB98_res, this));
-        cb_opcodes.add(new Instruction(0x99, "RES 3,C", 1, this::opcode_0xCB99_res, this));
-        cb_opcodes.add(new Instruction(0x9A, "RES 3,D", 1, this::opcode_0xCB9A_res, this));
-        cb_opcodes.add(new Instruction(0x9B, "RES 3,E", 1, this::opcode_0xCB9B_res, this));
-        cb_opcodes.add(new Instruction(0x9C, "RES 3,H", 1, this::opcode_0xCB9C_res, this));
-        cb_opcodes.add(new Instruction(0x9D, "RES 3,L", 1, this::opcode_0xCB9D_res, this));
-        cb_opcodes.add(new Instruction(0x9E, "RES 3,(HL)", 1, this::opcode_0xCB9E_res, this));
-        cb_opcodes.add(new Instruction(0x9F, "RES 3,A", 1, this::opcode_0xCB9F_res, this));
-        cb_opcodes.add(new Instruction(0xA0, "RES 4,B", 1, this::opcode_0xCBA0_res, this));
-        cb_opcodes.add(new Instruction(0xA1, "RES 4,C", 1, this::opcode_0xCBA1_res, this));
-        cb_opcodes.add(new Instruction(0xA2, "RES 4,D", 1, this::opcode_0xCBA2_res, this));
-        cb_opcodes.add(new Instruction(0xA3, "RES 4,E", 1, this::opcode_0xCBA3_res, this));
-        cb_opcodes.add(new Instruction(0xA4, "RES 4,H", 1, this::opcode_0xCBA4_res, this));
-        cb_opcodes.add(new Instruction(0xA5, "RES 4,L", 1, this::opcode_0xCBA5_res, this));
-        cb_opcodes.add(new Instruction(0xA6, "RES 4,(HL)", 1, this::opcode_0xCBA6_res, this));
-        cb_opcodes.add(new Instruction(0xA7, "RES 4,A", 1, this::opcode_0xCBA7_res, this));
-        cb_opcodes.add(new Instruction(0xA8, "RES 5,B", 1, this::opcode_0xCBA8_res, this));
-        cb_opcodes.add(new Instruction(0xA9, "RES 5,C", 1, this::opcode_0xCBA9_res, this));
-        cb_opcodes.add(new Instruction(0xAA, "RES 5,D", 1, this::opcode_0xCBAA_res, this));
-        cb_opcodes.add(new Instruction(0xAB, "RES 5,E", 1, this::opcode_0xCBAB_res, this));
-        cb_opcodes.add(new Instruction(0xAC, "RES 5,H", 1, this::opcode_0xCBAC_res, this));
-        cb_opcodes.add(new Instruction(0xAD, "RES 5,L", 1, this::opcode_0xCBAD_res, this));
-        cb_opcodes.add(new Instruction(0xAE, "RES 5,(HL)", 1, this::opcode_0xCBAE_res, this));
-        cb_opcodes.add(new Instruction(0xAF, "RES 5,A", 1, this::opcode_0xCBAF_res, this));
-        cb_opcodes.add(new Instruction(0xB0, "RES 6,B", 1, this::opcode_0xCBB0_res, this));
-        cb_opcodes.add(new Instruction(0xB1, "RES 6,C", 1, this::opcode_0xCBB1_res, this));
-        cb_opcodes.add(new Instruction(0xB2, "RES 6,D", 1, this::opcode_0xCBB2_res, this));
-        cb_opcodes.add(new Instruction(0xB3, "RES 6,E", 1, this::opcode_0xCBB3_res, this));
-        cb_opcodes.add(new Instruction(0xB4, "RES 6,H", 1, this::opcode_0xCBB4_res, this));
-        cb_opcodes.add(new Instruction(0xB5, "RES 6,L", 1, this::opcode_0xCBB5_res, this));
-        cb_opcodes.add(new Instruction(0xB6, "RES 6,(HL)", 1, this::opcode_0xCBB6_res, this));
-        cb_opcodes.add(new Instruction(0xB7, "RES 6,A", 1, this::opcode_0xCBB7_res, this));
-        cb_opcodes.add(new Instruction(0xB8, "RES 7,B", 1, this::opcode_0xCBB8_res, this));
-        cb_opcodes.add(new Instruction(0xB9, "RES 7,C", 1, this::opcode_0xCBB9_res, this));
-        cb_opcodes.add(new Instruction(0xBA, "RES 7,D", 1, this::opcode_0xCBBA_res, this));
-        cb_opcodes.add(new Instruction(0xBB, "RES 7,E", 1, this::opcode_0xCBBB_res, this));
-        cb_opcodes.add(new Instruction(0xBC, "RES 7,H", 1, this::opcode_0xCBBC_res, this));
-        cb_opcodes.add(new Instruction(0xBD, "RES 7,L", 1, this::opcode_0xCBBD_res, this));
-        cb_opcodes.add(new Instruction(0xBE, "RES 7,(HL)", 1, this::opcode_0xCBBE_res, this));
-        cb_opcodes.add(new Instruction(0xBF, "RES 7,A", 1, this::opcode_0xCBBF_res, this));
-        cb_opcodes.add(new Instruction(0xC0, "SET 0,B", 1, this::opcode_0xCBC0_set_set, this));
-        cb_opcodes.add(new Instruction(0xC1, "SET 0,C", 1, this::opcode_0xCBC1_set, this));
-        cb_opcodes.add(new Instruction(0xC2, "SET 0,D", 1, this::opcode_0xCBC2_set, this));
-        cb_opcodes.add(new Instruction(0xC3, "SET 0,E", 1, this::opcode_0xCBC3_set, this));
-        cb_opcodes.add(new Instruction(0xC4, "SET 0,H", 1, this::opcode_0xCBC4_set, this));
-        cb_opcodes.add(new Instruction(0xC5, "SET 0,L", 1, this::opcode_0xCBC5_set, this));
-        cb_opcodes.add(new Instruction(0xC6, "SET 0,(HL)", 1, this::opcode_0xCBC6_set, this));
-        cb_opcodes.add(new Instruction(0xC7, "SET 0,A", 1, this::opcode_0xCBC7_set, this));
-        cb_opcodes.add(new Instruction(0xC8, "SET 1,B", 1, this::opcode_0xCBC8_set, this));
-        cb_opcodes.add(new Instruction(0xC9, "SET 1,C", 1, this::opcode_0xCBC9_set, this));
-        cb_opcodes.add(new Instruction(0xCA, "SET 1,D", 1, this::opcode_0xCBCA_set, this));
-        cb_opcodes.add(new Instruction(0xCB, "SET 1,E", 1, this::opcode_0xCBCB_set, this));
-        cb_opcodes.add(new Instruction(0xCC, "SET 1,H", 1, this::opcode_0xCBCC_set, this));
-        cb_opcodes.add(new Instruction(0xCD, "SET 1,L", 1, this::opcode_0xCBCD_set, this));
-        cb_opcodes.add(new Instruction(0xCE, "SET 1,(HL)", 1, this::opcode_0xCBCE_set, this));
-        cb_opcodes.add(new Instruction(0xCF, "SET 1,A", 1, this::opcode_0xCBCF_set, this));
-        cb_opcodes.add(new Instruction(0xD0, "SET 2,B", 1, this::opcode_0xCBD0_set, this));
-        cb_opcodes.add(new Instruction(0xD1, "SET 2,C", 1, this::opcode_0xCBD1_set, this));
-        cb_opcodes.add(new Instruction(0xD2, "SET 2,D", 1, this::opcode_0xCBD2_set, this));
-        cb_opcodes.add(new Instruction(0xD3, "SET 2,E", 1, this::opcode_0xCBD3_set, this));
-        cb_opcodes.add(new Instruction(0xD4, "SET 2,H", 1, this::opcode_0xCBD4_set, this));
-        cb_opcodes.add(new Instruction(0xD5, "SET 2,L", 1, this::opcode_0xCBD5_set, this));
-        cb_opcodes.add(new Instruction(0xD6, "SET 2,(HL)", 1, this::opcode_0xCBD6_set, this));
-        cb_opcodes.add(new Instruction(0xD7, "SET 2,A", 1, this::opcode_0xCBD7_set, this));
-        cb_opcodes.add(new Instruction(0xD8, "SET 3,B", 1, this::opcode_0xCBD8_set, this));
-        cb_opcodes.add(new Instruction(0xD9, "SET 3,C", 1, this::opcode_0xCBD9_set, this));
-        cb_opcodes.add(new Instruction(0xDA, "SET 3,D", 1, this::opcode_0xCBDA_set, this));
-        cb_opcodes.add(new Instruction(0xDB, "SET 3,E", 1, this::opcode_0xCBDB_set, this));
-        cb_opcodes.add(new Instruction(0xDC, "SET 3,H", 1, this::opcode_0xCBDC_set, this));
-        cb_opcodes.add(new Instruction(0xDD, "SET 3,L", 1, this::opcode_0xCBDD_set, this));
-        cb_opcodes.add(new Instruction(0xDE, "SET 3,(HL)", 1, this::opcode_0xCBDE_set, this));
-        cb_opcodes.add(new Instruction(0xDF, "SET 3,A", 1, this::opcode_0xCBDF_set, this));
-        cb_opcodes.add(new Instruction(0xE0, "SET 4,B", 1, this::opcode_0xCBE0_set, this));
-        cb_opcodes.add(new Instruction(0xE1, "SET 4,B", 1, this::opcode_0xCBE1_set, this));
-        cb_opcodes.add(new Instruction(0xE2, "SET 4,D", 1, this::opcode_0xCBE2_set, this));
-        cb_opcodes.add(new Instruction(0xE3, "SET 4,E", 1, this::opcode_0xCBE3_set, this));
-        cb_opcodes.add(new Instruction(0xE4, "SET 4,H", 1, this::opcode_0xCBE4_set, this));
-        cb_opcodes.add(new Instruction(0xE5, "SET 4,L", 1, this::opcode_0xCBE5_set, this));
-        cb_opcodes.add(new Instruction(0xE6, "SET 4,(HL)", 1, this::opcode_0xCBE6_set, this));
-        cb_opcodes.add(new Instruction(0xE7, "SET 4,A", 1, this::opcode_0xCBE7_set, this));
-        cb_opcodes.add(new Instruction(0xE8, "SET 5,B", 1, this::opcode_0xCBE8_set, this));
-        cb_opcodes.add(new Instruction(0xE9, "SET 5,C", 1, this::opcode_0xCBE9_set, this));
-        cb_opcodes.add(new Instruction(0xEA, "SET 5,D", 1, this::opcode_0xCBEA_set, this));
-        cb_opcodes.add(new Instruction(0xEB, "SET 5,E", 1, this::opcode_0xCBEB_set, this));
-        cb_opcodes.add(new Instruction(0xEC, "SET 5,H", 1, this::opcode_0xCBEC_set, this));
-        cb_opcodes.add(new Instruction(0xED, "SET 5,L", 1, this::opcode_0xCBED_set, this));
-        cb_opcodes.add(new Instruction(0xEE, "SET 5,(HL)", 1, this::opcode_0xCBEE_set, this));
-        cb_opcodes.add(new Instruction(0xEF, "SET 5,A", 1, this::opcode_0xCBEF_set, this));
-        cb_opcodes.add(new Instruction(0xF0, "SET 6,B", 1, this::opcode_0xCBF0_set, this));
-        cb_opcodes.add(new Instruction(0xF1, "SET 6,C", 1, this::opcode_0xCBF1_set, this));
-        cb_opcodes.add(new Instruction(0xF2, "SET 6,D", 1, this::opcode_0xCBF2_set, this));
-        cb_opcodes.add(new Instruction(0xF3, "SET 6,E", 1, this::opcode_0xCBF3_set, this));
-        cb_opcodes.add(new Instruction(0xF4, "SET 6,H", 1, this::opcode_0xCBF4_set, this));
-        cb_opcodes.add(new Instruction(0xF5, "SET 6,L", 1, this::opcode_0xCBF5_set, this));
-        cb_opcodes.add(new Instruction(0xF6, "SET 6,(HL)", 1, this::opcode_0xCBF6_set, this));
-        cb_opcodes.add(new Instruction(0xF7, "SET 6,A", 1, this::opcode_0xCBF7_set, this));
-        cb_opcodes.add(new Instruction(0xF8, "SET 7,B", 1, this::opcode_0xCBF8_set, this));
-        cb_opcodes.add(new Instruction(0xF9, "SET 7,C", 1, this::opcode_0xCBF9_set, this));
-        cb_opcodes.add(new Instruction(0xFA, "SET 7,D", 1, this::opcode_0xCBFA_set, this));
-        cb_opcodes.add(new Instruction(0xFB, "SET 7,E", 1, this::opcode_0xCBFB_set, this));
-        cb_opcodes.add(new Instruction(0xFC, "SET 7,H", 1, this::opcode_0xCBFC_set, this));
-        cb_opcodes.add(new Instruction(0xFD, "SET 7,L", 1, this::opcode_0xCBFD_set, this));
-        cb_opcodes.add(new Instruction(0xFE, "SET 7,(HL)", 1, this::opcode_0xCBFE_set, this));
-        cb_opcodes.add(new Instruction(0xFF, "SET 7,A", 1, this::opcode_0xCBFF_set, this));
+        cb_opcodes.add(new Instruction(0x00, Instruction.Type.MISC, "RLC B", 1, this::opcode_0xCB00_rlc, this));
+        cb_opcodes.add(new Instruction(0x01, Instruction.Type.MISC, "RLC C", 1, this::opcode_0xCB01_rlc, this));
+        cb_opcodes.add(new Instruction(0x02, Instruction.Type.MISC, "RLC D", 1, this::opcode_0xCB02_rlc, this));
+        cb_opcodes.add(new Instruction(0x03, Instruction.Type.MISC, "RLC E", 1, this::opcode_0xCB03_rlc, this));
+        cb_opcodes.add(new Instruction(0x04, Instruction.Type.MISC, "RLC H", 1, this::opcode_0xCB04_rlc, this));
+        cb_opcodes.add(new Instruction(0x05, Instruction.Type.MISC, "RLC L", 1, this::opcode_0xCB05_rlc, this));
+        cb_opcodes.add(new Instruction(0x06, Instruction.Type.RW, "RLC (HL)", 1, this::opcode_0xCB06_rlc, this));
+        cb_opcodes.add(new Instruction(0x07, Instruction.Type.MISC, "RLC A", 1, this::opcode_0xCB07_rlc, this));
+        cb_opcodes.add(new Instruction(0x08, Instruction.Type.MISC, "RRC B", 1, this::opcode_0xCB08_rrc, this));
+        cb_opcodes.add(new Instruction(0x09, Instruction.Type.MISC, "RRC C", 1, this::opcode_0xCB09_rrc, this));
+        cb_opcodes.add(new Instruction(0x0A, Instruction.Type.MISC, "RRC D", 1, this::opcode_0xCB0A_rrc, this));
+        cb_opcodes.add(new Instruction(0x0B, Instruction.Type.MISC, "RRC E", 1, this::opcode_0xCB0B_rrc, this));
+        cb_opcodes.add(new Instruction(0x0C, Instruction.Type.MISC, "RRC H", 1, this::opcode_0xCB0C_rrc, this));
+        cb_opcodes.add(new Instruction(0x0D, Instruction.Type.MISC, "RRC L", 1, this::opcode_0xCB0D_rrc, this));
+        cb_opcodes.add(new Instruction(0x0E, Instruction.Type.RW, "RRC (HL)", 1, this::opcode_0xCB0E_rrc, this));
+        cb_opcodes.add(new Instruction(0x0F, Instruction.Type.MISC, "RRC A", 1, this::opcode_0xCB0F_rrc, this));
+        cb_opcodes.add(new Instruction(0x10, Instruction.Type.MISC, "RL B", 1, this::opcode_0xCB10_rl, this));
+        cb_opcodes.add(new Instruction(0x11, Instruction.Type.MISC, "RL C", 1, this::opcode_0xCB11_rl, this));
+        cb_opcodes.add(new Instruction(0x12, Instruction.Type.MISC, "RL D", 1, this::opcode_0xCB12_rl, this));
+        cb_opcodes.add(new Instruction(0x13, Instruction.Type.MISC, "RL E", 1, this::opcode_0xCB13_rl, this));
+        cb_opcodes.add(new Instruction(0x14, Instruction.Type.MISC, "RL H", 1, this::opcode_0xCB14_rl, this));
+        cb_opcodes.add(new Instruction(0x15, Instruction.Type.MISC, "RL L", 1, this::opcode_0xCB15_rl, this));
+        cb_opcodes.add(new Instruction(0x16, Instruction.Type.RW, "RL (HL)", 1, this::opcode_0xCB16_rl, this));
+        cb_opcodes.add(new Instruction(0x17, Instruction.Type.MISC, "RL A", 1, this::opcode_0xCB17_rl, this));
+        cb_opcodes.add(new Instruction(0x18, Instruction.Type.MISC, "RR B", 1, this::opcode_0xCB18_rr, this));
+        cb_opcodes.add(new Instruction(0x19, Instruction.Type.MISC, "RR C", 1, this::opcode_0xCB19_rr, this));
+        cb_opcodes.add(new Instruction(0x1A, Instruction.Type.MISC, "RR D", 1, this::opcode_0xCB1A_rr, this));
+        cb_opcodes.add(new Instruction(0x1B, Instruction.Type.MISC, "RR E", 1, this::opcode_0xCB1B_rr, this));
+        cb_opcodes.add(new Instruction(0x1C, Instruction.Type.MISC, "RR H", 1, this::opcode_0xCB1C_rr, this));
+        cb_opcodes.add(new Instruction(0x1D, Instruction.Type.MISC, "RR L", 1, this::opcode_0xCB1D_rr, this));
+        cb_opcodes.add(new Instruction(0x1E, Instruction.Type.RW, "RR (HL)", 1, this::opcode_0xCB1E_rr, this));
+        cb_opcodes.add(new Instruction(0x1F, Instruction.Type.MISC, "RR A", 1, this::opcode_0xCB1F_rr, this));
+        cb_opcodes.add(new Instruction(0x20, Instruction.Type.MISC, "SLA B", 1, this::opcode_0xCB20_sla, this));
+        cb_opcodes.add(new Instruction(0x21, Instruction.Type.MISC, "SLA C", 1, this::opcode_0xCB21_sla, this));
+        cb_opcodes.add(new Instruction(0x22, Instruction.Type.MISC, "SLA D", 1, this::opcode_0xCB22_sla, this));
+        cb_opcodes.add(new Instruction(0x23, Instruction.Type.MISC, "SLA E", 1, this::opcode_0xCB23_sla, this));
+        cb_opcodes.add(new Instruction(0x24, Instruction.Type.MISC, "SLA H", 1, this::opcode_0xCB24_sla, this));
+        cb_opcodes.add(new Instruction(0x25, Instruction.Type.MISC, "SLA L", 1, this::opcode_0xCB25_sla, this));
+        cb_opcodes.add(new Instruction(0x26, Instruction.Type.RW, "SLA (HL)", 1, this::opcode_0xCB26_sla, this));
+        cb_opcodes.add(new Instruction(0x27, Instruction.Type.MISC, "SLA A", 1, this::opcode_0xCB27_sla, this));
+        cb_opcodes.add(new Instruction(0x28, Instruction.Type.MISC, "SRA B", 1, this::opcode_0xCB28_sra, this));
+        cb_opcodes.add(new Instruction(0x29, Instruction.Type.MISC, "SRA C", 1, this::opcode_0xCB29_sra, this));
+        cb_opcodes.add(new Instruction(0x2A, Instruction.Type.MISC, "SRA D", 1, this::opcode_0xCB2A_sra, this));
+        cb_opcodes.add(new Instruction(0x2B, Instruction.Type.MISC, "SRA E", 1, this::opcode_0xCB2B_sra, this));
+        cb_opcodes.add(new Instruction(0x2C, Instruction.Type.MISC, "SRA H", 1, this::opcode_0xCB2C_sra, this));
+        cb_opcodes.add(new Instruction(0x2D, Instruction.Type.MISC, "SRA L", 1, this::opcode_0xCB2D_sra, this));
+        cb_opcodes.add(new Instruction(0x2E, Instruction.Type.RW, "SRA (HL)", 1, this::opcode_0xCB2E_sra, this));
+        cb_opcodes.add(new Instruction(0x2F, Instruction.Type.MISC, "SRA A", 1, this::opcode_0xCB2F_sra, this));
+        cb_opcodes.add(new Instruction(0x30, Instruction.Type.MISC, "SWAP B", 1, this::opcode_0xCB30_swap, this));
+        cb_opcodes.add(new Instruction(0x31, Instruction.Type.MISC, "SWAP C", 1, this::opcode_0xCB31_swap, this));
+        cb_opcodes.add(new Instruction(0x32, Instruction.Type.MISC, "SWAP D", 1, this::opcode_0xCB32_swap, this));
+        cb_opcodes.add(new Instruction(0x33, Instruction.Type.MISC, "SWAP E", 1, this::opcode_0xCB33_swap, this));
+        cb_opcodes.add(new Instruction(0x34, Instruction.Type.MISC, "SWAP H", 1, this::opcode_0xCB34_swap, this));
+        cb_opcodes.add(new Instruction(0x35, Instruction.Type.MISC, "SWAP L", 1, this::opcode_0xCB35_swap, this));
+        cb_opcodes.add(new Instruction(0x36, Instruction.Type.RW, "SWAP (HL)", 1, this::opcode_0xCB36_swap, this));
+        cb_opcodes.add(new Instruction(0x37, Instruction.Type.MISC, "SWAP A", 1, this::opcode_0xCB37_swap, this));
+        cb_opcodes.add(new Instruction(0x38, Instruction.Type.MISC, "SRL B", 1, this::opcode_0xCB38_srl, this));
+        cb_opcodes.add(new Instruction(0x39, Instruction.Type.MISC, "SRL C", 1, this::opcode_0xCB39_srl, this));
+        cb_opcodes.add(new Instruction(0x3A, Instruction.Type.MISC, "SRL D", 1, this::opcode_0xCB3A_srl, this));
+        cb_opcodes.add(new Instruction(0x3B, Instruction.Type.MISC, "SRL E", 1, this::opcode_0xCB3B_srl, this));
+        cb_opcodes.add(new Instruction(0x3C, Instruction.Type.MISC, "SRL H", 1, this::opcode_0xCB3C_srl, this));
+        cb_opcodes.add(new Instruction(0x3D, Instruction.Type.MISC, "SRL L", 1, this::opcode_0xCB3D_srl, this));
+        cb_opcodes.add(new Instruction(0x3E, Instruction.Type.RW, "SRL (HL)", 1, this::opcode_0xCB3E_srl, this));
+        cb_opcodes.add(new Instruction(0x3F, Instruction.Type.MISC, "SRL A", 1, this::opcode_0xCB3F_srl, this));
+        cb_opcodes.add(new Instruction(0x40, Instruction.Type.MISC, "BIT 0,B", 1, this::opcode_0xCB40_bit, this));
+        cb_opcodes.add(new Instruction(0x41, Instruction.Type.MISC, "BIT 0,C", 1, this::opcode_0xCB41_bit, this));
+        cb_opcodes.add(new Instruction(0x42, Instruction.Type.MISC, "BIT 0,D", 1, this::opcode_0xCB42_bit, this));
+        cb_opcodes.add(new Instruction(0x43, Instruction.Type.MISC, "BIT 0,E", 1, this::opcode_0xCB43_bit, this));
+        cb_opcodes.add(new Instruction(0x44, Instruction.Type.MISC, "BIT 0,H", 1, this::opcode_0xCB44_bit, this));
+        cb_opcodes.add(new Instruction(0x45, Instruction.Type.MISC, "BIT 0,L", 1, this::opcode_0xCB45_bit, this));
+        cb_opcodes.add(new Instruction(0x46, Instruction.Type.R, "BIT 0,(HL)", 1, this::opcode_0xCB46_bit, this));
+        cb_opcodes.add(new Instruction(0x47, Instruction.Type.MISC, "BIT 0,A", 1, this::opcode_0xCB47_bit, this));
+        cb_opcodes.add(new Instruction(0x48, Instruction.Type.MISC, "BIT 1,B", 1, this::opcode_0xCB48_bit, this));
+        cb_opcodes.add(new Instruction(0x49, Instruction.Type.MISC, "BIT 1,C", 1, this::opcode_0xCB49_bit, this));
+        cb_opcodes.add(new Instruction(0x4A, Instruction.Type.MISC, "BIT 1,D", 1, this::opcode_0xCB4A_bit, this));
+        cb_opcodes.add(new Instruction(0x4B, Instruction.Type.MISC, "BIT 1,E", 1, this::opcode_0xCB4B_bit, this));
+        cb_opcodes.add(new Instruction(0x4C, Instruction.Type.MISC, "BIT 1,H", 1, this::opcode_0xCB4C_bit, this));
+        cb_opcodes.add(new Instruction(0x4D, Instruction.Type.MISC, "BIT 1,L", 1, this::opcode_0xCB4D_bit, this));
+        cb_opcodes.add(new Instruction(0x4E, Instruction.Type.R, "BIT 1,(HL)", 1, this::opcode_0xCB4E_bit, this));
+        cb_opcodes.add(new Instruction(0x4F, Instruction.Type.MISC, "BIT 1,A", 1, this::opcode_0xCB4F_bit, this));
+        cb_opcodes.add(new Instruction(0x50, Instruction.Type.MISC, "BIT 2,B", 1, this::opcode_0xCB50_bit, this));
+        cb_opcodes.add(new Instruction(0x51, Instruction.Type.MISC, "BIT 2,C", 1, this::opcode_0xCB51_bit, this));
+        cb_opcodes.add(new Instruction(0x52, Instruction.Type.MISC, "BIT 2,D", 1, this::opcode_0xCB52_bit, this));
+        cb_opcodes.add(new Instruction(0x53, Instruction.Type.MISC, "BIT 2,E", 1, this::opcode_0xCB53_bit, this));
+        cb_opcodes.add(new Instruction(0x54, Instruction.Type.MISC, "BIT 2,H", 1, this::opcode_0xCB54_bit, this));
+        cb_opcodes.add(new Instruction(0x55, Instruction.Type.MISC, "BIT 2,L", 1, this::opcode_0xCB55_bit, this));
+        cb_opcodes.add(new Instruction(0x56, Instruction.Type.R, "BIT 2,(HL)", 1, this::opcode_0xCB56_bit, this));
+        cb_opcodes.add(new Instruction(0x57, Instruction.Type.MISC, "BIT 2,A", 1, this::opcode_0xCB57_bit, this));
+        cb_opcodes.add(new Instruction(0x58, Instruction.Type.MISC, "BIT 3,B", 1, this::opcode_0xCB58_bit, this));
+        cb_opcodes.add(new Instruction(0x59, Instruction.Type.MISC, "BIT 3,C", 1, this::opcode_0xCB59_bit, this));
+        cb_opcodes.add(new Instruction(0x5A, Instruction.Type.MISC, "BIT 3,D", 1, this::opcode_0xCB5A_bit, this));
+        cb_opcodes.add(new Instruction(0x5B, Instruction.Type.MISC, "BIT 3,E", 1, this::opcode_0xCB5B_bit, this));
+        cb_opcodes.add(new Instruction(0x5C, Instruction.Type.MISC, "BIT 3,H", 1, this::opcode_0xCB5C_bit, this));
+        cb_opcodes.add(new Instruction(0x5D, Instruction.Type.MISC, "BIT 3,L", 1, this::opcode_0xCB5D_bit, this));
+        cb_opcodes.add(new Instruction(0x5E, Instruction.Type.R, "BIT 3,(HL)", 1, this::opcode_0xCB5E_bit, this));
+        cb_opcodes.add(new Instruction(0x5F, Instruction.Type.MISC, "BIT 3,A", 1, this::opcode_0xCB5F_bit, this));
+        cb_opcodes.add(new Instruction(0x60, Instruction.Type.MISC, "BIT 4,B", 1, this::opcode_0xCB60_bit, this));
+        cb_opcodes.add(new Instruction(0x61, Instruction.Type.MISC, "BIT 4,C", 1, this::opcode_0xCB61_bit, this));
+        cb_opcodes.add(new Instruction(0x62, Instruction.Type.MISC, "BIT 4,D", 1, this::opcode_0xCB62_bit, this));
+        cb_opcodes.add(new Instruction(0x63, Instruction.Type.MISC, "BIT 4,E", 1, this::opcode_0xCB63_bit, this));
+        cb_opcodes.add(new Instruction(0x64, Instruction.Type.MISC, "BIT 4,H", 1, this::opcode_0xCB64_bit, this));
+        cb_opcodes.add(new Instruction(0x65, Instruction.Type.MISC, "BIT 4,L", 1, this::opcode_0xCB65_bit, this));
+        cb_opcodes.add(new Instruction(0x66, Instruction.Type.R, "BIT 4,(HL)", 1, this::opcode_0xCB66_bit, this));
+        cb_opcodes.add(new Instruction(0x67, Instruction.Type.MISC, "BIT 4,A", 1, this::opcode_0xCB67_bit, this));
+        cb_opcodes.add(new Instruction(0x68, Instruction.Type.MISC, "BIT 5,B", 1, this::opcode_0xCB68_bit, this));
+        cb_opcodes.add(new Instruction(0x69, Instruction.Type.MISC, "BIT 5,C", 1, this::opcode_0xCB69_bit, this));
+        cb_opcodes.add(new Instruction(0x6A, Instruction.Type.MISC, "BIT 5,D", 1, this::opcode_0xCB6A_bit, this));
+        cb_opcodes.add(new Instruction(0x6B, Instruction.Type.MISC, "BIT 5,E", 1, this::opcode_0xCB6B_bit, this));
+        cb_opcodes.add(new Instruction(0x6C, Instruction.Type.MISC, "BIT 5,H", 1, this::opcode_0xCB6C_bit, this));
+        cb_opcodes.add(new Instruction(0x6D, Instruction.Type.MISC, "BIT 5,L", 1, this::opcode_0xCB6D_bit, this));
+        cb_opcodes.add(new Instruction(0x6E, Instruction.Type.R, "BIT 5,(HL)", 1, this::opcode_0xCB6E_bit, this));
+        cb_opcodes.add(new Instruction(0x6F, Instruction.Type.MISC, "BIT 5,A", 1, this::opcode_0xCB6F_bit, this));
+        cb_opcodes.add(new Instruction(0x70, Instruction.Type.MISC, "BIT 6,B", 1, this::opcode_0xCB70_bit, this));
+        cb_opcodes.add(new Instruction(0x71, Instruction.Type.MISC, "BIT 6,C", 1, this::opcode_0xCB71_bit, this));
+        cb_opcodes.add(new Instruction(0x72, Instruction.Type.MISC, "BIT 6,D", 1, this::opcode_0xCB72_bit, this));
+        cb_opcodes.add(new Instruction(0x73, Instruction.Type.MISC, "BIT 6,E", 1, this::opcode_0xCB73_bit, this));
+        cb_opcodes.add(new Instruction(0x74, Instruction.Type.MISC, "BIT 6,H", 1, this::opcode_0xCB74_bit, this));
+        cb_opcodes.add(new Instruction(0x75, Instruction.Type.MISC, "BIT 6,L", 1, this::opcode_0xCB75_bit, this));
+        cb_opcodes.add(new Instruction(0x76, Instruction.Type.R, "BIT 6,(HL)", 1, this::opcode_0xCB76_bit, this));
+        cb_opcodes.add(new Instruction(0x77, Instruction.Type.MISC, "BIT 6,A", 1, this::opcode_0xCB77_bit, this));
+        cb_opcodes.add(new Instruction(0x78, Instruction.Type.MISC, "BIT 7,B", 1, this::opcode_0xCB78_bit, this));
+        cb_opcodes.add(new Instruction(0x79, Instruction.Type.MISC, "BIT 7,C", 1, this::opcode_0xCB79_bit, this));
+        cb_opcodes.add(new Instruction(0x7A, Instruction.Type.MISC, "BIT 7,D", 1, this::opcode_0xCB7A_bit, this));
+        cb_opcodes.add(new Instruction(0x7B, Instruction.Type.MISC, "BIT 7,E", 1, this::opcode_0xCB7B_bit, this));
+        cb_opcodes.add(new Instruction(0x7C, Instruction.Type.MISC, "BIT 7,H", 1, this::opcode_0xCB7C_bit, this));
+        cb_opcodes.add(new Instruction(0x7D, Instruction.Type.MISC, "BIT 7,L", 1, this::opcode_0xCB7D_bit, this));
+        cb_opcodes.add(new Instruction(0x7E, Instruction.Type.R, "BIT 7,(HL)", 1, this::opcode_0xCB7E_bit, this));
+        cb_opcodes.add(new Instruction(0x7F, Instruction.Type.MISC, "BIT 7,A", 1, this::opcode_0xCB7F_bit, this));
+        cb_opcodes.add(new Instruction(0x80, Instruction.Type.MISC, "RES 0,B", 1, this::opcode_0xCB80_res, this));
+        cb_opcodes.add(new Instruction(0x81, Instruction.Type.MISC, "RES 0,C", 1, this::opcode_0xCB81_res, this));
+        cb_opcodes.add(new Instruction(0x82, Instruction.Type.MISC, "RES 0,D", 1, this::opcode_0xCB82_res, this));
+        cb_opcodes.add(new Instruction(0x83, Instruction.Type.MISC, "RES 0,E", 1, this::opcode_0xCB83_res, this));
+        cb_opcodes.add(new Instruction(0x84, Instruction.Type.MISC, "RES 0,H", 1, this::opcode_0xCB84_res, this));
+        cb_opcodes.add(new Instruction(0x85, Instruction.Type.MISC, "RES 0,L", 1, this::opcode_0xCB85_res, this));
+        cb_opcodes.add(new Instruction(0x86, Instruction.Type.RW, "RES 0,(HL)", 1, this::opcode_0xCB86_res, this));
+        cb_opcodes.add(new Instruction(0x87, Instruction.Type.MISC, "RES 0,A", 1, this::opcode_0xCB87_res, this));
+        cb_opcodes.add(new Instruction(0x88, Instruction.Type.MISC, "RES 1,B", 1, this::opcode_0xCB88_res, this));
+        cb_opcodes.add(new Instruction(0x89, Instruction.Type.MISC, "RES 1,C", 1, this::opcode_0xCB89_res, this));
+        cb_opcodes.add(new Instruction(0x8A, Instruction.Type.MISC, "RES 1,D", 1, this::opcode_0xCB8A_res, this));
+        cb_opcodes.add(new Instruction(0x8B, Instruction.Type.MISC, "RES 1,E", 1, this::opcode_0xCB8B_res, this));
+        cb_opcodes.add(new Instruction(0x8C, Instruction.Type.MISC, "RES 1,H", 1, this::opcode_0xCB8C_res, this));
+        cb_opcodes.add(new Instruction(0x8D, Instruction.Type.MISC, "RES 1,L", 1, this::opcode_0xCB8D_res, this));
+        cb_opcodes.add(new Instruction(0x8E, Instruction.Type.RW, "RES 1,(HL)", 1, this::opcode_0xCB8E_res, this));
+        cb_opcodes.add(new Instruction(0x8F, Instruction.Type.MISC, "RES 1,A", 1, this::opcode_0xCB8F_res, this));
+        cb_opcodes.add(new Instruction(0x90, Instruction.Type.MISC, "RES 2,B", 1, this::opcode_0xCB90_res, this));
+        cb_opcodes.add(new Instruction(0x91, Instruction.Type.MISC, "RES 2,C", 1, this::opcode_0xCB91_res, this));
+        cb_opcodes.add(new Instruction(0x92, Instruction.Type.MISC, "RES 2,D", 1, this::opcode_0xCB92_res, this));
+        cb_opcodes.add(new Instruction(0x93, Instruction.Type.MISC, "RES 2,E", 1, this::opcode_0xCB93_res, this));
+        cb_opcodes.add(new Instruction(0x94, Instruction.Type.MISC, "RES 2,H", 1, this::opcode_0xCB94_res, this));
+        cb_opcodes.add(new Instruction(0x95, Instruction.Type.MISC, "RES 2,L", 1, this::opcode_0xCB95_res, this));
+        cb_opcodes.add(new Instruction(0x96, Instruction.Type.RW, "RES 2,(HL)", 1, this::opcode_0xCB96_res, this));
+        cb_opcodes.add(new Instruction(0x97, Instruction.Type.MISC, "RES 2,A", 1, this::opcode_0xCB97_res, this));
+        cb_opcodes.add(new Instruction(0x98, Instruction.Type.MISC, "RES 3,B", 1, this::opcode_0xCB98_res, this));
+        cb_opcodes.add(new Instruction(0x99, Instruction.Type.MISC, "RES 3,C", 1, this::opcode_0xCB99_res, this));
+        cb_opcodes.add(new Instruction(0x9A, Instruction.Type.MISC, "RES 3,D", 1, this::opcode_0xCB9A_res, this));
+        cb_opcodes.add(new Instruction(0x9B, Instruction.Type.MISC, "RES 3,E", 1, this::opcode_0xCB9B_res, this));
+        cb_opcodes.add(new Instruction(0x9C, Instruction.Type.MISC, "RES 3,H", 1, this::opcode_0xCB9C_res, this));
+        cb_opcodes.add(new Instruction(0x9D, Instruction.Type.MISC, "RES 3,L", 1, this::opcode_0xCB9D_res, this));
+        cb_opcodes.add(new Instruction(0x9E, Instruction.Type.RW, "RES 3,(HL)", 1, this::opcode_0xCB9E_res, this));
+        cb_opcodes.add(new Instruction(0x9F, Instruction.Type.MISC, "RES 3,A", 1, this::opcode_0xCB9F_res, this));
+        cb_opcodes.add(new Instruction(0xA0, Instruction.Type.MISC, "RES 4,B", 1, this::opcode_0xCBA0_res, this));
+        cb_opcodes.add(new Instruction(0xA1, Instruction.Type.MISC, "RES 4,C", 1, this::opcode_0xCBA1_res, this));
+        cb_opcodes.add(new Instruction(0xA2, Instruction.Type.MISC, "RES 4,D", 1, this::opcode_0xCBA2_res, this));
+        cb_opcodes.add(new Instruction(0xA3, Instruction.Type.MISC, "RES 4,E", 1, this::opcode_0xCBA3_res, this));
+        cb_opcodes.add(new Instruction(0xA4, Instruction.Type.MISC, "RES 4,H", 1, this::opcode_0xCBA4_res, this));
+        cb_opcodes.add(new Instruction(0xA5, Instruction.Type.MISC, "RES 4,L", 1, this::opcode_0xCBA5_res, this));
+        cb_opcodes.add(new Instruction(0xA6, Instruction.Type.RW, "RES 4,(HL)", 1, this::opcode_0xCBA6_res, this));
+        cb_opcodes.add(new Instruction(0xA7, Instruction.Type.MISC, "RES 4,A", 1, this::opcode_0xCBA7_res, this));
+        cb_opcodes.add(new Instruction(0xA8, Instruction.Type.MISC, "RES 5,B", 1, this::opcode_0xCBA8_res, this));
+        cb_opcodes.add(new Instruction(0xA9, Instruction.Type.MISC, "RES 5,C", 1, this::opcode_0xCBA9_res, this));
+        cb_opcodes.add(new Instruction(0xAA, Instruction.Type.MISC, "RES 5,D", 1, this::opcode_0xCBAA_res, this));
+        cb_opcodes.add(new Instruction(0xAB, Instruction.Type.MISC, "RES 5,E", 1, this::opcode_0xCBAB_res, this));
+        cb_opcodes.add(new Instruction(0xAC, Instruction.Type.MISC, "RES 5,H", 1, this::opcode_0xCBAC_res, this));
+        cb_opcodes.add(new Instruction(0xAD, Instruction.Type.MISC, "RES 5,L", 1, this::opcode_0xCBAD_res, this));
+        cb_opcodes.add(new Instruction(0xAE, Instruction.Type.RW, "RES 5,(HL)", 1, this::opcode_0xCBAE_res, this));
+        cb_opcodes.add(new Instruction(0xAF, Instruction.Type.MISC, "RES 5,A", 1, this::opcode_0xCBAF_res, this));
+        cb_opcodes.add(new Instruction(0xB0, Instruction.Type.MISC, "RES 6,B", 1, this::opcode_0xCBB0_res, this));
+        cb_opcodes.add(new Instruction(0xB1, Instruction.Type.MISC, "RES 6,C", 1, this::opcode_0xCBB1_res, this));
+        cb_opcodes.add(new Instruction(0xB2, Instruction.Type.MISC, "RES 6,D", 1, this::opcode_0xCBB2_res, this));
+        cb_opcodes.add(new Instruction(0xB3, Instruction.Type.MISC, "RES 6,E", 1, this::opcode_0xCBB3_res, this));
+        cb_opcodes.add(new Instruction(0xB4, Instruction.Type.MISC, "RES 6,H", 1, this::opcode_0xCBB4_res, this));
+        cb_opcodes.add(new Instruction(0xB5, Instruction.Type.MISC, "RES 6,L", 1, this::opcode_0xCBB5_res, this));
+        cb_opcodes.add(new Instruction(0xB6, Instruction.Type.RW, "RES 6,(HL)", 1, this::opcode_0xCBB6_res, this));
+        cb_opcodes.add(new Instruction(0xB7, Instruction.Type.MISC, "RES 6,A", 1, this::opcode_0xCBB7_res, this));
+        cb_opcodes.add(new Instruction(0xB8, Instruction.Type.MISC, "RES 7,B", 1, this::opcode_0xCBB8_res, this));
+        cb_opcodes.add(new Instruction(0xB9, Instruction.Type.MISC, "RES 7,C", 1, this::opcode_0xCBB9_res, this));
+        cb_opcodes.add(new Instruction(0xBA, Instruction.Type.MISC, "RES 7,D", 1, this::opcode_0xCBBA_res, this));
+        cb_opcodes.add(new Instruction(0xBB, Instruction.Type.MISC, "RES 7,E", 1, this::opcode_0xCBBB_res, this));
+        cb_opcodes.add(new Instruction(0xBC, Instruction.Type.MISC, "RES 7,H", 1, this::opcode_0xCBBC_res, this));
+        cb_opcodes.add(new Instruction(0xBD, Instruction.Type.MISC, "RES 7,L", 1, this::opcode_0xCBBD_res, this));
+        cb_opcodes.add(new Instruction(0xBE, Instruction.Type.RW, "RES 7,(HL)", 1, this::opcode_0xCBBE_res, this));
+        cb_opcodes.add(new Instruction(0xBF, Instruction.Type.MISC, "RES 7,A", 1, this::opcode_0xCBBF_res, this));
+        cb_opcodes.add(new Instruction(0xC0, Instruction.Type.MISC, "SET 0,B", 1, this::opcode_0xCBC0_set_set, this));
+        cb_opcodes.add(new Instruction(0xC1, Instruction.Type.MISC, "SET 0,C", 1, this::opcode_0xCBC1_set, this));
+        cb_opcodes.add(new Instruction(0xC2, Instruction.Type.MISC, "SET 0,D", 1, this::opcode_0xCBC2_set, this));
+        cb_opcodes.add(new Instruction(0xC3, Instruction.Type.MISC, "SET 0,E", 1, this::opcode_0xCBC3_set, this));
+        cb_opcodes.add(new Instruction(0xC4, Instruction.Type.MISC, "SET 0,H", 1, this::opcode_0xCBC4_set, this));
+        cb_opcodes.add(new Instruction(0xC5, Instruction.Type.MISC, "SET 0,L", 1, this::opcode_0xCBC5_set, this));
+        cb_opcodes.add(new Instruction(0xC6, Instruction.Type.RW, "SET 0,(HL)", 1, this::opcode_0xCBC6_set, this));
+        cb_opcodes.add(new Instruction(0xC7, Instruction.Type.MISC, "SET 0,A", 1, this::opcode_0xCBC7_set, this));
+        cb_opcodes.add(new Instruction(0xC8, Instruction.Type.MISC, "SET 1,B", 1, this::opcode_0xCBC8_set, this));
+        cb_opcodes.add(new Instruction(0xC9, Instruction.Type.MISC, "SET 1,C", 1, this::opcode_0xCBC9_set, this));
+        cb_opcodes.add(new Instruction(0xCA, Instruction.Type.MISC, "SET 1,D", 1, this::opcode_0xCBCA_set, this));
+        cb_opcodes.add(new Instruction(0xCB, Instruction.Type.MISC, "SET 1,E", 1, this::opcode_0xCBCB_set, this));
+        cb_opcodes.add(new Instruction(0xCC, Instruction.Type.MISC, "SET 1,H", 1, this::opcode_0xCBCC_set, this));
+        cb_opcodes.add(new Instruction(0xCD, Instruction.Type.MISC, "SET 1,L", 1, this::opcode_0xCBCD_set, this));
+        cb_opcodes.add(new Instruction(0xCE, Instruction.Type.RW, "SET 1,(HL)", 1, this::opcode_0xCBCE_set, this));
+        cb_opcodes.add(new Instruction(0xCF, Instruction.Type.MISC, "SET 1,A", 1, this::opcode_0xCBCF_set, this));
+        cb_opcodes.add(new Instruction(0xD0, Instruction.Type.MISC, "SET 2,B", 1, this::opcode_0xCBD0_set, this));
+        cb_opcodes.add(new Instruction(0xD1, Instruction.Type.MISC, "SET 2,C", 1, this::opcode_0xCBD1_set, this));
+        cb_opcodes.add(new Instruction(0xD2, Instruction.Type.MISC, "SET 2,D", 1, this::opcode_0xCBD2_set, this));
+        cb_opcodes.add(new Instruction(0xD3, Instruction.Type.MISC, "SET 2,E", 1, this::opcode_0xCBD3_set, this));
+        cb_opcodes.add(new Instruction(0xD4, Instruction.Type.MISC, "SET 2,H", 1, this::opcode_0xCBD4_set, this));
+        cb_opcodes.add(new Instruction(0xD5, Instruction.Type.MISC, "SET 2,L", 1, this::opcode_0xCBD5_set, this));
+        cb_opcodes.add(new Instruction(0xD6, Instruction.Type.RW, "SET 2,(HL)", 1, this::opcode_0xCBD6_set, this));
+        cb_opcodes.add(new Instruction(0xD7, Instruction.Type.MISC, "SET 2,A", 1, this::opcode_0xCBD7_set, this));
+        cb_opcodes.add(new Instruction(0xD8, Instruction.Type.MISC, "SET 3,B", 1, this::opcode_0xCBD8_set, this));
+        cb_opcodes.add(new Instruction(0xD9, Instruction.Type.MISC, "SET 3,C", 1, this::opcode_0xCBD9_set, this));
+        cb_opcodes.add(new Instruction(0xDA, Instruction.Type.MISC, "SET 3,D", 1, this::opcode_0xCBDA_set, this));
+        cb_opcodes.add(new Instruction(0xDB, Instruction.Type.MISC, "SET 3,E", 1, this::opcode_0xCBDB_set, this));
+        cb_opcodes.add(new Instruction(0xDC, Instruction.Type.MISC, "SET 3,H", 1, this::opcode_0xCBDC_set, this));
+        cb_opcodes.add(new Instruction(0xDD, Instruction.Type.MISC, "SET 3,L", 1, this::opcode_0xCBDD_set, this));
+        cb_opcodes.add(new Instruction(0xDE, Instruction.Type.RW, "SET 3,(HL)", 1, this::opcode_0xCBDE_set, this));
+        cb_opcodes.add(new Instruction(0xDF, Instruction.Type.MISC, "SET 3,A", 1, this::opcode_0xCBDF_set, this));
+        cb_opcodes.add(new Instruction(0xE0, Instruction.Type.MISC, "SET 4,B", 1, this::opcode_0xCBE0_set, this));
+        cb_opcodes.add(new Instruction(0xE1, Instruction.Type.MISC, "SET 4,B", 1, this::opcode_0xCBE1_set, this));
+        cb_opcodes.add(new Instruction(0xE2, Instruction.Type.MISC, "SET 4,D", 1, this::opcode_0xCBE2_set, this));
+        cb_opcodes.add(new Instruction(0xE3, Instruction.Type.MISC, "SET 4,E", 1, this::opcode_0xCBE3_set, this));
+        cb_opcodes.add(new Instruction(0xE4, Instruction.Type.MISC, "SET 4,H", 1, this::opcode_0xCBE4_set, this));
+        cb_opcodes.add(new Instruction(0xE5, Instruction.Type.MISC, "SET 4,L", 1, this::opcode_0xCBE5_set, this));
+        cb_opcodes.add(new Instruction(0xE6, Instruction.Type.RW, "SET 4,(HL)", 1, this::opcode_0xCBE6_set, this));
+        cb_opcodes.add(new Instruction(0xE7, Instruction.Type.MISC, "SET 4,A", 1, this::opcode_0xCBE7_set, this));
+        cb_opcodes.add(new Instruction(0xE8, Instruction.Type.MISC, "SET 5,B", 1, this::opcode_0xCBE8_set, this));
+        cb_opcodes.add(new Instruction(0xE9, Instruction.Type.MISC, "SET 5,C", 1, this::opcode_0xCBE9_set, this));
+        cb_opcodes.add(new Instruction(0xEA, Instruction.Type.MISC, "SET 5,D", 1, this::opcode_0xCBEA_set, this));
+        cb_opcodes.add(new Instruction(0xEB, Instruction.Type.MISC, "SET 5,E", 1, this::opcode_0xCBEB_set, this));
+        cb_opcodes.add(new Instruction(0xEC, Instruction.Type.MISC, "SET 5,H", 1, this::opcode_0xCBEC_set, this));
+        cb_opcodes.add(new Instruction(0xED, Instruction.Type.MISC, "SET 5,L", 1, this::opcode_0xCBED_set, this));
+        cb_opcodes.add(new Instruction(0xEE, Instruction.Type.RW, "SET 5,(HL)", 1, this::opcode_0xCBEE_set, this));
+        cb_opcodes.add(new Instruction(0xEF, Instruction.Type.MISC, "SET 5,A", 1, this::opcode_0xCBEF_set, this));
+        cb_opcodes.add(new Instruction(0xF0, Instruction.Type.MISC, "SET 6,B", 1, this::opcode_0xCBF0_set, this));
+        cb_opcodes.add(new Instruction(0xF1, Instruction.Type.MISC, "SET 6,C", 1, this::opcode_0xCBF1_set, this));
+        cb_opcodes.add(new Instruction(0xF2, Instruction.Type.MISC, "SET 6,D", 1, this::opcode_0xCBF2_set, this));
+        cb_opcodes.add(new Instruction(0xF3, Instruction.Type.MISC, "SET 6,E", 1, this::opcode_0xCBF3_set, this));
+        cb_opcodes.add(new Instruction(0xF4, Instruction.Type.MISC, "SET 6,H", 1, this::opcode_0xCBF4_set, this));
+        cb_opcodes.add(new Instruction(0xF5, Instruction.Type.MISC, "SET 6,L", 1, this::opcode_0xCBF5_set, this));
+        cb_opcodes.add(new Instruction(0xF6, Instruction.Type.RW, "SET 6,(HL)", 1, this::opcode_0xCBF6_set, this));
+        cb_opcodes.add(new Instruction(0xF7, Instruction.Type.MISC, "SET 6,A", 1, this::opcode_0xCBF7_set, this));
+        cb_opcodes.add(new Instruction(0xF8, Instruction.Type.MISC, "SET 7,B", 1, this::opcode_0xCBF8_set, this));
+        cb_opcodes.add(new Instruction(0xF9, Instruction.Type.MISC, "SET 7,C", 1, this::opcode_0xCBF9_set, this));
+        cb_opcodes.add(new Instruction(0xFA, Instruction.Type.MISC, "SET 7,D", 1, this::opcode_0xCBFA_set, this));
+        cb_opcodes.add(new Instruction(0xFB, Instruction.Type.MISC, "SET 7,E", 1, this::opcode_0xCBFB_set, this));
+        cb_opcodes.add(new Instruction(0xFC, Instruction.Type.MISC, "SET 7,H", 1, this::opcode_0xCBFC_set, this));
+        cb_opcodes.add(new Instruction(0xFD, Instruction.Type.MISC, "SET 7,L", 1, this::opcode_0xCBFD_set, this));
+        cb_opcodes.add(new Instruction(0xFE, Instruction.Type.RW, "SET 7,(HL)", 1, this::opcode_0xCBFE_set, this));
+        cb_opcodes.add(new Instruction(0xFF, Instruction.Type.MISC, "SET 7,A", 1, this::opcode_0xCBFF_set, this));
     }
 
     public void init() {
         reset();
         next_instr = fetchInstruction();
-        if (GameBoy.DEBUG) {
-            cpuState.set(af, bc, de, hl, sp, pc, next_instr);
-            decompile();
-        }
+        cpuState.set(af, bc, de, hl, sp, pc, next_instr);
+        if (debugger != null)
+            debugger.clock();
     }
 
-    public void addBreakpoint(int addr) {
-        breakpoints.add(addr);
-    }
-
-    public void removeBreakpoint(int addr) {
-        breakpoints.remove(addr);
+    public void hookDebugger(Debugger debugger) {
+        this.debugger = debugger;
+        if (debugger != null)
+            debugger.linkCpu(cpuState);
     }
 
     public int execute() {
@@ -631,24 +615,17 @@ public class LR35902 {
                 opcode_mcycle = next_instr.operate();
                 handleInterrupts();
                 next_instr = fetchInstruction();
-                if (GameBoy.DEBUG && breakpoints.contains(next_instr.addr)) {
-                    gameBoy.setState(GameBoyState.DEBUG);
-                    Logger.log(Logger.Type.WARNING, "Beakpoint $" + String.format("%04X", next_instr.addr) + " reached");
-                }
-                createDebugInfo();
+                cpuState.set(af, bc, de, hl, sp, pc, next_instr);
+                if (debugger != null)
+                    debugger.clock();
             }
         } else if (handleInterrupts()) {
             next_instr = fetchInstruction();
-            createDebugInfo();
+            cpuState.set(af, bc, de, hl, sp, pc, next_instr);
+            if (debugger != null)
+                debugger.clock();
         }
         return opcode_mcycle;
-    }
-
-    private void createDebugInfo() {
-        if (GameBoy.DEBUG) {
-            decompile();
-            cpuState.set(af, bc, de, hl, sp, pc, next_instr);
-        }
     }
 
     public boolean handleInterrupts() {
@@ -695,35 +672,6 @@ public class LR35902 {
         return false;
     }
 
-    private void decompile() {
-        int addr = pc.read();
-        for (Instruction instr : instructionQueue) {
-            if (addr >= 0x8000 && addr <= 0x9FFF || addr >= 0xFE00 && addr <= 0xFF7F || addr == 0xFFFF || addr >= 0x0104 && addr <= 0x014F) {
-                instr.setAddr(addr);
-                instr.length = 0x10 - (addr & 0xF);
-                instr.parameters = new int[instr.length];
-                for (int i = 0; i < instr.length; i++)
-                    instr.parameters[i] = readByte(addr++);
-                instr.name = "db   ";
-                instr.opcode = 0x00;
-            } else {
-                int opcode = readByte(addr++);
-                if (opcode == 0xCB) {
-                    instr.copyMeta(cb_opcodes.get(readByte(addr++)));
-                    instr.setAddr(addr - 2);
-                } else {
-                    instr.copyMeta(opcodes.get(opcode));
-                    instr.setAddr(addr - 1);
-                }
-                if (instr.length == 2)
-                    instr.setParam(readByte(addr++));
-
-                if (instr.length == 3)
-                    instr.setParam(readByte(addr++), readByte(addr++));
-            }
-        }
-    }
-
     public Instruction fetchInstruction() {
         Instruction instr;
         int opcode = readByte(pc.read(true));
@@ -735,20 +683,12 @@ public class LR35902 {
             instr.setAddr(pc.read() - 1);
         }
 
-        if (instr.length == 2)
-            instr.setParam(readByte(pc.read(true)));
+        if (instr.getLength() == 2)
+            instr.setParams(readByte(pc.read(true)));
 
-        if (instr.length == 3)
-            instr.setParam(readByte(pc.read(true)), readByte(pc.read(true)));
+        if (instr.getLength() == 3)
+            instr.setParams(readByte(pc.read(true)), readByte(pc.read(true)));
         return instr;
-    }
-
-    public State getCpuState() {
-        return cpuState;
-    }
-
-    public Queue<Instruction> getInstructionQueue() {
-        return instructionQueue;
     }
 
     public void reset() {
@@ -4192,133 +4132,5 @@ public class LR35902 {
 
     public boolean getIME() {
         return IME;
-    }
-
-
-    public static class Instruction {
-
-        private final Supplier<Integer> fct_operate;
-        //Const variables
-        private String name;
-        private int opcode;
-        //Instruction instance variables
-        private int length;
-        private int[] parameters;
-        private int addr;
-        private LR35902 cpu;
-
-        public Instruction(int opcode, String name, int length, Supplier<Integer> fct_operate, LR35902 cpu) {
-            String[] split = name.split(" ");
-            this.name = String.format("%1$-5s", split[0]).toLowerCase() + (split.length == 2 ? split[1] : "");
-            this.length = length;
-            this.opcode = opcode;
-            this.fct_operate = fct_operate;
-            if (length > 1)
-                parameters = new int[length - 1];
-            else
-                parameters = null;
-            addr = 0x00;
-            this.cpu = cpu;
-        }
-
-        int operate() {
-            return fct_operate.get();
-        }
-
-        public int getParamByte() {
-            if (length > 1 && parameters != null)
-                return parameters[0];
-            return 0x00;
-        }
-
-        public int getParamWord() {
-            if (length > 2 && parameters != null)
-                return (parameters[1] << 8) | parameters[0];
-            return 0x00;
-        }
-
-        public void setParam(int... params) {
-            if (length > 1 && params.length > 0 && parameters != null)
-                parameters[0] = params[0];
-            if (length > 2 && params.length > 1 && parameters != null)
-                parameters[1] = params[1];
-        }
-
-        public void setAddr(int addr) {
-            this.addr = addr & 0xFFFF;
-        }
-
-        @Override
-        public String toString() {
-            boolean db = name.equals("db   ");
-            boolean param8 = (name.contains("d8") || name.contains("a8") || (name.contains("r8") && !name.contains("jr"))) && parameters != null;
-            boolean rel8 = name.contains("r8") && name.contains("jr") && parameters != null;
-            boolean param16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
-            StringBuilder op;
-            if (db) {
-                op = new StringBuilder(String.format("$%04X", addr) + " : ");
-                for (int i = 0; i < 3; i++)
-                    op.append(String.format("%02X ", parameters[i]));
-                op.append("+ | ").append(name);
-                for (int i = 0; i < length; i++)
-                    op.append(String.format("%02X ", parameters[i]));
-            } else {
-                op = new StringBuilder(String.format("$%04X", addr) + " : " + String.format("%02X ", opcode));
-                if (param8)
-                    op.append(String.format("%02X   ", parameters[0])).append("   | ").append(name.replaceAll(".8", String.format("%02X", parameters[0])));
-                else if (param16)
-                    op.append(String.format("%02X ", parameters[0])).append(String.format("%02X", parameters[1])).append("   | ").append(name.replaceAll(".16", String.format("%04X", parameters[0] | (parameters[1] << 8))));
-                else if (rel8)
-                    op.append(String.format("%02X   ", parameters[0])).append("   | ").append(name.replaceAll("r8", String.format("%04X", addr + length + signedByte(parameters[0]))));
-                else
-                    op.append("        | ").append(name);
-            }
-            while(op.length() <= 35)
-                op.append(" ");
-            if (op.toString().contains("(BC)")) op.append(cpu.bc.toString());
-            if (op.toString().contains("(DE)")) op.append(cpu.de.toString());
-            if (op.toString().contains("(HL)")) op.append(cpu.hl.toString());
-            if (op.toString().contains("FF00")) op.append(" controller");
-            if (op.toString().contains("FF01")) op.append(" serial bus");
-            if (op.toString().contains("FF02")) op.append(" serial control");
-            if (op.toString().contains("FF04")) op.append(" div");
-            if (op.toString().contains("FF05")) op.append(" tima");
-            if (op.toString().contains("FF06")) op.append(" tma");
-            if (op.toString().contains("FF07")) op.append(" tac");
-            if (op.toString().contains("FF0F")) op.append(" interrupt flags");
-            if (op.toString().contains("FF40")) op.append(" lcdc");
-            if (op.toString().contains("FF41")) op.append(" stat");
-            if (op.toString().contains("FF42")) op.append(" scroll x");
-            if (op.toString().contains("FF43")) op.append(" scroll y");
-            if (op.toString().contains("FF44")) op.append(" ly");
-            if (op.toString().contains("FF45")) op.append(" lyc");
-            if (op.toString().contains("FF46")) op.append(" dma");
-            if (op.toString().contains("FF47")) op.append(" bgp");
-            if (op.toString().contains("FF48")) op.append(" obp0");
-            if (op.toString().contains("FF49")) op.append(" obp1");
-            if (op.toString().contains("FF4A")) op.append(" win x");
-            if (op.toString().contains("FF4B")) op.append(" win y");
-            if (op.toString().contains("FFFF")) op.append(" interrupt enable");
-            return op.toString();
-        }
-
-        public int getLength() {
-            return length;
-        }
-
-        public void copyMeta(Instruction instruction) {
-            addr = instruction.addr;
-            name = instruction.name;
-            opcode = instruction.opcode;
-            length = instruction.length;
-            if (length == 1 && parameters != null)
-                parameters = null;
-            else if (length == 2 && (parameters == null || parameters.length != 1))
-                parameters = new int[1];
-            else if (length == 3 && (parameters == null || parameters.length != 2))
-                parameters = new int[2];
-            if (parameters != null)
-                System.arraycopy(instruction.parameters, 0, parameters, 0, parameters.length);
-        }
     }
 }
