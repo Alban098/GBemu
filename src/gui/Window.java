@@ -151,8 +151,6 @@ public class Window {
             tickEmulator();
             renderMenuBar();
             renderGameScreen();
-            //screen_texture.load(gameboy.getPpu().getScreenBuffer());
-            ImGui.image(screen_texture.getID(), 160*3, 144*3);
             if (gameboy.isDebuggerHooked())
                 renderDebugLayers();
 

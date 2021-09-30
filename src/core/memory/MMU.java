@@ -56,7 +56,6 @@ public class MMU {
     public static final int BOOTSTRAP_CONTROL   = 0xFF50;
     public static final int IE                  = 0xFFFF;
 
-
     public static final int IRQ_V_BLANK_VECTOR  = 0x40;
     public static final int IRQ_LCD_VECTOR      = 0x48;
     public static final int IRQ_TIMER_VECTOR    = 0x50;
@@ -276,5 +275,9 @@ public class MMU {
         Arrays.fill(hram, 0);
         ie = 0;
         loadBootstrap();
+    }
+
+    public void saveCartridge() {
+        cartridge.save();
     }
 }

@@ -14,7 +14,7 @@ import static core.BitUtils.*;
 
 public class LR35902 {
 
-    public static final int CPU_CYCLES_PER_SEC = 4213440;
+    public static final int CPU_CYCLES_PER_SEC = 4194304;
     public static final int CPU_CYCLES_PER_FRAME = 70224;
     public static final int CPU_CYCLES_PER_H_BLANK = 146;
     public static final int CPU_CYCLES_PER_V_BLANK_SCANLINE = 4560/10; //divide because VBlank is 10 scanline long

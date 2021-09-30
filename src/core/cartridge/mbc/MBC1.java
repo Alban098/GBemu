@@ -1,7 +1,5 @@
 package core.cartridge.mbc;
 
-import debug.Logger;
-
 public class MBC1 extends MemoryBankController {
 
     private boolean ram_enabled = false;
@@ -9,25 +7,38 @@ public class MBC1 extends MemoryBankController {
     private int selected_ram_bank = 0;
     private boolean bankingMode = false;
 
-    public MBC1(int nb_ROM_bank, int nb_RAM_bank) {
+    public MBC1(int nb_ROM_bank, int nb_RAM_bank, boolean battery) {
         super(nb_ROM_bank, nb_RAM_bank);
+        this.battery = battery;
     }
 
+    /**
+     * Writing in range :
+     * [0x0000, 0x1FFF] : Enable or disable RAM if present
+     * [0x2000, 0x3FFF] : Write the ROM Bank mapped to [0x4000, 0x7FFF]
+     * [0x4000, 0x5FFF] : Write the ROM Bank mapped to [0xA000, 0xBFFF] or the ROM Bank high bits
+     * [0x6000, 0x7FFF] : Write the banking mode
+     * @param addr the address to write as 16bit unsigned int
+     * @param data the data to write as 8bit unsigned int
+     */
     @Override
     public void write(int addr, int data) {
-        if (addr <= 0x1FFF) //RAM Enable
+        // RAM Enable
+        if (addr <= 0x1FFF) {
             ram_enabled = (data & 0x0A) == 0x0A;
-        else if (addr <= 0x3FFF) {//ROM Bank select
+        //ROM Bank Number
+        } else if (addr <= 0x3FFF) {
             selected_rom_bank = (data == 0) ? 0x01 : data & 0x1F;
-            Logger.log(Logger.Type.INFO, "selected ROM bank " + selected_rom_bank);
-        }
-        else if (addr <= 0x5FFF) {
+        //RAM Bank Number / ROM Bank Number High
+        } else if (addr <= 0x5FFF) {
             selected_ram_bank = data & 0x03;
+            //If the cart need more than 5bits to address all the ROM Banks
             if (nb_ROM_bank > 32)
                 selected_rom_bank = (selected_ram_bank & 0x1F) | ((selected_ram_bank & 0x03) << 5);
-            Logger.log(Logger.Type.INFO, "selected ROM bank " + selected_rom_bank);
+        //Banking Mode
         } else if (addr <= 0x7FFF) {
             bankingMode = (data & 0x01) == 0x01;
+            //if the car has fewer than 32 ROM Bank, this register does nothing
             if (nb_ROM_bank < 32)
                 selected_rom_bank &= 0x1F;
             else
@@ -37,9 +48,11 @@ public class MBC1 extends MemoryBankController {
 
     @Override
     public int mapRAMAddr(int addr) {
+        //If RAM is disabled or there is no RAM Bank, the address is not mapped
         if (!ram_enabled || nb_RAM_bank == 0)
             return -1;
-        if (nb_ROM_bank < 32 && bankingMode)
+        //If the cart is a 'Small ROM' and 'Large RAM', the RAM bank is locked to 0x00 on mode 0 and mapped in mode 1
+        if (nb_ROM_bank < 32 && nb_RAM_bank > 1 && bankingMode)
             return (addr & 0x1FFF) + (0x2000 * selected_ram_bank);
         else
             return addr & 0x1FFF;
@@ -47,17 +60,16 @@ public class MBC1 extends MemoryBankController {
 
     @Override
     public int mapROMAddr(int addr) {
-        if (bankingMode) {
-            if (addr <= 0x3FFF)
-                return addr + (0x4000 * (selected_ram_bank << 5));
-            else if (addr <= 0x7FFF)
-                return (addr & 0x3FFF) + (0x4000 * selected_rom_bank);
-        } else {
-            if (addr <= 0x3FFF)
-                return addr;
-            else if (addr <= 0x7FFF)
-                return (addr & 0x3FFF) + (0x4000 * selected_rom_bank);
+        //The top mapped ROM Bank is not affected by the banking mode
+        if (addr >= 0x4000 && addr <= 0x7FFF) {
+            return (addr & 0x3FFF) + (0x4000 * selected_rom_bank);
+        } else if (addr <= 0x3FFF) {
+            //In mode one the low ROM Bank is mapped according to the ROM Bank register, otherwise it's mapped to Bank 0
+            if (bankingMode)
+                return (addr & 0x3FFF) + (0x4000 * (selected_ram_bank << 5));
+            else
+                return addr & 0x3FFF;
         }
-        return addr & 0x3FFF;
+        return addr & 0x7FFF;
     }
 }

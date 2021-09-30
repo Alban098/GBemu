@@ -4,11 +4,10 @@ import core.cartridge.mbc.MBC1;
 import core.cartridge.mbc.MBC3;
 import core.cartridge.mbc.MemoryBankController;
 import core.cartridge.mbc.NoMBC;
+import debug.Logger;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 
 public class Cartridge {
 
@@ -26,7 +25,7 @@ public class Cartridge {
         byte[] bytes = new byte[0];
         try { bytes = Files.readAllBytes(path); } catch (IOException e) { e.printStackTrace(); }
 
-        title = getTitle(bytes);
+        title = file;
 
         type = bytes[0x147];
         int nb_rom_bank = bytes[0x148] << 2;
@@ -41,8 +40,11 @@ public class Cartridge {
 
         switch(type) {
             case 0x00 -> mbc = new NoMBC(2, 0);
-            case 0x01, 0x02, 0x03 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank);
-            case 0x0F, 0x10, 0x11, 0x12, 0x13 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank);
+            case 0x01, 0x02 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank, false);
+            case 0x03 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank, true);
+            case 0x0F, 0x10 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, true, true);
+            case 0x11, 0x12 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, false, false);
+            case 0x13 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, true, false);
             default -> throw new Exception("MBC not implemented yet");
         }
 
@@ -52,9 +54,9 @@ public class Cartridge {
         else
             ram = null;
 
-        for (int i = 0; i < bytes.length; i++) {
+        for (int i = 0; i < bytes.length; i++)
             rom[i] = ((int)bytes[i]) & 0xFF;
-        }
+        load();
     }
 
     private String getTitle(byte[] bytes) {
@@ -74,6 +76,8 @@ public class Cartridge {
             int mapped = mbc.mapRAMAddr(addr);
             if (mapped >= 0x00)
                 ram[mapped] = data;
+            else if (mbc instanceof MBC3 && mbc.hasTimer())
+                ((MBC3)mbc).writeTimer(data);
         } else if (addr <= 0x7FFF){
             mbc.write(addr, data);
         }
@@ -84,6 +88,8 @@ public class Cartridge {
             int mapped = mbc.mapRAMAddr(addr);
             if (mapped >= 0x00)
                 return ram[mapped];
+            else if (mbc.hasTimer())
+                return ((MBC3)mbc).readTimer();
             return 0x00;
         } else if (addr <= 0x7FFF) {
             int mappedAddr = mbc.mapROMAddr(addr);
@@ -91,5 +97,37 @@ public class Cartridge {
                 return rom[mappedAddr];
         }
         return 0x00;
+    }
+
+    public void save() {
+        if (mbc.hasBattery() && mbc.hasRam()) {
+            Path path = Paths.get(title.replace(".gb", ".sav"));
+            byte[] ram_export = new byte[ram.length];
+            for (int i = 0; i < ram.length; i++)
+                ram_export[i] = (byte)(ram[i] & 0xFF);
+            try {
+                Files.write(path, ram_export, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            } catch (IOException e) {
+                Logger.log(Logger.Type.ERROR, e.getMessage());
+            }
+        }
+    }
+
+    public void load() {
+        if (mbc.hasBattery() && mbc.hasRam()) {
+            Path path = Paths.get(title.replace(".gb", ".sav"));
+            byte[] bytes;
+            try {
+                bytes = Files.readAllBytes(path);
+                for (int i = 0; i < ram.length && i < bytes.length; i++)
+                    ram[i] = ((int)bytes[i]) & 0xFF;
+            } catch (IOException e) {
+                Logger.log(Logger.Type.ERROR, e.getMessage());
+            }
+        }
+    }
+
+    public void clock() {
+        mbc.clock();
     }
 }

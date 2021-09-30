@@ -16,6 +16,7 @@ public class GameBoy {
     public static boolean DEBUG = true;
     public static final boolean ENABLE_BOOTSTRAP = true;
     private boolean hasCartridge = false;
+    private long mcycles = 0;
 
     public static final int[] BOOTSTRAP = {
             0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26, 0xFF, 0x0E,
@@ -149,6 +150,11 @@ public class GameBoy {
             apu.clock();
             timer.clock();
             inputManager.clock();
+            mcycles++;
+            if (mcycles >= LR35902.CPU_CYCLES_PER_SEC * 10) {
+                memory.saveCartridge();
+                mcycles -= LR35902.CPU_CYCLES_PER_SEC * 10;
+            }
         }
     }
 

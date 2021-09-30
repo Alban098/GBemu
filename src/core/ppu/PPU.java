@@ -138,8 +138,8 @@ public class PPU {
             ColorShade bgColor, winColor, spriteColor, finalColor;
 
             //Temporary variables, declared here to increase reusability
-            int tileIdAddr, tileId, spriteY, spriteSubX, spriteSubY;
-            boolean spriteFlipX, spriteFlipY;
+            int tileIdAddr, tileId, spriteY, spriteSubX, spriteSubY, winColorIndex = 0, bgColorIndex = 0, spriteColorIndex = 0;
+            boolean spriteFlipX, spriteFlipY, spritePriorityFlag = false;
             Set<Sprite> sprites = new TreeSet<>();
 
             //Sprites fetch
@@ -164,13 +164,13 @@ public class PPU {
                     tileId = memory.readByte(tileIdAddr, true);
                     if (!mode1)
                         tileId = signedByte(tileId);
-                    bgColor = getTileColor(
-                            palettes.getBgPalette(),
+                    bgColorIndex = getTileColorIndex(
                             mode1 ? 0 : 2,
                             tileId,
                             ((x + scx) & 0xFF) & 0x7,
                             ((y + scy) & 0xFF) & 0x7
                     );
+                    bgColor = palettes.getBgPalette().colors[bgColorIndex];
                 }
 
                 //Window
@@ -179,41 +179,41 @@ public class PPU {
                     tileId = memory.readByte(tileIdAddr, true);
                     if (!mode1)
                         tileId = signedByte(tileId);
-                    winColor = getTileColor(
-                            palettes.getBgPalette(),
+                    winColorIndex = getTileColorIndex(
                             mode1 ? 0 : 2,
                             tileId,
                             (x - (wx - 7)) & 0x7,
                             (y - wy) & 0x7
                     );
+                    winColor = palettes.getBgPalette().colors[winColorIndex];
                 }
 
                 //Sprites
-                //TODO fix sprite priority over background and window
                 if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_ON)) {
                     for (Sprite sprite : sprites) {
                         if (sprite.x - 8 <= x && sprite.x > x) {
                             spriteFlipX = (sprite.attributes & Flags.SPRITE_ATTRIB_X_FLIP) != 0x00;
                             spriteFlipY = (sprite.attributes & Flags.SPRITE_ATTRIB_Y_FLIP) != 0x00;
+                            spritePriorityFlag = (sprite.attributes & Flags.SPRITE_ATTRIB_UNDER_BG)!= 0x00;
                             spriteSubX = spriteFlipX ? 7 - (x - sprite.x + 8) : (x - sprite.x + 8);
                             if (spriteSize == 8) { //8x8 mode
                                 spriteSubY = spriteFlipY ? 7 - (y - sprite.y + 16) : (y - sprite.y + 16);
-                                spriteColor = getTileColor(
-                                        (sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1(),
+                                spriteColorIndex = getTileColorIndex(
                                         0,
                                         sprite.tileId,
                                         spriteSubX,
                                         spriteSubY
                                 );
+                                spriteColor = ((sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[spriteColorIndex];
                             } else { //8x16 mode
                                 spriteSubY = spriteFlipY ? 15 - (y - sprite.y + 16) : (y - sprite.y + 16);
-                                spriteColor = getTileColor(
-                                        (sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1(),
+                                spriteColorIndex = getTileColorIndex(
                                         0,
                                         spriteSubY < 8 ? sprite.tileId & 0xFE : sprite.tileId | 1,
                                         spriteSubX,
                                         spriteSubY
                                 );
+                                spriteColor = ((sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[spriteColorIndex];
                             }
                         }
                     }
@@ -223,10 +223,19 @@ public class PPU {
                     if (winColor == ColorShade.TRANSPARENT) {
                         finalColor = bgColor;
                     } else {
-                            finalColor = winColor;
+                        finalColor = winColor;
                     }
                 } else {
                     finalColor = spriteColor;
+                    if (spritePriorityFlag) {
+                        if (winColor == ColorShade.TRANSPARENT) {
+                            if (bgColorIndex != 0x00)
+                                finalColor = bgColor;
+                        } else {
+                            if (winColorIndex != 0x00)
+                                finalColor = winColor;
+                        }
+                    }
                 }
                 
                 if (screen_buffer.position() < screen_buffer.limit()) {
@@ -278,7 +287,7 @@ public class PPU {
     private void computeOAM() {
         oam_buffer.clear();
         int spriteSize = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_SIZE) ? 16 : 8;
-        int oamAddr, foundSprites, spriteY, spriteSubX, spriteSubY;
+        int oamAddr, foundSprites, spriteY, spriteSubX, spriteSubY, colorIndex;
         boolean spriteFlipX, spriteFlipY;
         ColorShade color;
         for (int y = 0; y < 144; y++) {
@@ -304,8 +313,7 @@ public class PPU {
                         spriteSubX = spriteFlipX ? 7 - (x - sprite.x + 8) : (x - sprite.x + 8);
                         if (spriteSize == 8) { //8x8 mode
                             spriteSubY = spriteFlipY ? 7 - (y - sprite.y + 16) : (y - sprite.y + 16);
-                            color = getTileColor(
-                                    (sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1(),
+                            colorIndex = getTileColorIndex(
                                     0,
                                     sprite.tileId,
                                     spriteSubX,
@@ -313,14 +321,14 @@ public class PPU {
                             );
                         } else { //8x16 mode
                             spriteSubY = spriteFlipY ? 15 - (y - sprite.y + 16) : (y - sprite.y + 16);
-                            color = getTileColor(
-                                    (sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1(),
+                            colorIndex = getTileColorIndex(
                                     0,
                                     spriteSubY < 8 ? sprite.tileId & 0xFE : sprite.tileId | 1,
                                     spriteSubX,
                                     spriteSubY
                             );
                         }
+                        color = ((sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[colorIndex];
                     }
                 }
                 if (color == ColorShade.TRANSPARENT)
@@ -356,8 +364,7 @@ public class PPU {
                         tileId = memory.readByte(tileIdAddr, true);
                         if (!mode1)
                             tileId = signedByte(tileId);
-
-                        ColorShade color = getTileColor(palettes.getBgPalette(), mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7);
+                        ColorShade color = palettes.getBgPalette().colors[getTileColorIndex(mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7)];
                         tileMap.put((byte) color.getColor().getRed());
                         tileMap.put((byte) color.getColor().getGreen());
                         tileMap.put((byte) color.getColor().getBlue());
@@ -388,7 +395,7 @@ public class PPU {
                     for (int tileId = 16 * tileRow; tileId < 16 * tileRow + 16; tileId++) {
                         //Iterate over each pixel of the tile line
                         for (int x = 0; x < 8; x++) {
-                            ColorShade color = getTileColor(palettes.getBgPalette(), i, tileId, x, y);
+                            ColorShade color = palettes.getBgPalette().colors[getTileColorIndex(i, tileId, x, y)];
                             tileTable.put((byte) color.getColor().getRed());
                             tileTable.put((byte) color.getColor().getGreen());
                             tileTable.put((byte) color.getColor().getBlue());
@@ -402,12 +409,11 @@ public class PPU {
         }
     }
 
-    private ColorShade getTileColor(ColorPalettes.ColorPalette palette, int tileBank, int tileId, int x, int y) {
+    private int getTileColorIndex(int tileBank, int tileId, int x, int y) {
         int tileAddr = MMU.TILE_BLOCK_START + 0x800 * tileBank + tileId * 16;
         int low = memory.readByte(tileAddr | (y << 1), true);
         int high = memory.readByte(tileAddr | (y << 1) | 1, true);
-        int colorIndex = (((high >> (7 - x)) & 0x1) << 1) | ((low >> (7 - x)) & 0x1);
-        return palette.colors[colorIndex];
+        return (((high >> (7 - x)) & 0x1) << 1) | ((low >> (7 - x)) & 0x1);
     }
 
     public void reset() {
