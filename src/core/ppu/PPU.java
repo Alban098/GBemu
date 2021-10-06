@@ -135,7 +135,7 @@ public class PPU {
             int tileWINMapAddr = (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_MAP) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START) | (((y - wy) & 0xF8) << 2);
             int oamAddr = MMU.OAM_START;
 
-            ColorShade bgColor, winColor, spriteColor, finalColor;
+            ColorShade bgColor, winColor, spriteColor, tmpSpriteColor = null, finalColor;
 
             //Temporary variables, declared here to increase reusability
             int tileIdAddr, tileId, spriteY, spriteSubX, spriteSubY, winColorIndex = 0, bgColorIndex = 0, spriteColorIndex = 0;
@@ -174,7 +174,7 @@ public class PPU {
                 }
 
                 //Window
-                if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_ON) && (x - (wx - 7) > 0) && (y - wy> 0) && (x - wx < 160) && (y - wy < 144) && wx < 166 && wy < 143) {
+                if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_ON) && (x - (wx - 7) >= 0) && (y - wy >= 0) && (x - wx <= 160) && (y - wy <= 144) && wx < 166 && wy < 143) {
                     tileIdAddr = tileWINMapAddr | ((x - (wx - 7)) >> 3);
                     tileId = memory.readByte(tileIdAddr, true);
                     if (!mode1)
@@ -189,7 +189,6 @@ public class PPU {
                 }
 
                 //Sprites
-                //TODO fix sprite priority over background and window
                 if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_ON)) {
                     for (Sprite sprite : sprites) {
                         if (sprite.x - 8 <= x && sprite.x > x) {
@@ -216,16 +215,18 @@ public class PPU {
                                 );
                                 spriteColor = ((sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[spriteColorIndex];
                             }
+                            if (spriteColor != ColorShade.TRANSPARENT) {
+                                break;
+                            }
                         }
                     }
                 }
 
                 if (spriteColor == ColorShade.TRANSPARENT) {
-                    if (winColor == ColorShade.TRANSPARENT) {
+                    if (winColor == ColorShade.TRANSPARENT)
                         finalColor = bgColor;
-                    } else {
+                    else
                         finalColor = winColor;
-                    }
                 } else {
                     finalColor = spriteColor;
                     if (spritePriorityFlag) {
@@ -306,7 +307,7 @@ public class PPU {
             }
 
             for (int x = 0; x < 160; x++) {
-                color = ColorShade.WHITE;
+                color = ColorShade.EMPTY;
                 for (Sprite sprite : sprites) {
                     if (sprite.x - 8 <= x && sprite.x > x) {
                         spriteFlipX = (sprite.attributes & Flags.SPRITE_ATTRIB_X_FLIP) != 0x00;
@@ -330,14 +331,16 @@ public class PPU {
                             );
                         }
                         color = ((sprite.attributes & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[colorIndex];
+                        if (color == ColorShade.TRANSPARENT)
+                            color = ColorShade.EMPTY;
+                        else
+                            break;
                     }
                 }
-                if (color == ColorShade.TRANSPARENT)
-                    color = ColorShade.WHITE;
                 oam_buffer.put((byte) color.getColor().getRed());
                 oam_buffer.put((byte) color.getColor().getGreen());
                 oam_buffer.put((byte) color.getColor().getBlue());
-                oam_buffer.put((byte) 255);
+                oam_buffer.put((byte) color.getColor().getAlpha());
             }
         }
         oam_buffer.flip();
@@ -352,7 +355,7 @@ public class PPU {
             tileMap.clear();
             for (int y = 0; y < 256; y++) {
                 for (int x = 0; x < 256; x++) {
-                    if ((memory.readByte(MMU.LCDC) & Flags.LCDC_WINDOW_MAP) == i && ((y == scy && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
+                    if (((memory.readByte(MMU.LCDC) & Flags.LCDC_BG_TILE_MAP) >> 3) == i && ((y == scy && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
                         (y == ((scy + 144) & 0xFF) && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
                         (x == scx && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF))) ||
                         (x == ((scx + 160) & 0xFF) && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF))))) {
