@@ -189,6 +189,7 @@ public class PPU {
                 }
 
                 //Sprites
+                //TODO fix sprite priority over background and window
                 if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_ON)) {
                     for (Sprite sprite : sprites) {
                         if (sprite.x - 8 <= x && sprite.x > x) {
