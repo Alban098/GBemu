@@ -252,7 +252,7 @@ public class Window {
             if(ImGui.menuItem("Load ROM")) {
                 JFileChooser chooser = new JFileChooser();
                 FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                        "GameBoy ROM", "gb", ".gb");
+                        "GameBoy ROM (.gb, .gbc)", "gb", ".gb", "gbc", ".gbc");
                 chooser.setFileFilter(filter);
                 int returnVal = chooser.showOpenDialog(null);
                 if (returnVal == JFileChooser.APPROVE_OPTION) {

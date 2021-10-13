@@ -14,8 +14,9 @@ import debug.Logger;
 public class GameBoy {
 
     public static boolean DEBUG = true;
-    public static final boolean ENABLE_BOOTSTRAP = true;
+    public static final boolean ENABLE_BOOTSTRAP = false;
     private boolean hasCartridge = false;
+    public boolean gb_color = false;
     private long mcycles = 0;
 
     public static final int[] BOOTSTRAP = {
@@ -48,7 +49,7 @@ public class GameBoy {
     private GameBoyState currentState;
 
     public GameBoy() {
-        memory = new MMU();
+        memory = new MMU(this);
         cpu = new LR35902(this);
         ppu = new PPU(this);
         apu = new APU(this);
@@ -144,12 +145,22 @@ public class GameBoy {
     }
 
     public void executeInstruction() {
-        while (cpu.execute() > 0) {
-            memory.clock();
-            ppu.clock();
-            apu.clock();
-            timer.clock();
-            inputManager.clock();
+        int opcode_mcycles = 100000000;
+        while (opcode_mcycles > 0) {
+            if (memory.clock()) {
+                if (gb_color && memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SPEED) && !memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH)) {
+                    if (memory.clock()) {
+                        cpu.execute(gb_color);
+                        timer.clock();
+                    }
+                }
+                opcode_mcycles = cpu.execute(gb_color);
+                timer.clock();
+                ppu.clock();
+                apu.clock();
+                inputManager.clock();
+            }
+
             mcycles++;
             if (mcycles >= LR35902.CPU_CYCLES_PER_SEC * 10) {
                 memory.saveCartridge();

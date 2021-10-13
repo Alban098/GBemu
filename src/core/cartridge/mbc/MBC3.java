@@ -24,7 +24,7 @@ public class MBC3 extends MemoryBankController {
      * Writing in range :
      * [0x0000, 0x1FFF] : Enable or disable RAM if present
      * [0x2000, 0x3FFF] : Write the ROM Bank mapped to [0x4000, 0x7FFF]
-     * [0x4000, 0x5FFF] : Write the ROM Bank mapped to [0xA000, 0xBFFF] or the RTC Rigister address if present
+     * [0x4000, 0x5FFF] : Write the RAM Bank mapped to [0xA000, 0xBFFF] or the RTC Register address if present
      * [0x6000, 0x7FFF] : Writing 1 latch the RTC Registers
      * @param addr the address to write as 16bit unsigned int
      * @param data the data to write as 8bit unsigned int

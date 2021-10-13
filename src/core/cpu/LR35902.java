@@ -7,6 +7,7 @@ import core.apu.APU;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
 import debug.Debugger;
+import debug.Logger;
 
 import java.util.*;
 
@@ -609,7 +610,12 @@ public class LR35902 {
             debugger.linkCpu(cpuState);
     }
 
-    public int execute() {
+    public int execute(boolean gbc) {
+        if (gbc && memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH)) {
+            memory.writeIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH, false);
+            Logger.log(Logger.Type.INFO, memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SPEED) ? "CPU mode : Double speed" : "CPU Mode : Normal speed");
+            opcode_mcycle = 8200;
+        }
         if (!halted) {
             if (opcode_mcycle-- < 1) {
                 opcode_mcycle = next_instr.operate();
@@ -692,10 +698,11 @@ public class LR35902 {
     }
 
     public void reset() {
-        af.write(0x01B0);
-        bc.write(0x0013);
-        de.write(0x00D8);
-        hl.write(0x014D);
+        af.write(0x11B0);
+        setFlag(Flags.Z, true);
+        bc.write(0x0000);
+        de.write(0xFF56);
+        hl.write(0x000D);
         sp.write(0xFFFE);
         pc.write(GameBoy.ENABLE_BOOTSTRAP ? 0 : 0x0100);
         memory.writeRaw(MMU.BOOTSTRAP_CONTROL, GameBoy.ENABLE_BOOTSTRAP ? 0 : 1);

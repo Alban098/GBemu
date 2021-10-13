@@ -1,9 +1,7 @@
 package core.cartridge;
 
-import core.cartridge.mbc.MBC1;
-import core.cartridge.mbc.MBC3;
-import core.cartridge.mbc.MemoryBankController;
-import core.cartridge.mbc.NoMBC;
+import core.GameBoy;
+import core.cartridge.mbc.*;
 import debug.Logger;
 
 import java.io.IOException;
@@ -19,7 +17,7 @@ public class Cartridge {
     private final int[] ram;
 
 
-    public Cartridge(String file) throws Exception {
+    public Cartridge(String file, GameBoy gameboy) throws Exception {
         Path path = Paths.get(file);
 
         byte[] bytes = new byte[0];
@@ -27,8 +25,10 @@ public class Cartridge {
 
         title = file;
 
+
         type = bytes[0x147];
-        int nb_rom_bank = bytes[0x148] << 2;
+        gameboy.gb_color = (bytes[0x143] & 0xFF) == 0x80 || (bytes[0x143] & 0xFF) == 0xC0;
+        int nb_rom_bank = 2 << bytes[0x148];
         int nb_ram_bank;
         switch (bytes[0x149]) {
             case 0x02 -> nb_ram_bank = 1;
@@ -42,9 +42,14 @@ public class Cartridge {
             case 0x00 -> mbc = new NoMBC(2, 0);
             case 0x01, 0x02 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank, false);
             case 0x03 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank, true);
+            case 0x05 -> mbc = new MBC2(nb_rom_bank, nb_ram_bank, false);
+            case 0x06 -> mbc = new MBC2(nb_rom_bank, nb_ram_bank, true);
+            case 0x08, 0x09 -> mbc = new NoMBC(nb_rom_bank, nb_ram_bank);
             case 0x0F, 0x10 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, true, true);
             case 0x11, 0x12 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, false, false);
             case 0x13 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, true, false);
+            case 0x19, 0x1A, 0x1C, 0x1D -> mbc = new MBC5(nb_rom_bank, nb_ram_bank, false);
+            case 0x1B, 0x1E -> mbc = new MBC5(nb_rom_bank, nb_ram_bank, true);
             default -> throw new Exception("MBC not implemented yet");
         }
 

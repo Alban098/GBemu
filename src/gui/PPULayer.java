@@ -26,6 +26,17 @@ public class PPULayer extends AbstractDebugLayer {
                 ImGui.image(tileTables[2].getID(), 128 * 2, 64 * 2);
                 ImGui.endTabItem();
             }
+            if (ImGui.beginTabItem("Palettes")) {
+                ImGui.setWindowSize(270, 450);
+                for (int pal = 0; pal < 8; pal++) {
+                    for (int col = 0; col < 4; col++) {
+                        ImGui.text(String.format("#%04X", (gameboy.getMemory().readPalette(false, 8 * pal + col * 2 + 1) << 8) | gameboy.getMemory().readPalette(false, 8 * pal + col * 2)));
+                        ImGui.sameLine();
+                    }
+                    ImGui.newLine();
+                }
+                ImGui.endTabItem();
+            }
             if (ImGui.beginTabItem("Tile Maps")) {
                 ImGui.setWindowSize(535, 315);
                 ImGui.image(tileMaps[0].getID(), 256, 256);

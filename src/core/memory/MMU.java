@@ -53,7 +53,21 @@ public class MMU {
     public static final int OBP1                = 0xFF49;
     public static final int WY                  = 0xFF4A;
     public static final int WX                  = 0xFF4B;
+    public static final int CGB_KEY_1           = 0xFF4D;
+    public static final int CGB_VRAM_BANK       = 0xFF4F;
     public static final int BOOTSTRAP_CONTROL   = 0xFF50;
+    public static final int CGB_HDMA1           = 0xFF51;
+    public static final int CGB_HDMA2           = 0xFF52;
+    public static final int CGB_HDMA3           = 0xFF53;
+    public static final int CGB_HDMA4           = 0xFF54;
+    public static final int CBG_HDMA5           = 0xFF55;
+    public static final int CGB_RP              = 0xFF56;
+    public static final int CGB_BCPS_BCPI       = 0xFF68;
+    public static final int CGB_BCPD_BGPD       = 0xFF69;
+    public static final int CGB_OCPS_OBPI       = 0xFF6A;
+    public static final int CGB_OCPD_OBPD       = 0xFF6B;
+    public static final int CGB_OPRI            = 0xFF6C;
+    public static final int CGB_WRAM_BANK       = 0xFF70;
     public static final int IE                  = 0xFFFF;
 
     public static final int IRQ_V_BLANK_VECTOR  = 0x40;
@@ -71,37 +85,70 @@ public class MMU {
     public static final int TILE_BLOCK_START    = 0x8000;
 
     private Cartridge cartridge;
+    private final GameBoy gameboy;
     private final int[] bootstrap;
     private final int[] vram;
     private final int[] wram;
     private final int[] oam;
     private final int[] io_registers;
     private final int[] hram;
+    private final int[] cgb_bg_palettes;
+    private final int[] cgb_obj_palettes;
+
     private int ie;
 
     private int dma_remaining_cycles = 0;
+    private int hdma_remaining_cycles = 0;
+    private int hdma_block_left_total = 0;
+    private int hdma_block_left_hblank = 0;
+    private int hdma_current_source = 0;
+    private int hdma_current_dest = 0;
     private StringBuilder serialOutput;
     private LCDMode ppuMode = LCDMode.H_BLANK;
     private final List<IMMUListener> listeners;
 
 
-    public MMU() {
+    public MMU(GameBoy gb) {
         serialOutput = new StringBuilder();
         bootstrap = new int[0x100];
-        vram = new int[0x2000];
-        wram = new int[0x2000];
+        vram = new int[0x4000];
+        wram = new int[0xE000];
         oam = new int[0xA0];
         io_registers = new int[0x80];
         hram = new int[0xFF];
+        cgb_bg_palettes = new int[64];
+        cgb_obj_palettes = new int[64];
         ie = 0;
         listeners = new ArrayList<>();
+        this.gameboy = gb;
         loadBootstrap();
     }
 
-    public void clock() {
+    public boolean clock() {
         if (dma_remaining_cycles > 0) {
             dma_remaining_cycles--;
+            return false;
         }
+        if (gameboy.gb_color && hdma_block_left_total > 0) {
+            if (readLcdMode() == LCDMode.H_BLANK) {
+                if (hdma_block_left_hblank != 0) {
+                    for (int i = 0; i < 0x10; i++)
+                        writeRaw(hdma_current_dest++, readByte(hdma_current_source++, true));
+                    hdma_block_left_total -= hdma_block_left_hblank;
+                    hdma_block_left_hblank = 0x00;
+                }
+            } else {
+                hdma_block_left_hblank = Math.min(hdma_block_left_total, 0x10);
+            }
+            return false;
+        }
+        if (gameboy.gb_color && hdma_remaining_cycles > 0) {
+            hdma_remaining_cycles--;
+            if (hdma_remaining_cycles == 0)
+                io_registers[CBG_HDMA5 & 0x7F] = 0xFF;
+            return false;
+        }
+        return true;
     }
 
     public void addListener(IMMUListener listener) {
@@ -109,7 +156,7 @@ public class MMU {
     }
 
     public void loadCart(String file) throws Exception {
-        cartridge = new Cartridge(file);
+        cartridge = new Cartridge(file, gameboy);
     }
 
     private void loadBootstrap() {
@@ -122,6 +169,8 @@ public class MMU {
 
     public int readByte(int addr, boolean fromPPU) {
         addr &= 0xFFFF;
+        if (gameboy.gb_color && addr == CGB_VRAM_BANK)
+            return io_registers[addr & 0x7F] | 0xFE;
         if (addr <= 0x7FFF) {
             if (addr <= 0xFF && io_registers[BOOTSTRAP_CONTROL & 0x7F] != 1)
                 return bootstrap[addr & 0xFF];
@@ -131,18 +180,26 @@ public class MMU {
         } else if (addr <= 0x9FFF) {
             if (!fromPPU && ppuMode == LCDMode.TRANSFER && readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON))
                 return 0xFF;
+            if (gameboy.gb_color)
+                return vram[addr & 0x1FFF | (0x2000 * (readByte(CGB_VRAM_BANK) & 0x01))];
             return vram[addr & 0x1FFF];
         } else if (addr <= 0xBFFF) {
             if (cartridge != null)
                 return cartridge.read(addr);
             return 0x00;
         } else if (addr <= 0xDFFF) {
+            if (gameboy.gb_color)
+                return wram[addr & 0x1FFF | (0x2000 * (readByte(CGB_WRAM_BANK) & 0x07))];
             return wram[addr & 0x1FFF];
         } else if (addr <= 0xFE9F) {
             if (!fromPPU && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
                 return 0xFF;
-            return oam[addr & 0xFF];
+            return oam[(addr & 0xFF) % 0xA0];
         } else if (addr <= 0xFEFF) {
+            if (ppuMode == LCDMode.OAM)
+                return 0xFF;
+            if (gameboy.gb_color)
+                return (addr & 0xF0) | ((addr & 0xF0) >> 4);
             return 0xFF;
         } else if (addr <= 0xFF7F) {
             return io_registers[addr & 0x7F];
@@ -160,17 +217,26 @@ public class MMU {
             if (cartridge != null)
                 cartridge.write(addr, data);
         } else if (addr <= 0x9FFF) {
-            vram[addr & 0x1FFF] = data;
+            if (gameboy.gb_color)
+                vram[addr & 0x1FFF | (0x2000 * (readByte(CGB_VRAM_BANK) & 0x01))] = data;
+            else
+                vram[addr & 0x1FFF] = data;
         } else if (addr <= 0xBFFF) {
             if (cartridge != null)
                 cartridge.write(addr, data);
         } else if (addr <= 0xDFFF) {
-            wram[addr & 0x1FFF] = data;
+            if (gameboy.gb_color)
+                wram[addr & 0x1FFF | (0x2000 * (readByte(CGB_WRAM_BANK) & 0x07))] = data;
+            else
+                wram[addr & 0x1FFF] = data;
         } else if (addr <= 0xFE9F) {
             oam[addr & 0xFF] = data;
         } else if (addr <= 0xFEFF) {
             return;
         } else if (addr <= 0xFF7F) {
+            if (gameboy.gb_color && addr == CBG_HDMA5) {
+                executeHdmaTransfer(data);
+            }
             if (addr == SC && data == 0x81) {
                 char c = (char) readByte(SB);
                 serialOutput.append(c);
@@ -186,7 +252,15 @@ public class MMU {
                 io_registers[P1 & 0x7F] = (data & 0x30) | (io_registers[P1 & 0x7F] & 0xCF);
             else if(addr == STAT)
                 io_registers[STAT & 0x7F] = (data & 0x78) | (io_registers[STAT & 0x7F] & 0x07);
-            else
+            else if(addr == CGB_BCPD_BGPD) {
+                cgb_bg_palettes[readByte(CGB_BCPS_BCPI) & Flags.CGB_BCPS_ADDR] = data & 0xFF;
+                if ((readIORegisterBit(CGB_BCPS_BCPI, Flags.CGB_BCPS_AUTO_INC)))
+                    writeRaw(CGB_BCPS_BCPI, Flags.CGB_BCPS_AUTO_INC | (((readByte(CGB_BCPS_BCPI) & Flags.CGB_BCPS_ADDR) + 1) & Flags.CGB_BCPS_ADDR));
+            } else if(addr == CGB_OCPD_OBPD) {
+                cgb_obj_palettes[readByte(CGB_OCPS_OBPI) & Flags.CGB_BCPS_ADDR] = data & 0xFF;
+                if ((readIORegisterBit(CGB_OCPS_OBPI, Flags.CGB_BCPS_AUTO_INC)))
+                    writeRaw(CGB_OCPS_OBPI, Flags.CGB_BCPS_AUTO_INC | (((readByte(CGB_OCPS_OBPI) & Flags.CGB_BCPS_ADDR) + 1) & Flags.CGB_BCPS_ADDR));
+            } else
                 io_registers[addr & 0x7F] = data;
         } else if (addr <= 0xFFFE) {
             hram[addr & 0x7F] = data;
@@ -197,6 +271,25 @@ public class MMU {
             listener.onWriteToMMU(addr, data);
     }
 
+    private void executeHdmaTransfer(int data) {
+        int source = (io_registers[CGB_HDMA1 & 0x7F] << 8) | io_registers[CGB_HDMA2 & 0x7F];
+        source &= 0xFFF0;
+        int dest = (io_registers[CGB_HDMA3 & 0x7F] << 8) | io_registers[CGB_HDMA4 & 0x7F];
+        dest = 8000 | (dest & 0x1FF0);
+        int length = ((data & 0x7F) + 1) * 0x10;
+
+        if ((data & 0x80) == 0) { //General purpose HDMA
+            hdma_remaining_cycles = length;
+            for (int i = 0; i < length; i++)
+                writeRaw(dest + i, readByte(source + i, true));
+        } else {
+            hdma_current_source = source;
+            hdma_current_dest = dest;
+            hdma_block_left_total = length;
+            hdma_block_left_hblank = 0x10;
+        }
+    }
+
     public void writeRaw(int addr, int data) {
         addr &= 0xFFFF;
         data &= 0xFF;
@@ -204,15 +297,22 @@ public class MMU {
             if (cartridge != null)
                 cartridge.write(addr, data);
         } else if (addr <= 0x9FFF) {
-            vram[addr & 0x1FFF] = data;
+            if (gameboy.gb_color)
+                vram[addr & 0x1FFF | (0x2000 * (readByte(CGB_VRAM_BANK) & 0x01))] = data;
+            else
+                vram[addr & 0x1FFF] = data;
         } else if (addr <= 0xBFFF) {
             if (cartridge != null)
                 cartridge.write(addr, data);
         } else if (addr <= 0xDFFF) {
-            wram[addr & 0x1FFF] = data;
+            if (gameboy.gb_color)
+                wram[addr & 0x1FFF | (0x2000 * (readByte(CGB_WRAM_BANK) & 0x07))] = data;
+            else
+                wram[addr & 0x1FFF] = data;
         } else if (addr <= 0xFE9F) {
             oam[addr & 0xFF] = data;
         } else if (addr <= 0xFEFF) {
+            return;
         } else if (addr <= 0xFF7F) {
             if (addr == SC && data == 0x81) {
                 char c = (char) readByte(SB);
@@ -279,5 +379,15 @@ public class MMU {
 
     public void saveCartridge() {
         cartridge.save();
+    }
+
+    public int readVRAM(int addr, int bank) {
+        if (!gameboy.gb_color)
+            return readByte(addr, true);
+        return vram[(addr & 0x1FFF) | (0x2000 * bank)];
+    }
+
+    public int readPalette(boolean obj_pal, int addr) {
+        return obj_pal ? cgb_obj_palettes[addr] : cgb_bg_palettes[addr];
     }
 }

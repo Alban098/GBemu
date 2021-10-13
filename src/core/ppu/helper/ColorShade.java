@@ -2,19 +2,14 @@ package core.ppu.helper;
 
 import java.awt.*;
 
-public enum ColorShade {
-    WHITE(new Color(0xE0,0xF8,0xD0,0xFF)),
-    LIGHT_GRAY(new Color(0x88,0xC0,0x70,0xFF)),
-    DARK_GRAY(new Color(0x34,0x58,0x66,0xFF)),
-    BLACK(new Color(0x08,0x18,0x20,0xFF)),
-    TRANSPARENT(new Color(0xFF,0xFF,0xFF, 0x00)),
-    EMPTY(new Color(0xFF,0xFF,0xFF, 0xFF));
+public record ColorShade(Color color) {
 
-    private final Color color;
-
-    ColorShade(Color color) {
-        this.color = color;
-    }
+    public static ColorShade WHITE = new ColorShade(new Color(0xE0, 0xF8, 0xD0, 0xFF));
+    public static ColorShade LIGHT_GRAY = new ColorShade(new Color(0x88, 0xC0, 0x70, 0xFF));
+    public static ColorShade DARK_GRAY = new ColorShade(new Color(0x34, 0x58, 0x66, 0xFF));
+    public static ColorShade BLACK = new ColorShade(new Color(0x08, 0x18, 0x20, 0xFF));
+    public static ColorShade TRANSPARENT = new ColorShade(new Color(0xFF, 0xFF, 0xFF, 0x00));
+    public static ColorShade EMPTY = new ColorShade(new Color(0xFF, 0xFF, 0xFF, 0xFF));
 
     public Color getColor() {
         return color;

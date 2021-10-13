@@ -1,5 +1,7 @@
 package core;
 
+import core.ppu.helper.Sprite;
+
 public class Flags {
 
     //CPU Flags
@@ -16,15 +18,15 @@ public class Flags {
     public static final int SC_SHIFT_CLK      = 0x01;
 
     public static final int IE_JOYPAD_IRQ   = 0x10;
-    public static final int IE_LCD_STAT_IRQ = 0x08;
+    public static final int IE_LCD_STAT_IRQ = 0x02;
     public static final int IE_TIMER_IRQ    = 0x04;
-    public static final int IE_SERIAL_IRQ   = 0x02;
+    public static final int IE_SERIAL_IRQ   = 0x08;
     public static final int IE_VBLANK_IRQ   = 0x01;
 
     public static final int IF_JOYPAD_IRQ   = 0x10;
-    public static final int IF_LCD_STAT_IRQ = 0x08;
+    public static final int IF_LCD_STAT_IRQ = 0x02;
     public static final int IF_TIMER_IRQ    = 0x04;
-    public static final int IF_SERIAL_IRQ   = 0x02;
+    public static final int IF_SERIAL_IRQ   = 0x08;
     public static final int IF_VBLANK_IRQ   = 0x01;
 
     public static final int LCDC_LCD_ON       = 0x80;
@@ -117,4 +119,16 @@ public class Flags {
 
     public static final int P1_BUTTON = 0x20;
     public static final int P1_DPAD = 0x10;
+
+    public static final int CGB_BCPS_AUTO_INC = 0x80;
+    public static final int CGB_BCPS_ADDR = 0x3F;
+    public static final int CGB_TILE_VRAM_BANK = 0x08;
+    public static final int CGB_TILE_PALETTE = 0x07;
+    public static final int CGB_TILE_HFLIP = 0x20;
+    public static final int CGB_TILE_VFLIP = 0x40;
+    public static final int CGB_TILE_PRIORITY = 0x80;
+    public static final int SPRITE_ATTRIB_CGB_VRAM_BANK = 0x08;
+    public static final int SPRITE_ATTRIB_CGB_PAL = 0x07;
+    public static final int CGB_KEY_1_SPEED = 0x80;
+    public static final int CGB_KEY_1_SWITCH = 0x01;
 }

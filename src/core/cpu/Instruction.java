@@ -95,8 +95,8 @@ public class Instruction {
             for (int i = 0; i < 3; i++)
                 op.append(String.format("%02X ", parameters[i]));
             op.append("+ | ").append(name);
-            for (int i = 0; i < length; i++)
-                op.append(String.format("%02X ", parameters[i]));
+            for (int parameter : parameters)
+                op.append(String.format("%02X ", parameter));
         } else {
             op = new StringBuilder(String.format("$%04X", addr) + " : " + String.format("%02X ", opcode));
             if (param8)
@@ -125,8 +125,8 @@ public class Instruction {
         if (op.toString().contains("FF0F")) op.append(" interrupt flags");
         if (op.toString().contains("FF40")) op.append(" lcdc");
         if (op.toString().contains("FF41")) op.append(" stat");
-        if (op.toString().contains("FF42")) op.append(" scroll x");
-        if (op.toString().contains("FF43")) op.append(" scroll y");
+        if (op.toString().contains("FF42")) op.append(" scroll y");
+        if (op.toString().contains("FF43")) op.append(" scroll x");
         if (op.toString().contains("FF44")) op.append(" ly");
         if (op.toString().contains("FF45")) op.append(" lyc");
         if (op.toString().contains("FF46")) op.append(" dma");
