@@ -11,7 +11,6 @@ public class Cartridge {
 
     public final String title;
     private final MemoryBankController mbc;
-    private final int type;
 
     private final int[] rom;
     private final int[] ram;
@@ -26,8 +25,12 @@ public class Cartridge {
         title = file;
 
 
-        type = bytes[0x147];
-        gameboy.gb_color = (bytes[0x143] & 0xFF) == 0x80 || (bytes[0x143] & 0xFF) == 0xC0;
+        int type = bytes[0x147];
+
+        gameboy.mode = GameBoy.Mode.DMG;
+        if ((bytes[0x143] & 0xFF) == 0x80 || (bytes[0x143] & 0xFF) == 0xC0)
+            gameboy.mode = GameBoy.Mode.CGB;
+
         int nb_rom_bank = 2 << bytes[0x148];
         int nb_ram_bank;
         switch (bytes[0x149]) {

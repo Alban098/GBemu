@@ -54,10 +54,9 @@ public class ConsoleLayer extends AbstractDebugLayer {
                         } else {
                             try {
                                 BreakPoint.Type type = BreakPoint.Type.WRITE;
-                                switch (command.args.get(2)) {
-                                    case "/r" -> type = BreakPoint.Type.READ;
-                                    case "/w" -> type = BreakPoint.Type.WRITE;
-                                }
+                                if ("/r".equals(command.args.get(2)))
+                                    type = BreakPoint.Type.READ;
+
                                 gameBoy.addBreakpoint(Integer.decode("0x" + command.args.get(1)), type);
                                 Logger.log(Logger.Type.INFO, "Breakpoint created");
                             } catch (Exception e) {
@@ -98,8 +97,8 @@ public class ConsoleLayer extends AbstractDebugLayer {
     }
 
     public static class Command {
-        String command;
-        List<String> args;
+        final String command;
+        final List<String> args;
 
         public Command(String raw) {
             String[] split = raw.split(" ");

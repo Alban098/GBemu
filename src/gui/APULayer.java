@@ -36,10 +36,10 @@ public class APULayer extends AbstractDebugLayer {
         ImGui.begin("APU");
         int i = 0;
         for (Sample s : sample_queue) {
-            samples[0][i] = s.square1 / 15f + 6f;
-            samples[1][i] = s.square2 / 15f + 4.5f;
-            samples[2][i] = s.wave / 15f + 3f;
-            samples[3][i] = s.noise / 15f + 1.5f;
+            samples[0][i] = s.square1() / 15f + 6f;
+            samples[1][i] = s.square2() / 15f + 4.5f;
+            samples[2][i] = s.wave() / 15f + 3f;
+            samples[3][i] = s.noise() / 15f + 1.5f;
             samples[4][i] = s.getNormalizedValue();
             i++;
         }

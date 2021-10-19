@@ -2,6 +2,7 @@ package gui;
 
 import core.GameBoy;
 import core.memory.MMU;
+import core.ppu.helper.ColorShade;
 import core.ppu.helper.Sprite;
 import imgui.ImGui;
 import openGL.Texture;
@@ -27,13 +28,23 @@ public class PPULayer extends AbstractDebugLayer {
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem("Palettes")) {
-                ImGui.setWindowSize(270, 450);
-                for (int pal = 0; pal < 8; pal++) {
-                    for (int col = 0; col < 4; col++) {
-                        ImGui.text(String.format("#%04X", (gameboy.getMemory().readPalette(false, 8 * pal + col * 2 + 1) << 8) | gameboy.getMemory().readPalette(false, 8 * pal + col * 2)));
+                if (gameboy.mode == GameBoy.Mode.CGB) {
+                    ImGui.setWindowSize(370, 240);
+                    for (int pal = 0; pal < 8; pal++) {
+                        ImGui.newLine();
+                        drawColorPalette("BG", pal, false);
+                        ImGui.text("<- BG " +  pal + " | OBJ " + pal + " ->");
                         ImGui.sameLine();
+                        drawColorPalette("OBJ", pal, true);
+                        ImGui.newLine();
                     }
+                } else {
+                    ImGui.setWindowSize(267, 140);
                     ImGui.newLine();
+                    drawPalette("BGP", gameboy.getMemory().readByte(MMU.BGP, true));
+                    drawPalette("OBP0", gameboy.getMemory().readByte(MMU.OBP0, true));
+                    drawPalette("OBP1", gameboy.getMemory().readByte(MMU.OBP1, true));
+
                 }
                 ImGui.endTabItem();
             }
@@ -57,20 +68,20 @@ public class PPULayer extends AbstractDebugLayer {
                         ImGui.beginChild("sprite" + (8 * i + j), 65, 65);
                         ImGui.textColored(255, 255, 0, 255, "   Y:");
                         ImGui.sameLine();
-                        if (sprite.y != 0) ImGui.text(String.format("%02X", sprite.y));
-                        else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.y));
+                        if (sprite.y() != 0) ImGui.text(String.format("%02X", sprite.y()));
+                        else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.y()));
                         ImGui.textColored(255, 255, 0, 255, "   X:");
                         ImGui.sameLine();
-                        if (sprite.x != 0) ImGui.text(String.format("%02X", sprite.x));
-                        else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.x));
+                        if (sprite.x() != 0) ImGui.text(String.format("%02X", sprite.x()));
+                        else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.x()));
                         ImGui.textColored(255, 255, 0, 255, "Tile:");
                         ImGui.sameLine();
-                        if (sprite.tileId != 0) ImGui.text(String.format("%02X", sprite.tileId));
-                        else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.tileId));
+                        if (sprite.tileId() != 0) ImGui.text(String.format("%02X", sprite.tileId()));
+                        else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.tileId()));
                         ImGui.textColored(255, 255, 0, 255, "Attr:");
                         ImGui.sameLine();
-                        if (sprite.attributes != 0) ImGui.text(String.format("%02X", sprite.attributes));
-                        else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.attributes));
+                        if (sprite.attributes() != 0) ImGui.text(String.format("%02X", sprite.attributes()));
+                        else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.attributes()));
                         ImGui.endChild();
                     }
                     if (i < 4) {
@@ -86,6 +97,32 @@ public class PPULayer extends AbstractDebugLayer {
         }
         ImGui.endTabBar();
         ImGui.end();
+    }
+
+    private void drawPalette(String name, int pal) {
+        float[] color = {0f, 0f, 0f, 1f};
+        for (int col = 0; col < 4; col++) {
+            int id = (pal & (0x3 << (col << 1))) >> (col << 1);
+            color[0] = ColorShade.get(id).getColor().getRed() / 255f;
+            color[1] = ColorShade.get(id).getColor().getGreen() / 255f;
+            color[2] = ColorShade.get(id).getColor().getBlue() / 255f;
+            ImGui.colorButton("Color " + col, color);
+            ImGui.sameLine();
+        }
+        ImGui.text(name);
+    }
+
+    private void drawColorPalette(String name, int pal, boolean obj_pal) {
+        float[] color = {0f, 0f, 0f, 1f};
+        for (int col = 0; col < 4; col++) {
+            int rgb555 = (gameboy.getMemory().readCGBPalette(obj_pal, 8 * pal + col * 2 + 1) << 8) | gameboy.getMemory().readCGBPalette(obj_pal, 8 * pal + col * 2);
+            color[0] = (float) ((rgb555 & 0b000000000011111) / 32.0);
+            color[1] = (float) (((rgb555 & 0b000001111100000) >> 5) / 32.0);
+            color[2] = (float) (((rgb555 & 0b111110000000000) >> 10) / 32.0);
+            ImGui.sameLine();
+            ImGui.colorButton(name + " " + pal + " Color " + col + " : " + String.format("#%04X", rgb555), color);
+            ImGui.sameLine();
+        }
     }
 
     public void linkTextures(Texture[] tileMaps_textures, Texture[] tileTables_textures, Texture oam_texture) {

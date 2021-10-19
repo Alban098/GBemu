@@ -26,6 +26,8 @@ public class LR35902 {
     public static final int CPU_CYCLES_64HZ = CPU_CYCLES_PER_SEC / 64;
     public static float CPU_CYCLES_PER_SAMPLE = (float)CPU_CYCLES_PER_SEC / APU.SAMPLE_RATE;
 
+    private final GameBoy gameboy;
+
     public final List<Instruction> opcodes;
     public final List<Instruction> cb_opcodes;
 
@@ -77,6 +79,7 @@ public class LR35902 {
 
         tmp_reg = new RegisterByte(0x00);
         this.memory = gameboy.getMemory();
+        this.gameboy = gameboy;
         cpuState = new State(this);
 
         opcodes = new ArrayList<>();
@@ -598,7 +601,7 @@ public class LR35902 {
 
     public void init() {
         reset();
-        next_instr = fetchInstruction();
+        fetchInstruction();
         cpuState.set(af, bc, de, hl, sp, pc, next_instr);
         if (debugger != null)
             debugger.clock();
@@ -610,23 +613,25 @@ public class LR35902 {
             debugger.linkCpu(cpuState);
     }
 
-    public int execute(boolean gbc) {
-        if (gbc && memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH)) {
+    public int execute() {
+        //CPU Speed switch **Only on CGB**
+        if (gameboy.mode == GameBoy.Mode.CGB && memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH)) {
             memory.writeIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH, false);
             Logger.log(Logger.Type.INFO, memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SPEED) ? "CPU mode : Double speed" : "CPU Mode : Normal speed");
             opcode_mcycle = 8200;
         }
         if (!halted) {
+            //Wait until opcode has finished execution
             if (opcode_mcycle-- < 1) {
                 opcode_mcycle = next_instr.operate();
                 handleInterrupts();
-                next_instr = fetchInstruction();
+                fetchInstruction();
                 cpuState.set(af, bc, de, hl, sp, pc, next_instr);
                 if (debugger != null)
                     debugger.clock();
             }
         } else if (handleInterrupts()) {
-            next_instr = fetchInstruction();
+            fetchInstruction();
             cpuState.set(af, bc, de, hl, sp, pc, next_instr);
             if (debugger != null)
                 debugger.clock();
@@ -678,23 +683,21 @@ public class LR35902 {
         return false;
     }
 
-    public Instruction fetchInstruction() {
-        Instruction instr;
-        int opcode = readByte(pc.read(true));
+    public void fetchInstruction() {
+        int opcode = readByte(pc.readInc());
         if (opcode == 0xCB) {
-            instr = cb_opcodes.get(readByte(pc.read(true)));
-            instr.setAddr(pc.read() - 2);
+            next_instr = cb_opcodes.get(readByte(pc.readInc()));
+            next_instr.setAddr(pc.read() - 2);
         } else {
-            instr = opcodes.get(opcode);
-            instr.setAddr(pc.read() - 1);
+            next_instr = opcodes.get(opcode);
+            next_instr.setAddr(pc.read() - 1);
         }
 
-        if (instr.getLength() == 2)
-            instr.setParams(readByte(pc.read(true)));
+        if (next_instr.getLength() == 2)
+            next_instr.setParams(readByte(pc.readInc()));
 
-        if (instr.getLength() == 3)
-            instr.setParams(readByte(pc.read(true)), readByte(pc.read(true)));
-        return instr;
+        if (next_instr.getLength() == 3)
+            next_instr.setParams(readByte(pc.readInc()), readByte(pc.readInc()));
     }
 
     public void reset() {

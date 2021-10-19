@@ -1,18 +1,6 @@
 package core.ppu.helper;
 
-public class Sprite implements Comparable<Sprite> {
-
-    public int y;
-    public int x;
-    public int tileId;
-    public int attributes;
-
-    public Sprite(int y, int x, int tileId, int attributes) {
-        this.y = y;
-        this.x = x;
-        this.tileId = tileId;
-        this.attributes = attributes;
-    }
+public record Sprite(int y, int x, int tileId, int attributes) implements Comparable<Sprite> {
 
     @Override
     public int compareTo(Sprite o) {

@@ -9,7 +9,7 @@ public class MBC3 extends MemoryBankController {
     private int selected_ram_bank = 0;
     private int latchRegister = 0x00;
     private int rtcMapped = 0;
-    private boolean hasTimer = false;
+    private final boolean hasTimer;
     private boolean rtcLatched = false;
     private final int[] rtc = new int[5];
     private long mcycles = 0;

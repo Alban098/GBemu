@@ -170,7 +170,7 @@ public class Window {
 
     private void tickEmulator() {
         if (gameboy.hasCartridge()) {
-            if (GameBoy.DEBUG) {
+            if (gameboy.isDebuggerHooked()) {
                 if (gameboy.getState() == GameBoyState.RUNNING)
                     gameboy.executeFrame();
                 if (gameboy.getState() == GameBoyState.DEBUG) {

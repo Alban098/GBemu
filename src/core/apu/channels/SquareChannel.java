@@ -14,10 +14,10 @@ public class SquareChannel {
     public int sample;
 
     protected int currentFreq = 0;
-    protected int nrX1_register;
+    protected final int nrX1_register;
     private final int nrX2_register;
-    protected int nrX3_register;
-    protected int nrX4_register;
+    protected final int nrX3_register;
+    protected final int nrX4_register;
     private final int nr52_channelOnFlag;
     private final int nrX1_patternDutyFlag;
     private final int nrX1_soundLengthFlag;

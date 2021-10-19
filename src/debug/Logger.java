@@ -1,7 +1,5 @@
 package debug;
 
-import core.GameBoy;
-
 import java.awt.*;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -20,16 +18,14 @@ public class Logger {
     }
 
     public static void log(Type type, String string) {
-        if (GameBoy.DEBUG) {
-            switch (type) {
-                case ERROR -> getInstance().lines.offer(new Line(Color.RED, string));
-                case WARNING -> getInstance().lines.offer(new Line(Color.ORANGE, string));
-                case INFO -> getInstance().lines.offer(new Line(Color.GREEN, string));
-                case INPUT -> getInstance().lines.offer(new Line(Color.WHITE, string));
-            }
-            if (getInstance().lines.size() > MAX_LINES)
-                getInstance().lines.poll();
+        switch (type) {
+            case ERROR -> getInstance().lines.offer(new Line(Color.RED, string));
+            case WARNING -> getInstance().lines.offer(new Line(Color.ORANGE, string));
+            case INFO -> getInstance().lines.offer(new Line(Color.GREEN, string));
+            case INPUT -> getInstance().lines.offer(new Line(Color.WHITE, string));
         }
+        if (getInstance().lines.size() > MAX_LINES)
+            getInstance().lines.poll();
     }
 
     public static Queue<Line> getLines() {

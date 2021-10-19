@@ -19,7 +19,7 @@ public class RegisterWord {
         return (high.read() << 8) | low.read();
     }
 
-    public int read(boolean increment) {
+    public int readInc() {
         int r = (high.read() << 8) | low.read();
         inc();
         return r;

@@ -41,10 +41,10 @@ public class APU implements IMMUListener {
     private int cycleSweep = 0;
 
     private long sampleIndex = 0;
-    private boolean adaptativeSampleRateStarted = false;
+    private boolean adaptiveSampleRateStarted = false;
 
     private int volumeLeft = 0;
-    private int volumeRight= 0;
+    private int volumeRight = 0;
     boolean square1OutputLeft = false;
     boolean square1OutputRight = false;
 
@@ -147,8 +147,8 @@ public class APU implements IMMUListener {
             if (sampleIndex % (APU.SAMPLE_RATE/10) == 0) {
                 if (sampleQueue.size() > 5000) {
                     LR35902.CPU_CYCLES_PER_SAMPLE += .5;
-                    adaptativeSampleRateStarted = true;
-                } else if (sampleQueue.size() < 100 && adaptativeSampleRateStarted) {
+                    adaptiveSampleRateStarted = true;
+                } else if (sampleQueue.size() < 100 && adaptiveSampleRateStarted) {
                     LR35902.CPU_CYCLES_PER_SAMPLE -= .5;
                 }
             }
@@ -182,7 +182,7 @@ public class APU implements IMMUListener {
         lastSample = 0;
         sampleQueue.clear();
         debugSampleQueue.clear();
-        adaptativeSampleRateStarted = false;
+        adaptiveSampleRateStarted = false;
         sampleIndex = 0;
         cycle = 0;
         cycleEnvelope = 0;

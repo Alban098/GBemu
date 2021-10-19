@@ -188,6 +188,6 @@ public class Instruction {
         W,
         RW,
         JUMP,
-        MISC;
+        MISC
     }
 }

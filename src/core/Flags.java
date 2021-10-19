@@ -1,7 +1,5 @@
 package core;
 
-import core.ppu.helper.Sprite;
-
 public class Flags {
 
     //CPU Flags

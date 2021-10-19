@@ -2,8 +2,8 @@ package core.cartridge.mbc;
 
 public abstract class MemoryBankController {
 
-    protected int nb_ROM_bank;
-    protected int nb_RAM_bank;
+    protected final int nb_ROM_bank;
+    protected final int nb_RAM_bank;
     protected boolean battery = false;
 
     public MemoryBankController(int nb_ROM_bank, int nb_RAM_bank) {
