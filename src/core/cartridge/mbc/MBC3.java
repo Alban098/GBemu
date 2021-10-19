@@ -80,6 +80,7 @@ public class MBC3 extends MemoryBankController {
         if (hasTimer && !rtcLatched) {
             if (mcycles >= LR35902.CPU_CYCLES_PER_SEC) {
                 rtc[0]++;
+                mcycles = 0;
                 //If seconds overflow
                 if (rtc[0] >= 0x3B) {
                     rtc[0] = 0;

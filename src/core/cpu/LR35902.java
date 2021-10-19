@@ -17,10 +17,10 @@ public class LR35902 {
 
     public static final int CPU_CYCLES_PER_SEC = 4194304;
     public static final int CPU_CYCLES_PER_FRAME = 70224;
-    public static final int CPU_CYCLES_PER_H_BLANK = 146;
+    public static final int CPU_CYCLES_PER_H_BLANK = 85;
     public static final int CPU_CYCLES_PER_V_BLANK_SCANLINE = 4560/10; //divide because VBlank is 10 scanline long
     public static final int CPU_CYCLES_PER_OAM = 80;
-    public static final int CPU_CYCLES_PER_TRANSFER = 230;
+    public static final int CPU_CYCLES_PER_TRANSFER = 291;
     public static final int CPU_CYCLES_256HZ = CPU_CYCLES_PER_SEC / 256;
     public static final int CPU_CYCLES_128HZ = CPU_CYCLES_PER_SEC / 128;
     public static final int CPU_CYCLES_64HZ = CPU_CYCLES_PER_SEC / 64;
@@ -614,12 +614,6 @@ public class LR35902 {
     }
 
     public int execute() {
-        //CPU Speed switch **Only on CGB**
-        if (gameboy.mode == GameBoy.Mode.CGB && memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH)) {
-            memory.writeIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH, false);
-            Logger.log(Logger.Type.INFO, memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SPEED) ? "CPU mode : Double speed" : "CPU Mode : Normal speed");
-            opcode_mcycle = 8200;
-        }
         if (!halted) {
             //Wait until opcode has finished execution
             if (opcode_mcycle-- < 1) {

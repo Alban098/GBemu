@@ -61,7 +61,7 @@ public class PPU {
 
     public void clock() {
         if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON)) {
-            switchToLCDMode(LCDMode.H_BLANK);
+            memory.writeLcdMode(LCDMode.H_BLANK);
             //prevent rendering routine from getting stuck when LCD is off
             off_cycles++;
             if (off_cycles >= LR35902.CPU_CYCLES_PER_FRAME) {
@@ -72,7 +72,7 @@ public class PPU {
                     computeOAM();
                 }
                 isFrameComplete = true;
-                off_cycles -= LR35902.CPU_CYCLES_PER_FRAME;
+                off_cycles = 0;
             }
             return;
         }
@@ -107,7 +107,7 @@ public class PPU {
             } else {
                 memory.writeRaw(MMU.LY, memory.readByte(MMU.LY, true) + 1);
             }
-            cycles -= LR35902.CPU_CYCLES_PER_V_BLANK_SCANLINE;
+            cycles = 0;
         }
     }
 
@@ -262,7 +262,7 @@ public class PPU {
                 switchToLCDMode(LCDMode.OAM);
 
             memory.writeRaw(MMU.LY, memory.readByte(MMU.LY, true) + 1);
-            cycles -= LR35902.CPU_CYCLES_PER_H_BLANK;
+            cycles = 0;
         }
     }
 
@@ -292,7 +292,7 @@ public class PPU {
     private void processTransfer() {
         if (cycles >= LR35902.CPU_CYCLES_PER_TRANSFER) {
             switchToLCDMode(LCDMode.H_BLANK);
-            cycles -= LR35902.CPU_CYCLES_PER_TRANSFER;
+            cycles = 0;
 
             fetchSprites(sprites, memory.readByte(MMU.LY, true));
         }
@@ -301,7 +301,7 @@ public class PPU {
     private void processOam() {
         if (cycles >= LR35902.CPU_CYCLES_PER_OAM) {
             switchToLCDMode(LCDMode.TRANSFER);
-            cycles -= LR35902.CPU_CYCLES_PER_OAM;
+            cycles = 0;
 
             //If CGB Mode, sprite priority is OAM Address and not X coords, so a TreeSet is not only high overhead but inaccurate to the official hardware
             switch (gameboy.mode) {

@@ -128,7 +128,7 @@ public class GameBoy {
         int opcode_mcycles = 100000000;
         while (opcode_mcycles > 0) {
             if (memory.clock()) {
-                if (mode == Mode.CGB && memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SPEED) && !memory.readIORegisterBit(MMU.CGB_KEY_1, Flags.CGB_KEY_1_SWITCH)) {
+                if (mode == Mode.CGB) {
                     if (memory.clock()) {
                         cpu.execute();
                         timer.clock();

@@ -6,7 +6,6 @@
 |---|---|
 |![Zelda : Link's Awakening DX](img/zelda_DX.gif)|![Zelda : Link's Awakening](img/zelda.gif)|
 |![Pokemon Silver](img/pokemon_DX.gif)|![Pokemon Red](img/pokemon.gif)|
-|![Super Mario Bros Deluxe](img/mario_DX.gif)|![Tetris](img/tetris.gif)|
 |![Bootstrap DX](img/bootstrap_DX.gif)|![Bootstrap](img/bootstrap.gif)|
 
 
@@ -113,7 +112,7 @@ To launch the Emulator set the Main Class to ```Main.java```
 * [x] MBC2
 * [x] MBC3
 * [x] MBC5
-* [x] Game Boy Color features (WIP)
+* [x] Game Boy Color features
 * [ ] Add more information to PPU Window when in CGB Mode (Palettes, Tilemaps Bank selection)
 * [ ] Javadoc
 * [ ] Input customization
@@ -123,9 +122,7 @@ To launch the Emulator set the Main Class to ```Main.java```
 
 1) Pokémon Red and Blue run but render at half speed, even though audio run mostly as intended
 2) Pokémon Yellow not booting at all, it loops reading screen registers ```LCDC or STAT```
-3) Midframe ```X``` scrolling seams to be broken on CGB (At least in Zelda : Link's Awakening DX, it works but not for all ```y```, even though RAM value seems to be correct)
-4) In Zelda : Link's Awakening DX, background gets corrupted when a textbox disappear, but gets back to normal when pause menu is invoked (Can be caused by faulty DMA impl. or it's caused by VRAM acces when PPU is reading it)
-5) Game Boy Color Bootstrap display corrupted graphics, but loads fine, may be caused by DMA or HDMA transfers and can be related to ```4```, (need some digging)
+3) Game Boy Color Bootstrap display corrupted graphics, but loads fine, may be caused by DMA or HDMA transfers, (need some digging)
 --- 
 
 ## Resources
