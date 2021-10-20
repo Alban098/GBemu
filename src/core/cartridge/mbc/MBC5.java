@@ -1,13 +1,15 @@
 package core.cartridge.mbc;
 
+import core.GameBoy;
+
 public class MBC5 extends MemoryBankController {
 
     private boolean ram_enabled = false;
     private int selected_rom_bank = 1;
     private int selected_ram_bank = 0;
 
-    public MBC5(int nb_ROM_bank, int nb_RAM_bank, boolean battery) {
-        super(nb_ROM_bank, nb_RAM_bank);
+    public MBC5(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank, boolean battery) {
+        super(gameboy, nb_ROM_bank, nb_RAM_bank);
         this.battery = battery;
     }
 

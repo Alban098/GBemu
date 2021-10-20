@@ -1,14 +1,19 @@
 package core.cartridge.mbc;
 
+import core.GameBoy;
+
 public abstract class MemoryBankController {
 
     protected final int nb_ROM_bank;
     protected final int nb_RAM_bank;
     protected boolean battery = false;
 
-    public MemoryBankController(int nb_ROM_bank, int nb_RAM_bank) {
+    protected final GameBoy gameboy;
+
+    public MemoryBankController(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank) {
         this.nb_ROM_bank = nb_ROM_bank;
         this.nb_RAM_bank = nb_RAM_bank;
+        this.gameboy = gameboy;
     }
 
     public abstract void write(int addr, int data);

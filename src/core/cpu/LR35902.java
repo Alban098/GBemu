@@ -7,26 +7,12 @@ import core.apu.APU;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
 import debug.Debugger;
-import debug.Logger;
 
 import java.util.*;
 
 import static core.BitUtils.*;
 
 public class LR35902 {
-
-    public static final int CPU_CYCLES_PER_SEC = 4194304;
-    public static final int CPU_CYCLES_PER_FRAME = 70224;
-    public static final int CPU_CYCLES_PER_H_BLANK = 85;
-    public static final int CPU_CYCLES_PER_V_BLANK_SCANLINE = 4560/10; //divide because VBlank is 10 scanline long
-    public static final int CPU_CYCLES_PER_OAM = 80;
-    public static final int CPU_CYCLES_PER_TRANSFER = 291;
-    public static final int CPU_CYCLES_256HZ = CPU_CYCLES_PER_SEC / 256;
-    public static final int CPU_CYCLES_128HZ = CPU_CYCLES_PER_SEC / 128;
-    public static final int CPU_CYCLES_64HZ = CPU_CYCLES_PER_SEC / 64;
-    public static float CPU_CYCLES_PER_SAMPLE = (float)CPU_CYCLES_PER_SEC / APU.SAMPLE_RATE;
-
-    private final GameBoy gameboy;
 
     public final List<Instruction> opcodes;
     public final List<Instruction> cb_opcodes;
@@ -79,7 +65,6 @@ public class LR35902 {
 
         tmp_reg = new RegisterByte(0x00);
         this.memory = gameboy.getMemory();
-        this.gameboy = gameboy;
         cpuState = new State(this);
 
         opcodes = new ArrayList<>();

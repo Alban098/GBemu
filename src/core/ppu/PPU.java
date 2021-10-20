@@ -64,7 +64,7 @@ public class PPU {
             memory.writeLcdMode(LCDMode.H_BLANK);
             //prevent rendering routine from getting stuck when LCD is off
             off_cycles++;
-            if (off_cycles >= LR35902.CPU_CYCLES_PER_FRAME) {
+            if (off_cycles >= gameboy.mode.cpu_cycles_per_frame) {
                 screen_buffer.clear();
                 if (gameboy.isDebuggerHooked()) {
                     computeTileTables();
@@ -87,8 +87,7 @@ public class PPU {
     }
 
     private void processVBlank() {
-        if (cycles >= LR35902.CPU_CYCLES_PER_V_BLANK_SCANLINE) {
-
+        if (cycles >= gameboy.mode.cpu_cycles_per_vblank_scanline) {
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT) {
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, true);
                 if (gameboy.isDebuggerHooked()) {
@@ -113,7 +112,7 @@ public class PPU {
 
     private void processHBlank() {
         //This may be reworked if LCDC.tileTable can be change mid scanline, but I don't think so ??
-        if (cycles >= LR35902.CPU_CYCLES_PER_H_BLANK) {
+        if (cycles >= gameboy.mode.cpu_cycles_per_hblank) {
 
             //Register reads
             int y = memory.readByte(MMU.LY, true);
@@ -290,7 +289,7 @@ public class PPU {
     }
 
     private void processTransfer() {
-        if (cycles >= LR35902.CPU_CYCLES_PER_TRANSFER) {
+        if (cycles >= gameboy.mode.cpu_cycles_per_transfer) {
             switchToLCDMode(LCDMode.H_BLANK);
             cycles = 0;
 
@@ -299,7 +298,7 @@ public class PPU {
     }
 
     private void processOam() {
-        if (cycles >= LR35902.CPU_CYCLES_PER_OAM) {
+        if (cycles >= gameboy.mode.cpu_cycles_per_oam) {
             switchToLCDMode(LCDMode.TRANSFER);
             cycles = 0;
 

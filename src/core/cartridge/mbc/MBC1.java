@@ -1,5 +1,7 @@
 package core.cartridge.mbc;
 
+import core.GameBoy;
+
 public class MBC1 extends MemoryBankController {
 
     private boolean ram_enabled = false;
@@ -7,8 +9,8 @@ public class MBC1 extends MemoryBankController {
     private int selected_ram_bank = 0;
     private boolean bankingMode = false;
 
-    public MBC1(int nb_ROM_bank, int nb_RAM_bank, boolean battery) {
-        super(nb_ROM_bank, nb_RAM_bank);
+    public MBC1(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank, boolean battery) {
+        super(gameboy, nb_ROM_bank, nb_RAM_bank);
         this.battery = battery;
     }
 

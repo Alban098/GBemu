@@ -42,17 +42,17 @@ public class Cartridge {
         }
 
         switch(type) {
-            case 0x00 -> mbc = new NoMBC(2, 0);
-            case 0x01, 0x02 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank, false);
-            case 0x03 -> mbc = new MBC1(nb_rom_bank, nb_ram_bank, true);
-            case 0x05 -> mbc = new MBC2(nb_rom_bank, nb_ram_bank, false);
-            case 0x06 -> mbc = new MBC2(nb_rom_bank, nb_ram_bank, true);
-            case 0x08, 0x09 -> mbc = new NoMBC(nb_rom_bank, nb_ram_bank);
-            case 0x0F, 0x10 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, true, true);
-            case 0x11, 0x12 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, false, false);
-            case 0x13 -> mbc = new MBC3(nb_rom_bank, nb_ram_bank, true, false);
-            case 0x19, 0x1A, 0x1C, 0x1D -> mbc = new MBC5(nb_rom_bank, nb_ram_bank, false);
-            case 0x1B, 0x1E -> mbc = new MBC5(nb_rom_bank, nb_ram_bank, true);
+            case 0x00 -> mbc = new NoMBC(gameboy, 2, 0);
+            case 0x01, 0x02 -> mbc = new MBC1(gameboy, nb_rom_bank, nb_ram_bank, false);
+            case 0x03 -> mbc = new MBC1(gameboy, nb_rom_bank, nb_ram_bank, true);
+            case 0x05 -> mbc = new MBC2(gameboy, nb_rom_bank, nb_ram_bank, false);
+            case 0x06 -> mbc = new MBC2(gameboy, nb_rom_bank, nb_ram_bank, true);
+            case 0x08, 0x09 -> mbc = new NoMBC(gameboy, nb_rom_bank, nb_ram_bank);
+            case 0x0F, 0x10 -> mbc = new MBC3(gameboy, nb_rom_bank, nb_ram_bank, true, true);
+            case 0x11, 0x12 -> mbc = new MBC3(gameboy, nb_rom_bank, nb_ram_bank, false, false);
+            case 0x13 -> mbc = new MBC3(gameboy, nb_rom_bank, nb_ram_bank, true, false);
+            case 0x19, 0x1A, 0x1C, 0x1D -> mbc = new MBC5(gameboy, nb_rom_bank, nb_ram_bank, false);
+            case 0x1B, 0x1E -> mbc = new MBC5(gameboy, nb_rom_bank, nb_ram_bank, true);
             default -> throw new Exception("MBC not implemented yet");
         }
 

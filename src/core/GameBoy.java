@@ -125,7 +125,7 @@ public class GameBoy {
     }
 
     public void executeInstruction() {
-        int opcode_mcycles = 100000000;
+        int opcode_mcycles = Integer.MAX_VALUE;
         while (opcode_mcycles > 0) {
             if (memory.clock()) {
                 if (mode == Mode.CGB) {
@@ -142,9 +142,9 @@ public class GameBoy {
             }
 
             mcycles++;
-            if (mcycles >= LR35902.CPU_CYCLES_PER_SEC * 10) {
+            if (mcycles >= mode.cpu_cycles_per_second * 10L) {
                 memory.saveCartridge();
-                mcycles -= LR35902.CPU_CYCLES_PER_SEC * 10;
+                mcycles -= mode.cpu_cycles_per_second * 10L;
             }
         }
     }
@@ -205,7 +205,27 @@ public class GameBoy {
     }
 
     public enum Mode {
-        DMG,
-        CGB
+        DMG(4194304, 70224, 85, 456, 80, 291),
+        CGB(8388608, 70224, 85, 456, 80, 291);
+
+        public final int cpu_cycles_per_second;
+        public final int cpu_cycles_per_frame;
+        public final int cpu_cycles_per_hblank;
+        public final int cpu_cycles_per_vblank_scanline; //divide because VBlank is 10 scanline long
+        public final int cpu_cycles_per_oam;
+        public final int cpu_cycles_per_transfer;
+        public final int cpu_cycles_256HZ = 4194304 / 256;
+        public final int cpu_cycles_128HZ = 4194304 / 128;
+        public final int cpu_cycles_64HZ = 4194304 / 64;
+        public float cpu_cycles_per_sample = 4194304f / APU.SAMPLE_RATE;
+
+        Mode(int cpu_cycles_per_second, int cpu_cycles_per_frame, int cpu_cycles_per_hblank, int cpu_cycles_per_vblank_scanline, int cpu_cycles_per_oam, int cpu_cycles_per_transfer) {
+            this.cpu_cycles_per_second = cpu_cycles_per_second;
+            this.cpu_cycles_per_frame = cpu_cycles_per_frame;
+            this.cpu_cycles_per_hblank = cpu_cycles_per_hblank;
+            this.cpu_cycles_per_vblank_scanline = cpu_cycles_per_vblank_scanline;
+            this.cpu_cycles_per_oam = cpu_cycles_per_oam;
+            this.cpu_cycles_per_transfer = cpu_cycles_per_transfer;
+        }
     }
 }

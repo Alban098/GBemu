@@ -105,30 +105,30 @@ public class APU implements IMMUListener {
 
     private void clockLength() {
         cycleLength++;
-        if (cycleLength >= LR35902.CPU_CYCLES_256HZ) {
+        while (cycleLength >= gameboy.mode.cpu_cycles_256HZ) {
             square1.tickLength();
             square2.tickLength();
             wave.tickLength();
             noise.tickLength();
-            cycleLength -= LR35902.CPU_CYCLES_256HZ;
+            cycleLength -= gameboy.mode.cpu_cycles_256HZ;
         }
     }
 
     private void clockEnvelope() {
         cycleEnvelope++;
-        if (cycleEnvelope >= LR35902.CPU_CYCLES_64HZ) {
+        while (cycleEnvelope >= gameboy.mode.cpu_cycles_64HZ) {
             square1.tickEnvelope();
             square2.tickEnvelope();
             noise.tickEnvelope();
-            cycleEnvelope -= LR35902.CPU_CYCLES_64HZ;
+            cycleEnvelope -= gameboy.mode.cpu_cycles_64HZ;
         }
     }
 
     private void clockSweep() {
         cycleSweep++;
-        if (cycleSweep >= LR35902.CPU_CYCLES_128HZ) {
+        while (cycleSweep >= gameboy.mode.cpu_cycles_128HZ) {
             square1.tickSweep();
-            cycleSweep -= LR35902.CPU_CYCLES_128HZ;
+            cycleSweep -= gameboy.mode.cpu_cycles_128HZ;
         }
     }
 
@@ -141,15 +141,15 @@ public class APU implements IMMUListener {
 
     private void clockSamples() {
         cycle++;
-        if (cycle >= LR35902.CPU_CYCLES_PER_SAMPLE) {
+        while (cycle >= gameboy.mode.cpu_cycles_per_sample) {
             Sample sample = new Sample(square1.sample, square2.sample, wave.sample, noise.sample);
             sampleQueue.offer(sample);
             if (sampleIndex % (APU.SAMPLE_RATE/10) == 0) {
                 if (sampleQueue.size() > 5000) {
-                    LR35902.CPU_CYCLES_PER_SAMPLE += .5;
+                    gameboy.mode.cpu_cycles_per_sample += .5;
                     adaptiveSampleRateStarted = true;
                 } else if (sampleQueue.size() < 100 && adaptiveSampleRateStarted) {
-                    LR35902.CPU_CYCLES_PER_SAMPLE -= .5;
+                    gameboy.mode.cpu_cycles_per_sample -= .5;
                 }
             }
             if (gameboy.isDebuggerHooked()) {
@@ -158,7 +158,7 @@ public class APU implements IMMUListener {
                     debugSampleQueue.poll();
             }
             sampleIndex++;
-            cycle -= LR35902.CPU_CYCLES_PER_SAMPLE;
+            cycle -= gameboy.mode.cpu_cycles_per_sample;
         }
     }
 

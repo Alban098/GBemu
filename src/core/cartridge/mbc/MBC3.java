@@ -1,6 +1,6 @@
 package core.cartridge.mbc;
 
-import core.cpu.LR35902;
+import core.GameBoy;
 
 public class MBC3 extends MemoryBankController {
 
@@ -14,8 +14,8 @@ public class MBC3 extends MemoryBankController {
     private final int[] rtc = new int[5];
     private long mcycles = 0;
 
-    public MBC3(int nb_ROM_bank, int nb_RAM_bank, boolean battery, boolean timer) {
-        super(nb_ROM_bank, nb_RAM_bank);
+    public MBC3(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank, boolean battery, boolean timer) {
+        super(gameboy, nb_ROM_bank, nb_RAM_bank);
         this.battery = battery;
         hasTimer = timer;
     }
@@ -78,7 +78,7 @@ public class MBC3 extends MemoryBankController {
     public void clock() {
         mcycles++;
         if (hasTimer && !rtcLatched) {
-            if (mcycles >= LR35902.CPU_CYCLES_PER_SEC) {
+            if (mcycles >= gameboy.mode.cpu_cycles_per_second) {
                 rtc[0]++;
                 mcycles = 0;
                 //If seconds overflow

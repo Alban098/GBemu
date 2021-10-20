@@ -1,9 +1,11 @@
 package core.cartridge.mbc;
 
+import core.GameBoy;
+
 public class NoMBC extends MemoryBankController {
 
-    public NoMBC(int nb_ROM_bank, int nb_RAM_bank) {
-        super(nb_ROM_bank, nb_RAM_bank);
+    public NoMBC(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank) {
+        super(gameboy, nb_ROM_bank, nb_RAM_bank);
     }
 
     @Override
