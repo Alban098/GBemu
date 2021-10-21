@@ -5,6 +5,7 @@ import core.GameBoyState;
 import core.input.Button;
 import core.input.State;
 import core.ppu.PPU;
+import debug.DebuggerMode;
 import debug.Logger;
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -44,15 +45,11 @@ public class Window {
     private boolean isFPressed = false;
 
     private Texture screen_texture;
-    private Texture[] tileMaps_textures;
-    private Texture[] tileTables_textures;
-    private Texture oam_texture;
 
 
     private final GameBoy gameboy;
     private ImPlotContext plotCtx;
 
-    private final ImBoolean debugActivated;
     private final ImBoolean cpuLayerVisible = new ImBoolean(false);
     private final ImBoolean memoryLayerVisible = new ImBoolean(false);
     private final ImBoolean ppuLayerVisible = new ImBoolean(false);
@@ -61,13 +58,12 @@ public class Window {
     private final ImBoolean consoleLayerVisible = new ImBoolean(false);
 
     public Window(GameBoy gameboy) {
-        cpuLayer = new CPULayer(gameboy);
-        memoryLayer = new MemoryLayer(gameboy);
-        serialOutputLayer = new SerialOutputLayer(gameboy);
-        consoleLayer = new ConsoleLayer(gameboy);
-        ppuLayer = new PPULayer(gameboy);
-        apuLayer = new APULayer(gameboy);
-        debugActivated = new ImBoolean(gameboy.isDebuggerHooked());
+        cpuLayer = new CPULayer(gameboy.getDebugger());
+        memoryLayer = new MemoryLayer(gameboy.getDebugger());
+        serialOutputLayer = new SerialOutputLayer(gameboy.getDebugger());
+        consoleLayer = new ConsoleLayer(gameboy.getDebugger());
+        ppuLayer = new PPULayer(gameboy.getDebugger());
+        apuLayer = new APULayer(gameboy.getDebugger());
 
         this.gameboy = gameboy;
     }
@@ -77,18 +73,8 @@ public class Window {
         initImGui();
         imGuiGlfw.init(windowPtr, true);
         imGuiGl3.init(glslVersion);
-        screen_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT, gameboy.getPpu().getScreenBuffer());
-        tileMaps_textures = new Texture[]{
-                new Texture(256, 256, gameboy.getPpu().getTileMaps()[0]),
-                new Texture(256, 256, gameboy.getPpu().getTileMaps()[1])
-        };
-        tileTables_textures = new Texture[]{
-                new Texture(128, 64, gameboy.getPpu().getTileTables()[0]),
-                new Texture(128, 64, gameboy.getPpu().getTileTables()[1]),
-                new Texture(128, 64, gameboy.getPpu().getTileTables()[2])
-        };
-        oam_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT, gameboy.getPpu().getOamBuffer());
-        ppuLayer.linkTextures(tileMaps_textures, tileTables_textures, oam_texture);
+        screen_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
+        ppuLayer.initTextures();
     }
 
     public void destroy() {
@@ -151,8 +137,7 @@ public class Window {
             tickEmulator();
             renderMenuBar();
             renderGameScreen();
-            if (gameboy.isDebuggerHooked())
-                renderDebugLayers();
+            renderDebugLayers();
 
             ImGui.render();
             imGuiGl3.renderDrawData(ImGui.getDrawData());
@@ -170,7 +155,7 @@ public class Window {
 
     private void tickEmulator() {
         if (gameboy.hasCartridge()) {
-            if (gameboy.isDebuggerHooked()) {
+            if (gameboy.isDebuggerHooked(DebuggerMode.CPU)) {
                 if (gameboy.getState() == GameBoyState.RUNNING)
                     gameboy.executeFrame();
                 if (gameboy.getState() == GameBoyState.DEBUG) {
@@ -197,12 +182,7 @@ public class Window {
 
     private void renderDebugLayers() {
         if (ppuLayer.isVisible()) {
-            tileTables_textures[0].load(gameboy.getPpu().getTileTables()[0]);
-            tileTables_textures[1].load(gameboy.getPpu().getTileTables()[1]);
-            tileTables_textures[2].load(gameboy.getPpu().getTileTables()[2]);
-            tileMaps_textures[0].load(gameboy.getPpu().getTileMaps()[0]);
-            tileMaps_textures[1].load(gameboy.getPpu().getTileMaps()[1]);
-            oam_texture.load(gameboy.getPpu().getOamBuffer());
+            ppuLayer.setCgbMode(gameboy.mode == GameBoy.Mode.CGB);
             ppuLayer.render();
         }
 
@@ -284,26 +264,29 @@ public class Window {
         }
 
         if (ImGui.beginMenu("Debug")) {
-            if (ImGui.checkbox("Debug features", debugActivated))
-                gameboy.hookDebugger(debugActivated.get());
-            if (debugActivated.get()) {
-                ImGui.separator();
-                if (ImGui.checkbox("CPU Inspector", cpuLayerVisible))
-                    cpuLayer.setVisible(cpuLayerVisible.get());
-                if (ImGui.checkbox("Memory Inspector", memoryLayerVisible))
-                    memoryLayer.setVisible(memoryLayerVisible.get());
-                if (ImGui.checkbox("PPU Inspector", ppuLayerVisible))
-                    ppuLayer.setVisible(ppuLayerVisible.get());
-                if (ImGui.checkbox("APU Inspector", apuLayerVisible))
-                    apuLayer.setVisible(apuLayerVisible.get());
-                ImGui.separator();
-                if (ImGui.checkbox("Serial Output", serialOutputLayerVisible))
-                    serialOutputLayer.setVisible(serialOutputLayerVisible.get());
-                if (ImGui.checkbox("Console", consoleLayerVisible))
-                    consoleLayer.setVisible(consoleLayerVisible.get());
-            }
+            if (ImGui.checkbox("CPU Inspector", cpuLayerVisible))
+                cpuLayer.setVisible(cpuLayerVisible.get());
+            if (ImGui.checkbox("Memory Inspector", memoryLayerVisible))
+                memoryLayer.setVisible(memoryLayerVisible.get());
+            if (ImGui.checkbox("PPU Inspector", ppuLayerVisible))
+                ppuLayer.setVisible(ppuLayerVisible.get());
+            if (ImGui.checkbox("APU Inspector", apuLayerVisible))
+                apuLayer.setVisible(apuLayerVisible.get());
+            ImGui.separator();
+            if (ImGui.checkbox("Serial Output", serialOutputLayerVisible))
+                serialOutputLayer.setVisible(serialOutputLayerVisible.get());
+            if (ImGui.checkbox("Console", consoleLayerVisible))
+                consoleLayer.setVisible(consoleLayerVisible.get());
+
+            gameboy.getDebugger().setHooked(DebuggerMode.CPU, cpuLayerVisible.get());
+            gameboy.getDebugger().setHooked(DebuggerMode.MEMORY, memoryLayerVisible.get());
+            gameboy.getDebugger().setHooked(DebuggerMode.PPU, ppuLayerVisible.get());
+            gameboy.getDebugger().setHooked(DebuggerMode.APU, apuLayerVisible.get());
+            gameboy.getDebugger().setHooked(DebuggerMode.CONSOLE, consoleLayerVisible.get());
+            gameboy.getDebugger().setHooked(DebuggerMode.SERIAL, serialOutputLayerVisible.get());
             ImGui.endMenu();
         }
+
         ImGui.endMainMenuBar();
     }
 

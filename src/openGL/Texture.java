@@ -1,5 +1,6 @@
 package openGL;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
@@ -21,9 +22,8 @@ public class Texture {
      *
      * @param width  the width of the Texture
      * @param height the height of the Texture
-     * @param buf    the buffer containing the pixel values
      */
-    public Texture(int width, int height, ByteBuffer buf) {
+    public Texture(int width, int height) {
         this.width = width;
         this.height = height;
         //Generate the texture
@@ -35,7 +35,7 @@ public class Texture {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
         //Load the buffer in VRAM
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, BufferUtils.createByteBuffer(width * height * 4));
     }
 
     /**

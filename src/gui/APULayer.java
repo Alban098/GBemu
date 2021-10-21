@@ -2,6 +2,7 @@ package gui;
 
 import core.GameBoy;
 import core.apu.Sample;
+import debug.Debugger;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.extension.implot.ImPlot;
@@ -17,9 +18,9 @@ public class APULayer extends AbstractDebugLayer {
     private final Float[][] samples;
     private final Float[] xs;
 
-    public APULayer(GameBoy gameBoy) {
-        super(gameBoy);
-        this.sample_queue = gameBoy.getApu().getDebugSampleQueue();
+    public APULayer(Debugger debugger) {
+        super(debugger);
+        this.sample_queue = debugger.getSampleQueue();
         this.samples = new Float[5][DEBUG_SAMPLE_NUMBER];
         xs = new Float[DEBUG_SAMPLE_NUMBER];
         for (int i = 0; i < DEBUG_SAMPLE_NUMBER; i++) {
@@ -36,11 +37,14 @@ public class APULayer extends AbstractDebugLayer {
         ImGui.begin("APU");
         int i = 0;
         for (Sample s : sample_queue) {
+            if (i >= DEBUG_SAMPLE_NUMBER)
+                break;
             samples[0][i] = s.square1() / 15f + 6f;
             samples[1][i] = s.square2() / 15f + 4.5f;
             samples[2][i] = s.wave() / 15f + 3f;
             samples[3][i] = s.noise() / 15f + 1.5f;
             samples[4][i] = s.getNormalizedValue();
+
             i++;
         }
         ImGui.setWindowSize(515, 335);

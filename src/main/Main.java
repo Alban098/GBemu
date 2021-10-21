@@ -26,7 +26,7 @@ public class Main {
     public static void launchSoundEngine(GameBoy gameBoy) {
         JavaSoundAudioIO jsaIO = new JavaSoundAudioIO();
         JavaSoundAudioIO.printMixerInfo();
-        jsaIO.selectMixer(3);
+        jsaIO.selectMixer(12);
         ac = new AudioContext(jsaIO);
         Function audioProcessor = new Function(new WaveShaper(ac)) {
             public float calculate() {

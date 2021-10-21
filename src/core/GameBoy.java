@@ -9,7 +9,11 @@ import core.memory.MMU;
 import core.ppu.PPU;
 import debug.BreakPoint;
 import debug.Debugger;
+import debug.DebuggerMode;
 import debug.Logger;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class GameBoy {
 
@@ -27,15 +31,16 @@ public class GameBoy {
     private final Debugger debugger;
 
     private GameBoyState currentState;
+    private boolean half_exec_step = false;
 
     public GameBoy() {
+        debugger = new Debugger(this);
         memory = new MMU(this);
         cpu = new LR35902(this);
         ppu = new PPU(this);
         apu = new APU(this);
         timer = new Timer(this);
         inputManager = new InputManager(this);
-        debugger = new Debugger(this);
         currentState = GameBoyState.RUNNING;
     }
 
@@ -43,18 +48,12 @@ public class GameBoy {
         return debugger;
     }
 
-    public void hookDebugger(boolean hook) {
-        if (hook)
-            cpu.hookDebugger(debugger);
-        else
-            cpu.hookDebugger(null);
-        debugger.setHooked(hook);
-    }
 
     public void insertCartridge(String file) throws Exception {
         memory.loadCart(file);
         hasCartridge = true;
         reset();
+        debugger.init();
     }
 
     public void reset() {
@@ -127,18 +126,28 @@ public class GameBoy {
     public void executeInstruction() {
         int opcode_mcycles = Integer.MAX_VALUE;
         while (opcode_mcycles > 0) {
-            if (memory.clock()) {
-                if (mode == Mode.CGB) {
+            switch (mode) {
+                case CGB -> {
                     if (memory.clock()) {
-                        cpu.execute();
+                        opcode_mcycles = cpu.execute();
                         timer.clock();
+                        if (half_exec_step) {
+                            ppu.clock();
+                            apu.clock();
+                            inputManager.clock();
+                        }
+                        half_exec_step = !half_exec_step;
                     }
                 }
-                opcode_mcycles = cpu.execute();
-                timer.clock();
-                ppu.clock();
-                apu.clock();
-                inputManager.clock();
+                case DMG -> {
+                    if (memory.clock()) {
+                        opcode_mcycles = cpu.execute();
+                        timer.clock();
+                        ppu.clock();
+                        apu.clock();
+                        inputManager.clock();
+                    }
+                }
             }
 
             mcycles++;
@@ -184,14 +193,6 @@ public class GameBoy {
         return apu.getNextSample();
     }
 
-    public void addBreakpoint(int addr, BreakPoint.Type type) {
-        debugger.addBreakpoint(addr, type);
-    }
-
-    public void removeBreakpoint(int addr) {
-        debugger.removeBreakpoint(addr);
-    }
-
     public void setButtonState(Button button, State state) {
         inputManager.setButtonState(button, state);
     }
@@ -200,13 +201,13 @@ public class GameBoy {
         return hasCartridge;
     }
 
-    public boolean isDebuggerHooked() {
-        return debugger.isHooked();
+    public boolean isDebuggerHooked(DebuggerMode mode) {
+        return debugger.isHooked(mode);
     }
 
     public enum Mode {
-        DMG(4194304, 70224, 85, 456, 80, 291),
-        CGB(8388608, 70224, 85, 456, 80, 291);
+        DMG(4194304, 70224, 208, 456, 80, 168),
+        CGB(8388608, 70224, 208, 456, 80, 168);
 
         public final int cpu_cycles_per_second;
         public final int cpu_cycles_per_frame;

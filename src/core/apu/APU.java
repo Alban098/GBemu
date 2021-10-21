@@ -9,6 +9,8 @@ import core.memory.MMU;
 import core.apu.channels.SquareChannel;
 import core.cpu.LR35902;
 import core.ppu.helper.IMMUListener;
+import debug.Debugger;
+import debug.DebuggerMode;
 import gui.APULayer;
 
 import java.util.Queue;
@@ -26,6 +28,7 @@ public class APU implements IMMUListener {
     public static final int[] AUDIO_DIVISOR = {8, 16, 32, 48, 64, 80, 96, 112};
 
     private final GameBoy gameboy;
+    private final Debugger debugger;
 
     private final Queue<Sample> sampleQueue;
     private final Queue<Sample> debugSampleQueue;
@@ -62,6 +65,8 @@ public class APU implements IMMUListener {
         square2 = new SquareChannel(gameboy.getMemory(), MMU.NR21, MMU.NR22, MMU.NR23, MMU.NR24, Flags.NR52_CHANNEL_2_ON, Flags.NR21_PATTERN_DUTY, Flags.NR21_SOUND_LENGTH, Flags.NR22_ENVELOPE_SWEEP_NB, Flags.NR22_ENVELOPE_VOLUME, Flags.NR22_ENVELOPE_DIR, Flags.NR24_LOOP_CHANNEL, Flags.NR24_FREQ_HIGH);
         wave = new WaveChannel(gameboy.getMemory());
         noise = new NoiseChannel(gameboy.getMemory());
+        debugger = gameboy.getDebugger();
+        debugger.link(sampleQueue);
     }
 
     public void clock() {
@@ -152,7 +157,7 @@ public class APU implements IMMUListener {
                     gameboy.mode.cpu_cycles_per_sample -= .5;
                 }
             }
-            if (gameboy.isDebuggerHooked()) {
+            if (debugger.isHooked(DebuggerMode.APU)) {
                 debugSampleQueue.offer(sample);
                 if (debugSampleQueue.size() > APULayer.DEBUG_SAMPLE_NUMBER)
                     debugSampleQueue.poll();
@@ -172,10 +177,6 @@ public class APU implements IMMUListener {
         lastSample /= 2;
 
         return lastSample;
-    }
-
-    public Queue<Sample> getDebugSampleQueue() {
-        return debugSampleQueue;
     }
 
     public void reset() {

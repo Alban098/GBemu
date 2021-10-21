@@ -17,9 +17,9 @@ public class Instruction {
     //Instruction instance variables
     private int[] parameters;
     private int addr;
-    private final LR35902 cpu;
+    private final State cpu;
 
-    public Instruction(int opcode, Type type, String name, int length, Supplier<Integer> fct_operate, LR35902 cpu) {
+    public Instruction(int opcode, Type type, String name, int length, Supplier<Integer> fct_operate, State cpu) {
         String[] split = name.split(" ");
         this.name = String.format("%1$-5s", split[0]).toLowerCase() + (split.length == 2 ? split[1] : "");
         this.length = length;
@@ -54,16 +54,16 @@ public class Instruction {
         if (opcode == 0xE0 || opcode == 0xF0)
             return 0xFF00 | parameters[0];
         if (opcode == 0xE2 || opcode == 0xF2)
-            return 0xFF00 | cpu.c.read();
+            return 0xFF00 | cpu.getBc().getLow().read();
         if (length == 2 && parameters != null)
             return parameters[0];
         else if (length == 3 && parameters != null)
             return (parameters[1] << 8) | parameters[0];
-        if (name.contains("(BC)")) return cpu.bc.read();
-        if (name.contains("(DE)")) return cpu.de.read();
-        if (name.contains("(HL)")) return cpu.hl.read();
-        if (name.contains("(HL+)")) return cpu.hl.read();
-        if (name.contains("(HL-)")) return cpu.hl.read();
+        if (name.contains("(BC)")) return cpu.getBc().read();
+        if (name.contains("(DE)")) return cpu.getDe().read();
+        if (name.contains("(HL)")) return cpu.getHl().read();
+        if (name.contains("(HL+)")) return cpu.getHl().read();
+        if (name.contains("(HL-)")) return cpu.getHl().read();
         return 0x00;
     }
 
@@ -110,11 +110,11 @@ public class Instruction {
         }
         while(op.length() <= 35)
             op.append(" ");
-        if (op.toString().contains("(BC)")) op.append(cpu.bc.toString());
-        if (op.toString().contains("(DE)")) op.append(cpu.de.toString());
-        if (op.toString().contains("(HL)")) op.append(cpu.hl.toString());
-        if (op.toString().contains("(HL+)")) op.append(cpu.hl.toString());
-        if (op.toString().contains("(HL-)")) op.append(cpu.hl.toString());
+        if (op.toString().contains("(BC)")) op.append(cpu.getBc().toString());
+        if (op.toString().contains("(DE)")) op.append(cpu.getDe().toString());
+        if (op.toString().contains("(HL)")) op.append(cpu.getHl().toString());
+        if (op.toString().contains("(HL+)")) op.append(cpu.getHl().toString());
+        if (op.toString().contains("(HL-)")) op.append(cpu.getHl().toString());
         if (op.toString().contains("FF00")) op.append(" controller");
         if (op.toString().contains("FF01")) op.append(" serial bus");
         if (op.toString().contains("FF02")) op.append(" serial control");

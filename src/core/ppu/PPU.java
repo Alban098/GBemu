@@ -4,10 +4,11 @@ import core.BitUtils;
 import core.Flags;
 import core.GameBoy;
 import core.memory.MMU;
-import core.cpu.LR35902;
 import core.ppu.helper.ColorPalettes;
 import core.ppu.helper.ColorShade;
 import core.ppu.helper.Sprite;
+import debug.Debugger;
+import debug.DebuggerMode;
 import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
@@ -22,9 +23,6 @@ public class PPU {
     private static final int MAX_SPRITES_PER_SCANLINE = 10;
 
     private final ByteBuffer screen_buffer;
-    private final ByteBuffer[] tileMaps;
-    private final ByteBuffer[] tileTables;
-    private final ByteBuffer oam_buffer;
     private Collection<Sprite> sprites;
 
     private final MMU memory;
@@ -36,23 +34,18 @@ public class PPU {
     private boolean isFrameComplete;
     private int off_cycles = 0;
 
+    private final Debugger debugger;
+    private final State state;
 
     public PPU(GameBoy gameboy) {
         this.gameboy = gameboy;
         this.memory = gameboy.getMemory();
         screen_buffer = BufferUtils.createByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
-        oam_buffer = BufferUtils.createByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
-        tileMaps = new ByteBuffer[]{
-                BufferUtils.createByteBuffer(256 * 256 * 4),
-                BufferUtils.createByteBuffer(256 * 256 * 4)
-        };
-        tileTables = new ByteBuffer[]{
-                BufferUtils.createByteBuffer(128 * 64 * 4),
-                BufferUtils.createByteBuffer(128 * 64 * 4),
-                BufferUtils.createByteBuffer(128 * 64 * 4)
-        };
         palettes = new ColorPalettes(memory);
         sprites = new TreeSet<>();
+        state = new State();
+        debugger = gameboy.getDebugger();
+        debugger.link(state);
     }
 
     public ByteBuffer getScreenBuffer() {
@@ -66,10 +59,13 @@ public class PPU {
             off_cycles++;
             if (off_cycles >= gameboy.mode.cpu_cycles_per_frame) {
                 screen_buffer.clear();
-                if (gameboy.isDebuggerHooked()) {
-                    computeTileTables();
-                    computeTileMaps();
-                    computeOAM();
+                if (debugger.isHooked(DebuggerMode.PPU)) {
+                    if (debugger.isHooked(DebuggerMode.TILES))
+                        computeTileTables();
+                    else if (debugger.isHooked(DebuggerMode.TILEMAPS))
+                        computeTileMaps();
+                    else if (debugger.isHooked(DebuggerMode.OAMS))
+                        computeOAM();
                 }
                 isFrameComplete = true;
                 off_cycles = 0;
@@ -90,10 +86,13 @@ public class PPU {
         if (cycles >= gameboy.mode.cpu_cycles_per_vblank_scanline) {
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT) {
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, true);
-                if (gameboy.isDebuggerHooked()) {
-                    computeTileTables();
-                    computeTileMaps();
-                    computeOAM();
+                if (debugger.isHooked(DebuggerMode.PPU)) {
+                    if (debugger.isHooked(DebuggerMode.TILES))
+                        computeTileTables();
+                    else if (debugger.isHooked(DebuggerMode.TILEMAPS))
+                        computeTileMaps();
+                    else if (debugger.isHooked(DebuggerMode.OAMS))
+                        computeOAM();
                 }
                 isFrameComplete = true;
                 screen_buffer.flip();
@@ -163,7 +162,7 @@ public class PPU {
                     cgb_tile_attr = memory.readVRAM(tileIdAddr, 1);
                     cgb_vram_bank = (cgb_tile_attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
                     cgb_palette_nb = (cgb_tile_attr & Flags.CGB_TILE_PALETTE);
-                    tileId = memory.readByte(tileIdAddr, true);
+                    tileId = memory.readVRAM(tileIdAddr & 0x7FFF, 0);
                     if (!mode1)
                         tileId = signedByte(tileId);
                     bgColorIndex = getTileColorIndex(
@@ -353,7 +352,7 @@ public class PPU {
     }
 
     private void computeOAM() {
-        oam_buffer.clear();
+        state.getOAMBuffer().clear();
         int spriteSize = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_SIZE) ? 16 : 8;
         ColorShade color;
         for (int y = 0; y < 144; y++) {
@@ -375,13 +374,13 @@ public class PPU {
                             break;
                     }
                 }
-                oam_buffer.put((byte) color.getColor().getRed());
-                oam_buffer.put((byte) color.getColor().getGreen());
-                oam_buffer.put((byte) color.getColor().getBlue());
-                oam_buffer.put((byte) color.getColor().getAlpha());
+                state.getOAMBuffer().put((byte) color.getColor().getRed());
+                state.getOAMBuffer().put((byte) color.getColor().getGreen());
+                state.getOAMBuffer().put((byte) color.getColor().getBlue());
+                state.getOAMBuffer().put((byte) color.getColor().getAlpha());
             }
         }
-        oam_buffer.flip();
+        state.getOAMBuffer().flip();
     }
 
     private void computeTileMaps() {
@@ -390,7 +389,7 @@ public class PPU {
         int scx = memory.readByte(MMU.SCX, true);
         int scy = memory.readByte(MMU.SCY, true);
         ColorShade color;
-        for (ByteBuffer tileMap : tileMaps) {
+        for (ByteBuffer tileMap : state.getTileMapBuffers()) {
             tileMap.clear();
             for (int y = 0; y < 256; y++) {
                 for (int x = 0; x < 256; x++) {
@@ -408,7 +407,7 @@ public class PPU {
                             cgb_tile_attr = memory.readVRAM(tileIdAddr, 1);
                             cgb_vram_bank = (cgb_tile_attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
                             cgb_palette_nb = (cgb_tile_attr & Flags.CGB_TILE_PALETTE);
-                            tileId = memory.readByte(tileIdAddr, true);
+                            tileId = memory.readVRAM(tileIdAddr - 0x8000, 0);
                             if (!mode1)
                                 tileId = signedByte(tileId);
                             int colorIndex = getTileColorIndex(
@@ -446,7 +445,9 @@ public class PPU {
             this ensure that pixels are pushed to the ByteBuffer in the correct order
         */
         int i = 0;
-        for (ByteBuffer tileTable : tileTables) {
+        for (ByteBuffer tileTable : state.getTileTableBuffers()) {
+            if (gameboy.mode == GameBoy.Mode.DMG && i == 4)
+                break;
             tileTable.clear();
             //Iterate over tiles rows
             for (int tileRow = 0; tileRow < 8; tileRow++) {
@@ -456,7 +457,7 @@ public class PPU {
                     for (int tileId = 16 * tileRow; tileId < 16 * tileRow + 16; tileId++) {
                         //Iterate over each pixel of the tile line
                         for (int x = 0; x < 8; x++) {
-                            ColorShade color = palettes.getBgPalette().colors[getTileColorIndex(0, i, tileId, x, y)];
+                            ColorShade color = palettes.getBgPalette().colors[getTileColorIndex((i > 2) ? 1 : 0, i % 3, tileId, x, y)];
                             tileTable.put((byte) color.getColor().getRed());
                             tileTable.put((byte) color.getColor().getGreen());
                             tileTable.put((byte) color.getColor().getBlue());
@@ -479,12 +480,7 @@ public class PPU {
 
     public void reset() {
         screen_buffer.clear();
-        oam_buffer.clear();
-        tileMaps[0].clear();
-        tileMaps[1].clear();
-        tileTables[0].clear();
-        tileTables[1].clear();
-        tileTables[2].clear();
+        state.clearBuffers();
         isFrameComplete = false;
         cycles = 0;
         off_cycles = 0;
@@ -494,17 +490,5 @@ public class PPU {
         boolean result = isFrameComplete;
         isFrameComplete = false;
         return !result;
-    }
-
-    public ByteBuffer[] getTileMaps() {
-        return tileMaps;
-    }
-
-    public ByteBuffer[] getTileTables() {
-        return tileTables;
-    }
-
-    public ByteBuffer getOamBuffer() {
-        return oam_buffer;
     }
 }

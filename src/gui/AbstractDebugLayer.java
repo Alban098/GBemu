@@ -1,15 +1,15 @@
 package gui;
 
-import core.GameBoy;
+import debug.Debugger;
 
 public abstract class AbstractDebugLayer {
 
     private boolean visible = false;
 
-    protected final GameBoy gameboy;
+    protected final Debugger debugger;
 
-    public AbstractDebugLayer(GameBoy gameboy) {
-        this.gameboy = gameboy;
+    public AbstractDebugLayer(Debugger debugger) {
+        this.debugger = debugger;
     }
 
     public abstract void render();

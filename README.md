@@ -113,16 +113,15 @@ To launch the Emulator set the Main Class to ```Main.java```
 * [x] MBC3
 * [x] MBC5
 * [x] Game Boy Color features
-* [ ] Add more information to PPU Window when in CGB Mode (Palettes, Tilemaps Bank selection)
-* [ ] Javadoc
 * [ ] Input customization
+* [ ] Javadoc
+
 ---
 
 ## Known Issues
 
 1) Pokémon Red and Blue run but render at half speed, even though audio run mostly as intended
 2) Pokémon Yellow not booting at all, it loops reading screen registers ```LCDC or STAT```
-3) Game Boy Color Bootstrap display corrupted graphics, but loads fine, may be caused by DMA or HDMA transfers, (need some digging)
 --- 
 
 ## Resources

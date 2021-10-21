@@ -1,34 +1,88 @@
 package gui;
 
-import core.GameBoy;
 import core.memory.MMU;
+import core.ppu.PPU;
 import core.ppu.helper.ColorShade;
 import core.ppu.helper.Sprite;
+import debug.Debugger;
+import debug.DebuggerMode;
 import imgui.ImGui;
 import openGL.Texture;
 
 public class PPULayer extends AbstractDebugLayer {
 
     private Texture[] tileMaps;
-    private Texture[] tileTables;
+    private Texture[][] tileTables;
     private Texture oam;
+    private boolean cgbMode = false;
 
-    public PPULayer(GameBoy gameboy) {
-        super(gameboy);
+    public PPULayer(Debugger debugger) {
+        super(debugger);
+    }
+
+    public void initTextures() {
+        tileMaps = new Texture[]{
+                new Texture(256, 256),
+                new Texture(256, 256)
+        };
+        tileTables = new Texture[][]{
+                {
+                        new Texture(128, 64),
+                        new Texture(128, 64),
+                        new Texture(128, 64)
+                },
+                {
+                        new Texture(128, 64),
+                        new Texture(128, 64),
+                        new Texture(128, 64)
+                }
+        };
+        oam = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
     }
 
     public void render() {
         ImGui.begin("PPU");
         if (ImGui.beginTabBar("tab")) {
             if (ImGui.beginTabItem("Tile Data")) {
-                ImGui.setWindowSize(270, 450);
-                ImGui.image(tileTables[0].getID(), 128 * 2, 64 * 2);
-                ImGui.image(tileTables[1].getID(), 128 * 2, 64 * 2);
-                ImGui.image(tileTables[2].getID(), 128 * 2, 64 * 2);
+                debugger.setHooked(DebuggerMode.TILES, true);
+                debugger.setHooked(DebuggerMode.PALETTES, false);
+                debugger.setHooked(DebuggerMode.TILEMAPS, false);
+                debugger.setHooked(DebuggerMode.OAMS, false);
+                if (cgbMode) {
+                    tileTables[0][0].load(debugger.getPpuState().getTileTableBuffers()[0]);
+                    tileTables[0][1].load(debugger.getPpuState().getTileTableBuffers()[1]);
+                    tileTables[0][2].load(debugger.getPpuState().getTileTableBuffers()[2]);
+                    tileTables[1][0].load(debugger.getPpuState().getTileTableBuffers()[3]);
+                    tileTables[1][1].load(debugger.getPpuState().getTileTableBuffers()[4]);
+                    tileTables[1][2].load(debugger.getPpuState().getTileTableBuffers()[5]);
+                    ImGui.setWindowSize(535, 450);
+                    ImGui.image(tileTables[0][0].getID(), 128 * 2, 64 * 2);
+                    ImGui.sameLine();
+                    ImGui.image(tileTables[1][0].getID(), 128 * 2, 64 * 2);
+                    ImGui.image(tileTables[0][1].getID(), 128 * 2, 64 * 2);
+                    ImGui.sameLine();
+                    ImGui.image(tileTables[1][1].getID(), 128 * 2, 64 * 2);
+                    ImGui.image(tileTables[0][2].getID(), 128 * 2, 64 * 2);
+                    ImGui.sameLine();
+                    ImGui.image(tileTables[1][2].getID(), 128 * 2, 64 * 2);
+                } else {
+                    tileTables[0][0].load(debugger.getPpuState().getTileTableBuffers()[0]);
+                    tileTables[0][1].load(debugger.getPpuState().getTileTableBuffers()[1]);
+                    tileTables[0][2].load(debugger.getPpuState().getTileTableBuffers()[2]);
+                    ImGui.setWindowSize(270, 450);
+                    ImGui.image(tileTables[0][0].getID(), 128 * 2, 64 * 2);
+                    ImGui.image(tileTables[0][1].getID(), 128 * 2, 64 * 2);
+                    ImGui.image(tileTables[0][2].getID(), 128 * 2, 64 * 2);
+                }
+
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem("Palettes")) {
-                if (gameboy.mode == GameBoy.Mode.CGB) {
+                debugger.setHooked(DebuggerMode.TILES, false);
+                debugger.setHooked(DebuggerMode.PALETTES, true);
+                debugger.setHooked(DebuggerMode.TILEMAPS, false);
+                debugger.setHooked(DebuggerMode.OAMS, false);
+                if (cgbMode) {
                     ImGui.setWindowSize(370, 240);
                     for (int pal = 0; pal < 8; pal++) {
                         ImGui.newLine();
@@ -41,14 +95,20 @@ public class PPULayer extends AbstractDebugLayer {
                 } else {
                     ImGui.setWindowSize(267, 140);
                     ImGui.newLine();
-                    drawPalette("BGP", gameboy.getMemory().readByte(MMU.BGP, true));
-                    drawPalette("OBP0", gameboy.getMemory().readByte(MMU.OBP0, true));
-                    drawPalette("OBP1", gameboy.getMemory().readByte(MMU.OBP1, true));
+                    drawPalette("BGP", debugger.readMemorySnapshot(MMU.BGP));
+                    drawPalette("OBP0", debugger.readMemorySnapshot(MMU.OBP0));
+                    drawPalette("OBP1", debugger.readMemorySnapshot(MMU.OBP1));
 
                 }
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem("Tile Maps")) {
+                debugger.setHooked(DebuggerMode.TILES, false);
+                debugger.setHooked(DebuggerMode.PALETTES, false);
+                debugger.setHooked(DebuggerMode.TILEMAPS, true);
+                debugger.setHooked(DebuggerMode.OAMS, false);
+                tileMaps[0].load(debugger.getPpuState().getTileMapBuffers()[0]);
+                tileMaps[1].load(debugger.getPpuState().getTileMapBuffers()[1]);
                 ImGui.setWindowSize(535, 315);
                 ImGui.image(tileMaps[0].getID(), 256, 256);
                 ImGui.sameLine();
@@ -56,6 +116,11 @@ public class PPULayer extends AbstractDebugLayer {
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem("OAM")) {
+                debugger.setHooked(DebuggerMode.TILES, false);
+                debugger.setHooked(DebuggerMode.PALETTES, false);
+                debugger.setHooked(DebuggerMode.TILEMAPS, false);
+                debugger.setHooked(DebuggerMode.OAMS, true);
+                oam.load(debugger.getPpuState().getOAMBuffer());
                 ImGui.setWindowSize(1068, 485);
                 ImGui.newLine();
                 int addr = MMU.OAM_START;
@@ -64,7 +129,7 @@ public class PPULayer extends AbstractDebugLayer {
                 for (int i = 0; i < 5; i++) {
                     for (int j = 0; j < 8; j++) {
                         ImGui.sameLine();
-                        Sprite sprite = new Sprite(gameboy.getMemory().readByte(addr++, true), gameboy.getMemory().readByte(addr++, true), gameboy.getMemory().readByte(addr++, true), gameboy.getMemory().readByte(addr++, true));
+                        Sprite sprite = new Sprite(debugger.readMemorySnapshot(addr++), debugger.readMemorySnapshot(addr++), debugger.readMemorySnapshot(addr++), debugger.readMemorySnapshot(addr++));
                         ImGui.beginChild("sprite" + (8 * i + j), 65, 65);
                         ImGui.textColored(255, 255, 0, 255, "   Y:");
                         ImGui.sameLine();
@@ -115,7 +180,7 @@ public class PPULayer extends AbstractDebugLayer {
     private void drawColorPalette(String name, int pal, boolean obj_pal) {
         float[] color = {0f, 0f, 0f, 1f};
         for (int col = 0; col < 4; col++) {
-            int rgb555 = (gameboy.getMemory().readCGBPalette(obj_pal, 8 * pal + col * 2 + 1) << 8) | gameboy.getMemory().readCGBPalette(obj_pal, 8 * pal + col * 2);
+            int rgb555 = (debugger.readCGBPalette(obj_pal, 8 * pal + col * 2 + 1) << 8) | debugger.readCGBPalette(obj_pal, 8 * pal + col * 2);
             color[0] = (float) ((rgb555 & 0b000000000011111) / 32.0);
             color[1] = (float) (((rgb555 & 0b000001111100000) >> 5) / 32.0);
             color[2] = (float) (((rgb555 & 0b111110000000000) >> 10) / 32.0);
@@ -125,9 +190,7 @@ public class PPULayer extends AbstractDebugLayer {
         }
     }
 
-    public void linkTextures(Texture[] tileMaps_textures, Texture[] tileTables_textures, Texture oam_texture) {
-        this.tileMaps = tileMaps_textures;
-        this.tileTables = tileTables_textures;
-        this.oam = oam_texture;
+    public void setCgbMode(boolean cgbMode) {
+        this.cgbMode = cgbMode;
     }
 }

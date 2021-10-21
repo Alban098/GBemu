@@ -2,22 +2,30 @@ package debug;
 
 import core.GameBoy;
 import core.GameBoyState;
+import core.apu.Sample;
 import core.cpu.Instruction;
+import core.cpu.LR35902;
 import core.cpu.State;
+import core.memory.MMU;
+import core.ppu.helper.IMMUListener;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class Debugger {
+public class Debugger implements IMMUListener {
 
     private static final int DECOMPILE_SIZE = 0x08;
 
-    private State cpuState;
     private final GameBoy gameboy;
 
-    private boolean hooked = false;
+    private core.cpu.State cpuState;
+    private core.ppu.State ppuState;
+    private Queue<Sample> sampleQueue;
+    private final int[] memorySnapshot;
+
+    private final Map<DebuggerMode, Boolean> hookedModes;
 
     private final Map<Integer, BreakPoint> breakpoints;
     private final Queue<Instruction> instructionQueue;
@@ -26,9 +34,28 @@ public class Debugger {
     public Debugger(GameBoy gb) {
         breakpoints = new HashMap<>();
         instructionQueue = new ConcurrentLinkedQueue<>();
+        memorySnapshot = new int[0x10000];
         this.gameboy = gb;
-        for (int i = 0; i < DECOMPILE_SIZE; i++)
-            instructionQueue.add(new Instruction(0, Instruction.Type.MISC,"NOP", 1, null, gameboy.getCpu()));
+
+        hookedModes = new HashMap<>();
+        for (DebuggerMode mode : DebuggerMode.values())
+            hookedModes.put(mode, false);
+    }
+
+    public void link(core.cpu.State state) {
+        this.cpuState = state;
+    }
+
+    public void link(core.ppu.State state) {
+        this.ppuState = state;
+    }
+
+    public void link(Queue<Sample> queue) {
+        this.sampleQueue = queue;
+    }
+
+    public void link(MMU memory) {
+        memory.addListener(this);
     }
 
     private void decompile() {
@@ -39,23 +66,23 @@ public class Debugger {
                 instr.setAddr(addr);
                 instr.setLength(0x10 - (addr & 0xF));
                 for (int i = 0; i < instr.getLength(); i++)
-                    instr.setParam(i, gameboy.getMemory().readByte(addr++));
+                    instr.setParam(i, readMemorySnapshot(addr++));
                 instr.setName("db   ");
                 instr.setOpcode(0x00);
             } else {
-                int opcode = gameboy.getMemory().readByte(addr++);
+                int opcode = readMemorySnapshot(addr++);
                 if (opcode == 0xCB) {
-                    instr.copyMeta(gameboy.getCpu().cb_opcodes.get(gameboy.getMemory().readByte(addr++)));
+                    instr.copyMeta(gameboy.getCpu().cb_opcodes.get(readMemorySnapshot(addr++)));
                     instr.setAddr(addr - 2);
                 } else {
                     instr.copyMeta(gameboy.getCpu().opcodes.get(opcode));
                     instr.setAddr(addr - 1);
                 }
                 if (instr.getLength() == 2)
-                    instr.setParams(gameboy.getMemory().readByte(addr++));
+                    instr.setParams(readMemorySnapshot(addr++));
 
                 if (instr.getLength() == 3)
-                    instr.setParams(gameboy.getMemory().readByte(addr++), gameboy.getMemory().readByte(addr++));
+                    instr.setParams(readMemorySnapshot(addr++), readMemorySnapshot(addr++));
             }
         }
     }
@@ -70,7 +97,6 @@ public class Debugger {
 
     public void clock() {
         decompile();
-        //EXEC breakpoints
         if (breakpoints.containsKey(cpuState.getInstruction().getAddr()) && breakpoints.get(cpuState.getInstruction().getAddr()).type() == BreakPoint.Type.EXEC) {
             gameboy.setState(GameBoyState.DEBUG);
             Logger.log(Logger.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (breakpoint reached (EXEC))");
@@ -93,10 +119,6 @@ public class Debugger {
         }
     }
 
-    public void linkCpu(State cpuState) {
-        this.cpuState = cpuState;
-    }
-
     public State getCpuState() {
         return cpuState;
     }
@@ -105,12 +127,61 @@ public class Debugger {
         return instructionQueue;
     }
 
-    public boolean isHooked() {
-        return hooked;
+    public boolean isHooked(DebuggerMode mode) {
+        return hookedModes.get(mode);
     }
 
-    public void setHooked(boolean hooked) {
-        this.hooked = hooked;
+    public GameBoyState getGameboyState() {
+        return gameboy.getState();
+    }
+
+    public int readMemorySnapshot(int addr) {
+        return memorySnapshot[addr & 0xFFFF];
+    }
+
+    public void setHooked(DebuggerMode mode, boolean hooked) {
+        hookedModes.put(mode, hooked);
+    }
+
+    @Override
+    public void onWriteToMMU(int addr, int data) {
+        memorySnapshot[addr] = gameboy.getMemory().readByte(addr, true);
+    }
+
+    public void setGameboyState(GameBoyState state) {
+        gameboy.setState(state);
+    }
+
+    public Queue<Sample> getSampleQueue() {
+        return sampleQueue;
+    }
+
+    public core.ppu.State getPpuState() {
+        return ppuState;
+    }
+
+    public int readCGBPalette(boolean obj_pal, int addr) {
+        return gameboy.getMemory().readCGBPalette(obj_pal, addr);
+    }
+
+    public String getSerialOutput() {
+        return gameboy.getSerialOutput();
+    }
+
+    public void flushSerialOutput() {
+        gameboy.flushSerialOutput();
+    }
+
+    public void reset() {
+        gameboy.reset();
+    }
+
+    public void init() {
+        instructionQueue.clear();
+        for (int i = 0; i < DECOMPILE_SIZE; i++)
+            instructionQueue.add(new Instruction(0, Instruction.Type.MISC,"NOP", 1, null, cpuState));
+        for (int i = 0; i < memorySnapshot.length; i++)
+            memorySnapshot[i] = gameboy.getMemory().readByte(i, true);
     }
 }
 

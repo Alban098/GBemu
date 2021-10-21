@@ -1,6 +1,7 @@
 package gui;
 
 import core.GameBoy;
+import debug.Debugger;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
@@ -14,8 +15,8 @@ public class MemoryLayer extends AbstractDebugLayer {
     private final ImBoolean gradient = new ImBoolean();
     private final int[] currentPage = new int[1];
 
-    public MemoryLayer(GameBoy gameboy) {
-        super(gameboy);
+    public MemoryLayer(Debugger debugger) {
+        super(debugger);
     }
 
     public void render() {
@@ -49,7 +50,7 @@ public class MemoryLayer extends AbstractDebugLayer {
             for(int data = 0x0; data <= 0xF; data++) {
                 ImGui.sameLine();
                 int addr = (currentPage[0] << 4) + (i << 4) | data;
-                int read = gameboy.getMemory().readByte(addr, true);
+                int read = debugger.readMemorySnapshot(addr);
                 if (addr == highlight) {
                     if (read == 0x00)
                         ImGui.textColored(128 + 128 * highlight_cooldown/HIGHLIGH_DURATION, 128 - 128 * highlight_cooldown/HIGHLIGH_DURATION, 128 - 128 * highlight_cooldown/HIGHLIGH_DURATION, 255, String.format("%02X", read));
@@ -69,7 +70,7 @@ public class MemoryLayer extends AbstractDebugLayer {
             ImGui.text(" | ");
             StringBuilder dataString = new StringBuilder();
             for(int data = 0x0; data <= 0xF; data++) {
-                char read = (char)gameboy.getMemory().readByte((currentPage[0] << 4) + (i << 4) | data, true);
+                char read = (char)debugger.readMemorySnapshot((currentPage[0] << 4) + (i << 4) | data);
                 dataString.append(read < 0x20 ? "." : read);
             }
             ImGui.sameLine();

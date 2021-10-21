@@ -8,6 +8,7 @@ import core.memory.MMU;
 import core.cpu.State;
 import core.cpu.register.RegisterByte;
 import core.cpu.register.RegisterWord;
+import debug.Debugger;
 import imgui.ImGui;
 
 import java.util.Queue;
@@ -22,8 +23,8 @@ public class CPULayer extends AbstractDebugLayer {
     private final RegisterByte irq_enable = new RegisterByte(0x00);
     private final RegisterByte irq_flags = new RegisterByte(0x00);
 
-    public CPULayer(GameBoy gameboy) {
-        super(gameboy);
+    public CPULayer(Debugger debugger) {
+        super(debugger);
     }
 
     public void render() {
@@ -35,59 +36,59 @@ public class CPULayer extends AbstractDebugLayer {
         if (ImGui.treeNode("Controls")) {
             ImGui.text("Current State :");
             ImGui.sameLine();
-            switch (gameboy.getState()) {
+            switch (debugger.getGameboyState()) {
                 case RUNNING -> {
                     ImGui.textColored(0, 255, 255, 255, "Running");
                     if (ImGui.button("Pause"))
-                        gameboy.setState(GameBoyState.PAUSED);
+                        debugger.setGameboyState(GameBoyState.PAUSED);
                 }
                 case PAUSED -> {
                     ImGui.textColored(255, 0, 0, 255, "Paused");
                     if (ImGui.button("Run"))
-                        gameboy.setState(GameBoyState.RUNNING);
+                        debugger.setGameboyState(GameBoyState.RUNNING);
                 }
                 case DEBUG -> ImGui.textColored(255, 255, 0, 255, "Debug Mode");
             }
-            if (gameboy.getState() == GameBoyState.DEBUG) {
+            if (debugger.getGameboyState() == GameBoyState.DEBUG) {
                 if (ImGui.button("Exit Debug"))
-                    gameboy.setState(GameBoyState.PAUSED);
+                    debugger.setGameboyState(GameBoyState.PAUSED);
             } else {
                 if (ImGui.button("Enter Debug"))
-                    gameboy.setState(GameBoyState.DEBUG);
+                    debugger.setGameboyState(GameBoyState.DEBUG);
             }
             ImGui.sameLine();
             if (ImGui.button("Reset"))
-                gameboy.reset();
+                debugger.reset();
             ImGui.treePop();
         }
 
-        State cpuState = gameboy.getDebugger().getCpuState();
+        State cpuState = debugger.getCpuState();
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         if (ImGui.treeNode("Flags")) {
-            if (gameboy.getCpu().hasFlag(Flags.Z)) ImGui.textColored(0, 255, 0, 255, "Z");
+            if (cpuState.hasFlag(Flags.Z)) ImGui.textColored(0, 255, 0, 255, "Z");
             else ImGui.textColored(255, 0, 0, 255, "Z");
             ImGui.sameLine();
-            if (gameboy.getCpu().hasFlag(Flags.N)) ImGui.textColored(0, 255, 0, 255, "N");
+            if (cpuState.hasFlag(Flags.N)) ImGui.textColored(0, 255, 0, 255, "N");
             else ImGui.textColored(255, 0, 0, 255, "N");
             ImGui.sameLine();
-            if (gameboy.getCpu().hasFlag(Flags.H)) ImGui.textColored(0, 255, 0, 255, "H");
+            if (cpuState.hasFlag(Flags.H)) ImGui.textColored(0, 255, 0, 255, "H");
             else ImGui.textColored(255, 0, 0, 255, "H");
             ImGui.sameLine();
-            if (gameboy.getCpu().hasFlag(Flags.C)) ImGui.textColored(0, 255, 0, 255, "C");
+            if (cpuState.hasFlag(Flags.C)) ImGui.textColored(0, 255, 0, 255, "C");
             else ImGui.textColored(255, 0, 0, 255, "C");
             ImGui.treePop();
         }
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         if (ImGui.treeNode("Registers")) {
-            lcdc.write(gameboy.getMemory().readByte(MMU.LCDC));
-            stat.write(gameboy.getMemory().readByte(MMU.STAT));
-            lcdy.write(gameboy.getMemory().readByte(MMU.LY));
-            divider.write(gameboy.getMemory().readByte(MMU.DIV));
-            tima.write(gameboy.getMemory().readByte(MMU.TIMA));
-            irq_enable.write(gameboy.getMemory().readByte(MMU.IE));
-            irq_flags.write(gameboy.getMemory().readByte(MMU.IF));
+            lcdc.write(debugger.readMemorySnapshot(MMU.LCDC));
+            stat.write(debugger.readMemorySnapshot(MMU.STAT));
+            lcdy.write(debugger.readMemorySnapshot(MMU.LY));
+            divider.write(debugger.readMemorySnapshot(MMU.DIV));
+            tima.write(debugger.readMemorySnapshot(MMU.TIMA));
+            irq_enable.write(debugger.readMemorySnapshot(MMU.IE));
+            irq_flags.write(debugger.readMemorySnapshot(MMU.IF));
 
             printRegister(cpuState.getAf(), "AF", "A", "F");
             ImGui.sameLine(420);
@@ -122,7 +123,7 @@ public class CPULayer extends AbstractDebugLayer {
             ImGui.sameLine(140);
             ImGui.textColored(255, 255, 0, 255, "IME:");
             ImGui.sameLine();
-            ImGui.text(String.valueOf(gameboy.getCpu().getIME()));
+            ImGui.text(String.valueOf(debugger.getCpuState().getIME()));
             ImGui.sameLine(280);
             ImGui.textColored(255, 255, 0, 255, "DIV:");
             ImGui.sameLine();
@@ -136,7 +137,7 @@ public class CPULayer extends AbstractDebugLayer {
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         if (ImGui.treeNode("Code Execution")) {
-            Queue<Instruction> instructions = gameboy.getDebugger().getInstructionQueue();
+            Queue<Instruction> instructions = debugger.getInstructionQueue();
             ImGui.textColored(255, 255, 0, 255, cpuState.getInstruction().toString());
             for (Instruction instruction : instructions)
                 ImGui.text(instruction.toString());

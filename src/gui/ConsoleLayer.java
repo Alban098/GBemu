@@ -2,6 +2,7 @@ package gui;
 
 import core.GameBoy;
 import debug.BreakPoint;
+import debug.Debugger;
 import debug.Logger;
 import imgui.ImGui;
 import imgui.type.ImString;
@@ -15,8 +16,8 @@ public class ConsoleLayer extends AbstractDebugLayer {
 
     private final ImString consoleInput = new ImString();
 
-    public ConsoleLayer(GameBoy gameboy) {
-        super(gameboy);
+    public ConsoleLayer(Debugger debugger) {
+        super(debugger);
     }
 
 
@@ -33,20 +34,20 @@ public class ConsoleLayer extends AbstractDebugLayer {
         if (ImGui.button("Enter")) {
             Logger.log(Logger.Type.INPUT, "> " + consoleInput.get());
             Command command = new Command(consoleInput.toString());
-            interpretCommand(command, this.gameboy);
+            interpretCommand(command);
             consoleInput.set("");
         }
         ImGui.end();
     }
 
-    private void interpretCommand(Command command, GameBoy gameBoy) {
+    private void interpretCommand(Command command) {
         switch (command.command) {
             case "break" -> {
                 switch (command.args.get(0)) {
                     case "-m" -> {
                         if ("-r".equals(command.args.get(1))) {
                             try {
-                                gameBoy.removeBreakpoint(Integer.decode("0x" + command.args.get(2)));
+                                debugger.removeBreakpoint(Integer.decode("0x" + command.args.get(2)));
                                 Logger.log(Logger.Type.INFO, "Breakpoint removed");
                             } catch (Exception e) {
                                 Logger.log(Logger.Type.ERROR, "Error removing breakpoint : " + e.getMessage());
@@ -57,7 +58,7 @@ public class ConsoleLayer extends AbstractDebugLayer {
                                 if ("/r".equals(command.args.get(2)))
                                     type = BreakPoint.Type.READ;
 
-                                gameBoy.addBreakpoint(Integer.decode("0x" + command.args.get(1)), type);
+                                debugger.addBreakpoint(Integer.decode("0x" + command.args.get(1)), type);
                                 Logger.log(Logger.Type.INFO, "Breakpoint created");
                             } catch (Exception e) {
                                 Logger.log(Logger.Type.ERROR, "Error creating breakpoint : " + e.getMessage());
@@ -66,7 +67,7 @@ public class ConsoleLayer extends AbstractDebugLayer {
                     }
                     case "-r" -> {
                         try {
-                            gameBoy.removeBreakpoint(Integer.decode("0x" + command.args.get(1)));
+                            debugger.removeBreakpoint(Integer.decode("0x" + command.args.get(1)));
                             Logger.log(Logger.Type.INFO,  "Breakpoint removed");
                         } catch (Exception e) {
                             Logger.log(Logger.Type.ERROR,"Error removing breakpoint : " + e.getMessage());
@@ -74,7 +75,7 @@ public class ConsoleLayer extends AbstractDebugLayer {
                     }
                     default -> {
                         try {
-                            gameBoy.addBreakpoint(Integer.decode("0x" + command.args.get(0)), BreakPoint.Type.EXEC);
+                            debugger.addBreakpoint(Integer.decode("0x" + command.args.get(0)), BreakPoint.Type.EXEC);
                             Logger.log(Logger.Type.INFO,  "Breakpoint created");
                         } catch (Exception e) {
                             Logger.log(Logger.Type.ERROR,"Error creating breakpoint : " + e.getMessage());
