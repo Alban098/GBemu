@@ -113,6 +113,7 @@ To launch the Emulator set the Main Class to ```Main.java```
 * [x] MBC3
 * [x] MBC5
 * [x] Game Boy Color features
+* [ ] Settings pannel (Inputs, Audio, Graphics, Emulation Speed ...)
 * [ ] Input customization
 * [ ] Javadoc
 

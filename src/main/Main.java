@@ -2,6 +2,7 @@ package main;
 
 import core.GameBoy;
 import core.GameBoyState;
+import core.settings.SettingsContainer;
 import gui.Window;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.io.JavaSoundAudioIO;
@@ -13,6 +14,7 @@ public class Main {
     private static AudioContext ac;
 
     public static void main(String[] args) {
+        SettingsContainer.getInstance();
         GameBoy gb = new GameBoy();
         launchSoundEngine(gb);
         Window window = new Window(gb);
@@ -26,7 +28,7 @@ public class Main {
     public static void launchSoundEngine(GameBoy gameBoy) {
         JavaSoundAudioIO jsaIO = new JavaSoundAudioIO();
         JavaSoundAudioIO.printMixerInfo();
-        jsaIO.selectMixer(12);
+        jsaIO.selectMixer(2);
         ac = new AudioContext(jsaIO);
         Function audioProcessor = new Function(new WaveShaper(ac)) {
             public float calculate() {

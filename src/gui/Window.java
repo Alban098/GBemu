@@ -15,6 +15,7 @@ import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import imgui.type.ImBoolean;
+import imgui.type.ImInt;
 import openGL.Texture;
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
@@ -40,12 +41,12 @@ public class Window {
     private final ConsoleLayer consoleLayer;
     private final PPULayer ppuLayer;
     private final APULayer apuLayer;
+    private final SettingsLayer settingsLayer;
 
     private boolean isSpacePressed = false;
     private boolean isFPressed = false;
 
     private Texture screen_texture;
-
 
     private final GameBoy gameboy;
     private ImPlotContext plotCtx;
@@ -56,6 +57,9 @@ public class Window {
     private final ImBoolean apuLayerVisible = new ImBoolean(false);
     private final ImBoolean serialOutputLayerVisible = new ImBoolean(false);
     private final ImBoolean consoleLayerVisible = new ImBoolean(false);
+    private final ImBoolean settingsLayerVisible = new ImBoolean(false);
+
+    private final ImInt emulationSpeedFactor = new ImInt(1);
 
     public Window(GameBoy gameboy) {
         cpuLayer = new CPULayer(gameboy.getDebugger());
@@ -64,6 +68,7 @@ public class Window {
         consoleLayer = new ConsoleLayer(gameboy.getDebugger());
         ppuLayer = new PPULayer(gameboy.getDebugger());
         apuLayer = new APULayer(gameboy.getDebugger());
+        settingsLayer = new SettingsLayer(gameboy.getDebugger());
 
         this.gameboy = gameboy;
     }
@@ -157,7 +162,7 @@ public class Window {
         if (gameboy.hasCartridge()) {
             if (gameboy.isDebuggerHooked(DebuggerMode.CPU)) {
                 if (gameboy.getState() == GameBoyState.RUNNING)
-                    gameboy.executeFrame();
+                    gameboy.executeFrames(emulationSpeedFactor.get());
                 if (gameboy.getState() == GameBoyState.DEBUG) {
                     if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
                         gameboy.executeInstructions(1, true);
@@ -175,7 +180,7 @@ public class Window {
                         gameboy.executeInstructions(1000, false);
                 }
             } else {
-                gameboy.executeFrame();
+                gameboy.executeFrames(emulationSpeedFactor.get());
             }
         }
     }
@@ -200,6 +205,9 @@ public class Window {
 
         if (consoleLayer.isVisible())
             consoleLayer.render();
+
+        if (settingsLayer.isVisible())
+            settingsLayer.render();
     }
 
     private void renderGameScreen() {
@@ -260,6 +268,8 @@ public class Window {
             }
             if (ImGui.menuItem("Reset"))
                 gameboy.reset();
+            if (ImGui.button("Settings"))
+                settingsLayer.setVisible(!settingsLayer.isVisible());
             ImGui.endMenu();
         }
 

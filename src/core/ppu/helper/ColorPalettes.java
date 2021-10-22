@@ -1,6 +1,7 @@
 package core.ppu.helper;
 
 import core.memory.MMU;
+import core.settings.SettingsContainer;
 
 import java.awt.*;
 
@@ -59,17 +60,19 @@ public class ColorPalettes implements IMMUListener {
     }
 
     private void calculateCGBPalettes(boolean obj_pal) {
-        int r, g, b;
+        double r, g, b;
+        float gamma = (float)SettingsContainer.getInstance().getSetting("gamma").getValue();
         for (int pal = 0; pal < 8; pal++) {
             for (int i = 0; i < 4; i++) {
                 int rgb555 = memory.readCGBPalette(obj_pal, pal * 8 + i * 2) | (memory.readCGBPalette(obj_pal, pal * 8 + i * 2 + 1) << 8);
-                r = (rgb555 & 0b000000000011111);
-                g = (rgb555 & 0b000001111100000) >> 5;
-                b = (rgb555 & 0b111110000000000) >> 10;
+                r = Math.pow((rgb555 & 0b000000000011111) / 32f, 1 / gamma);
+                g = Math.pow(((rgb555 & 0b000001111100000) >> 5) / 32f, 1 / gamma);
+                b = Math.pow(((rgb555 & 0b111110000000000) >> 10) / 32f, 1 / gamma);
+                ColorShade colorShade = new ColorShade(new Color((int)(r * 255) & 0xFF, (int)(g * 255) & 0xFF, (int)(b * 255) & 0xFF));
                 if (obj_pal)
-                    cgbPaletteBuffer[8 + pal].colors[i] = new ColorShade(new Color((int) (r / 32.0 * 255) & 0xFF, (int) (g / 32.0 * 255) & 0xFF, (int) (b / 32.0 * 255) & 0xFF));
+                    cgbPaletteBuffer[8 + pal].colors[i] = colorShade;
                 else
-                    cgbPaletteBuffer[pal].colors[i] = new ColorShade(new Color((int) (r / 32.0 * 255) & 0xFF, (int) (g / 32.0 * 255) & 0xFF, (int) (b / 32.0 * 255) & 0xFF));
+                    cgbPaletteBuffer[pal].colors[i] = colorShade;
             }
         }
     }

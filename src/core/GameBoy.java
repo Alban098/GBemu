@@ -171,9 +171,10 @@ public class GameBoy {
         memory.flushSerialOutput();
     }
 
-    public void executeFrame() {
-        while(ppu.isFrameIncomplete() && currentState == GameBoyState.RUNNING)
-            executeInstruction();
+    public void executeFrames(int nb) {
+        for (int i = 0; i < nb; i++)
+            while(ppu.isFrameIncomplete() && currentState == GameBoyState.RUNNING)
+                executeInstruction();
     }
 
     public void forceFrame() {
