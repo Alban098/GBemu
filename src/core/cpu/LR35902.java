@@ -42,8 +42,11 @@ public class LR35902 {
     private Instruction next_instr;
 
     private final Debugger debugger;
+    private boolean bootstrap_enabled = false;
+    private final GameBoy gameboy;
 
     public LR35902(GameBoy gameboy) {
+        this.gameboy = gameboy;
         af = new RegisterWord(0x01B0);
         a = af.getHigh();
         f = af.getLow();
@@ -61,7 +64,7 @@ public class LR35902 {
         l = hl.getLow();
 
         sp = new RegisterWord(0xFFFE);
-        pc = new RegisterWord(GameBoy.ENABLE_BOOTSTRAP ? 0 : 0x0100);
+        pc = new RegisterWord(bootstrap_enabled ? 0 : 0x0100);
 
         tmp_reg = new RegisterByte(0x00);
         this.memory = gameboy.getMemory();
@@ -677,14 +680,25 @@ public class LR35902 {
     }
 
     public void reset() {
-        af.write(0x11B0);
-        setFlag(Flags.Z, true);
-        bc.write(0x0000);
-        de.write(0xFF56);
-        hl.write(0x000D);
+        switch (gameboy.mode) {
+            case DMG -> {
+                af.write(0x0100);
+                setFlag(Flags.Z, true);
+                bc.write(0x0013);
+                de.write(0x00D8);
+                hl.write(0x014D);
+            }
+            case CGB -> {
+                af.write(0x1100);
+                setFlag(Flags.Z, true);
+                bc.write(0x0000);
+                de.write(0xFF56);
+                hl.write(0x000D);
+            }
+        }
+        pc.write(bootstrap_enabled ? 0 : 0x0100);
+        memory.writeRaw(MMU.BOOTSTRAP_CONTROL, bootstrap_enabled ? 0 : 1);
         sp.write(0xFFFE);
-        pc.write(GameBoy.ENABLE_BOOTSTRAP ? 0 : 0x0100);
-        memory.writeRaw(MMU.BOOTSTRAP_CONTROL, GameBoy.ENABLE_BOOTSTRAP ? 0 : 1);
         opcode_mcycle = 0;
         ime = false;
     }
@@ -4114,5 +4128,9 @@ public class LR35902 {
         //SET 7,A
         set_regByte(a, 7);
         return 8;
+    }
+
+    public void enableBootstrap(boolean enabled) {
+        this.bootstrap_enabled = enabled;
     }
 }

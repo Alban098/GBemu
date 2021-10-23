@@ -491,4 +491,8 @@ public class PPU {
         isFrameComplete = false;
         return !result;
     }
+
+    public void setGamma(float gamma) {
+        palettes.setGamma(gamma);
+    }
 }

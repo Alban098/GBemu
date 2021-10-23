@@ -109,10 +109,18 @@ public class Cartridge {
 
     public void save() {
         if (mbc.hasBattery() && mbc.hasRam()) {
+            byte[] ram_export;
             Path path = Paths.get(title.replace(".gb", ".sav"));
-            byte[] ram_export = new byte[ram.length];
+            if (mbc instanceof MBC3 && mbc.hasTimer()) {
+                ram_export = new byte[ram.length + ((MBC3) mbc).dumpRTC().length];
+                for (int i = 0; i < ((MBC3) mbc).dumpRTC().length; i++)
+                    ram_export[i + ram.length] = (byte) (((MBC3) mbc).dumpRTC()[i] & 0xFF);
+            } else {
+                ram_export = new byte[ram.length];
+            }
+
             for (int i = 0; i < ram.length; i++)
-                ram_export[i] = (byte)(ram[i] & 0xFF);
+                ram_export[i] = (byte) (ram[i] & 0xFF);
             try {
                 Files.write(path, ram_export, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             } catch (IOException e) {
@@ -129,6 +137,9 @@ public class Cartridge {
                 bytes = Files.readAllBytes(path);
                 for (int i = 0; i < ram.length && i < bytes.length; i++)
                     ram[i] = ((int)bytes[i]) & 0xFF;
+                if (mbc instanceof MBC3 && mbc.hasTimer()) {
+                    ((MBC3)mbc).restoreRTC(ram.length, bytes);
+                }
             } catch (IOException e) {
                 Logger.log(Logger.Type.ERROR, e.getMessage());
             }

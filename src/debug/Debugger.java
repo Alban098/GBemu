@@ -4,7 +4,6 @@ import core.GameBoy;
 import core.GameBoyState;
 import core.apu.Sample;
 import core.cpu.Instruction;
-import core.cpu.LR35902;
 import core.cpu.State;
 import core.memory.MMU;
 import core.ppu.helper.IMMUListener;
@@ -19,6 +18,8 @@ public class Debugger implements IMMUListener {
     private static final int DECOMPILE_SIZE = 0x08;
 
     private final GameBoy gameboy;
+
+    private boolean enabled = false;
 
     private core.cpu.State cpuState;
     private core.ppu.State ppuState;
@@ -128,6 +129,8 @@ public class Debugger implements IMMUListener {
     }
 
     public boolean isHooked(DebuggerMode mode) {
+        if (!enabled)
+            return false;
         return hookedModes.get(mode);
     }
 
@@ -182,6 +185,14 @@ public class Debugger implements IMMUListener {
             instructionQueue.add(new Instruction(0, Instruction.Type.MISC,"NOP", 1, null, cpuState));
         for (int i = 0; i < memorySnapshot.length; i++)
             memorySnapshot[i] = gameboy.getMemory().readByte(i, true);
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }
 

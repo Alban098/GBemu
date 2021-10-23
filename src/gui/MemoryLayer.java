@@ -1,8 +1,8 @@
 package gui;
 
-import core.GameBoy;
 import debug.Debugger;
 import imgui.ImGui;
+import imgui.flag.ImGuiSliderFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
@@ -77,7 +77,7 @@ public class MemoryLayer extends AbstractDebugLayer {
             ImGui.text(dataString.toString());
         }
         ImGui.pushItemWidth(538);
-        ImGui.sliderInt("T", currentPage, 0, 0xFF0, String.format("%03X0", currentPage[0]));
+        ImGui.sliderInt(" ", currentPage, 0, 0xFF0, String.format("%03X0", currentPage[0]));
         ImGui.end();
     }
 }

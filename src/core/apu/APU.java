@@ -1,5 +1,6 @@
 package core.apu;
 
+import audio.AudioEngine;
 import core.Flags;
 import core.GameBoy;
 import core.apu.channels.NoiseChannel;
@@ -7,7 +8,6 @@ import core.apu.channels.SweepingSquareChannel;
 import core.apu.channels.WaveChannel;
 import core.memory.MMU;
 import core.apu.channels.SquareChannel;
-import core.cpu.LR35902;
 import core.ppu.helper.IMMUListener;
 import debug.Debugger;
 import debug.DebuggerMode;
@@ -46,15 +46,11 @@ public class APU implements IMMUListener {
     private long sampleIndex = 0;
     private boolean adaptiveSampleRateStarted = false;
 
-    private int volumeLeft = 0;
-    private int volumeRight = 0;
-    boolean square1OutputLeft = false;
-    boolean square1OutputRight = false;
-
-    boolean leftEnabled = false;
-    boolean rightEnabled = false;
-
     private float lastSample = 0;
+    private boolean square1Rendered = true;
+    private boolean square2Rendered = true;
+    private boolean waveRendered = true;
+    private boolean noiseRendered = true;
 
     public APU(GameBoy gameboy) {
         this.gameboy = gameboy;
@@ -79,16 +75,6 @@ public class APU implements IMMUListener {
 
     public void onWriteToMMU(int addr, int data) {
         switch(addr) {
-            case MMU.NR50 -> {
-                leftEnabled = (data & Flags.NR50_LEFT_SPEAKER_ON) != 0;
-                rightEnabled = (data & Flags.NR50_RIGHT_SPEAKER_ON) != 0;
-                volumeLeft = 8 - (data & Flags.NR50_LEFT_VOLUME);
-                volumeRight = 8 - ((data >> 4) & Flags.NR50_RIGHT_VOLUME);
-            }
-            case MMU.NR51 -> {
-                square1OutputLeft = (data & Flags.NR51_CHANNEL_1_LEFT) != 0;
-                square1OutputRight = (data & Flags.NR51_CHANNEL_1_RIGHT) != 0;
-            }
             case MMU.NR14 -> {
                 if ((data & Flags.NR14_RESTART) != 0)
                     square1.restart();
@@ -147,8 +133,26 @@ public class APU implements IMMUListener {
     private void clockSamples() {
         cycle++;
         while (cycle >= gameboy.mode.cpu_cycles_per_sample) {
-            Sample sample = new Sample(square1.sample, square2.sample, wave.sample, noise.sample);
-            sampleQueue.offer(sample);
+            if (AudioEngine.getInstance().isStarted()) {
+                Sample sample;
+                if (gameboy.getMemory().readIORegisterBit(MMU.NR52, Flags.NR52_SOUND_ENABLED)) {
+                    sample = new Sample(
+                            (square1Rendered ? square1.sample : 0),
+                            (square2Rendered ? square2.sample : 0),
+                            (waveRendered ? wave.sample : 0),
+                            (noiseRendered ? noise.sample : 0)
+                    );
+                } else {
+                    sample = new Sample(0, 0, 0, 0);
+                }
+                sampleQueue.offer(sample);
+                sampleIndex++;
+                if (debugger.isHooked(DebuggerMode.APU)) {
+                    debugSampleQueue.offer(sample);
+                    if (debugSampleQueue.size() > APULayer.DEBUG_SAMPLE_NUMBER)
+                        debugSampleQueue.poll();
+                }
+            }
             if (sampleIndex % (APU.SAMPLE_RATE/10) == 0) {
                 if (sampleQueue.size() > 5000) {
                     gameboy.mode.cpu_cycles_per_sample += .5;
@@ -157,12 +161,6 @@ public class APU implements IMMUListener {
                     gameboy.mode.cpu_cycles_per_sample -= .5;
                 }
             }
-            if (debugger.isHooked(DebuggerMode.APU)) {
-                debugSampleQueue.offer(sample);
-                if (debugSampleQueue.size() > APULayer.DEBUG_SAMPLE_NUMBER)
-                    debugSampleQueue.poll();
-            }
-            sampleIndex++;
             cycle -= gameboy.mode.cpu_cycles_per_sample;
         }
     }
@@ -195,4 +193,19 @@ public class APU implements IMMUListener {
         noise.reset();
     }
 
+    public void enableSquare1(boolean enabled) {
+        square1Rendered = enabled;
+    }
+
+    public void enableSquare2(boolean enabled) {
+        square2Rendered = enabled;
+    }
+
+    public void enableWave(boolean enabled) {
+        waveRendered = enabled;
+    }
+
+    public void enableNoise(boolean enabled) {
+        noiseRendered = enabled;
+    }
 }

@@ -1,7 +1,6 @@
 package gui;
 
 import core.Flags;
-import core.GameBoy;
 import core.GameBoyState;
 import core.cpu.Instruction;
 import core.memory.MMU;

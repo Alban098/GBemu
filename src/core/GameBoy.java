@@ -1,19 +1,21 @@
 package core;
 
+import audio.AudioEngine;
 import core.apu.APU;
+import core.cartridge.mbc.MBC3;
 import core.cpu.LR35902;
 import core.input.InputManager;
 import core.input.State;
 import core.input.Button;
 import core.memory.MMU;
 import core.ppu.PPU;
-import debug.BreakPoint;
+import core.ppu.helper.ColorShade;
+import core.settings.SettingsContainer;
 import debug.Debugger;
 import debug.DebuggerMode;
 import debug.Logger;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.awt.*;
 
 public class GameBoy {
 
@@ -63,7 +65,7 @@ public class GameBoy {
         apu.reset();
         memory.writeRaw(MMU.P1, 0xCF);
         memory.writeRaw(MMU.SB, 0x00);
-        memory.writeRaw(MMU.SC, 0x7E);
+        memory.writeRaw(MMU.SC, mode == Mode.CGB ? 0x7F : 0x7E);
         memory.writeRaw(MMU.DIV, 0xAB);
         memory.writeRaw(MMU.TIMA, 0x00);
         memory.writeRaw(MMU.TMA, 0x00);
@@ -71,7 +73,7 @@ public class GameBoy {
         memory.writeRaw(MMU.IF, 0xE1);
         memory.writeRaw(MMU.NR10, 0x80);
         memory.writeRaw(MMU.NR11, 0xBF);
-        memory.writeRaw(MMU.NR12, 0xF3);
+        memory.writeRaw(MMU.NR12, 0x03);
         memory.writeRaw(MMU.NR13, 0xFF);
         memory.writeRaw(MMU.NR14, 0xBF);
         memory.writeRaw(MMU.NR21, 0x3F);
@@ -96,13 +98,26 @@ public class GameBoy {
         memory.writeRaw(MMU.SCY, 0x00);
         memory.writeRaw(MMU.LY, 0x00);
         memory.writeRaw(MMU.LYC, 0x00);
-        memory.writeRaw(MMU.DMA, 0xFF);
+        memory.writeRaw(MMU.DMA,  mode == Mode.CGB ? 0x00 : 0xFF);
         memory.writeRaw(MMU.BGP, 0xFC);
         memory.writeRaw(MMU.OBP0, 0xFF);
         memory.writeRaw(MMU.OBP1, 0xFF);
         memory.writeRaw(MMU.WX, 0x00);
         memory.writeRaw(MMU.WY, 0x00);
         memory.writeRaw(MMU.IE, 0x00);
+        memory.writeRaw(MMU.CGB_KEY_1, 0xFF);
+        memory.writeRaw(MMU.CGB_VRAM_BANK, 0xFF);
+        memory.writeRaw(MMU.CGB_HDMA1, 0xFF);
+        memory.writeRaw(MMU.CGB_HDMA2, 0xFF);
+        memory.writeRaw(MMU.CGB_HDMA3, 0xFF);
+        memory.writeRaw(MMU.CGB_HDMA4, 0xFF);
+        memory.writeRaw(MMU.CGB_HDMA5, 0xFF);
+        memory.writeRaw(MMU.CGB_RP, 0xFF);
+        memory.writeRaw(MMU.CGB_BCPS_BCPI, 0xFF);
+        memory.writeRaw(MMU.CGB_BCPD_BGPD, 0xFF);
+        memory.writeRaw(MMU.CGB_OCPS_OBPI, 0xFF);
+        memory.writeRaw(MMU.CGB_OCPD_OBPD, 0xFF);
+        memory.writeRaw(MMU.CGB_WRAM_BANK, 0xFF);
         Logger.log(Logger.Type.INFO, "Emulation reset");
         cpu.init();
     }
@@ -206,9 +221,29 @@ public class GameBoy {
         return debugger.isHooked(mode);
     }
 
+    public void propagateSetting(SettingsContainer.Setting<?> setting) {
+        switch (setting.getIdentifier()) {
+            case RTC -> MBC3.enableRTC((boolean) setting.getValue());
+            case BOOTSTRAP -> cpu.enableBootstrap((boolean) setting.getValue());
+            case DMG_BOOTROM -> memory.loadBootstrap(Mode.DMG, (String)setting.getValue());
+            case CGB_BOOTROM -> memory.loadBootstrap(Mode.CGB, (String)setting.getValue());
+            case DMG_PALETTE_0 -> ColorShade.WHITE.setColor((Color)setting.getValue());
+            case DMG_PALETTE_1 -> ColorShade.LIGHT_GRAY.setColor((Color)setting.getValue());
+            case DMG_PALETTE_2 -> ColorShade.DARK_GRAY.setColor((Color)setting.getValue());
+            case DMG_PALETTE_3 -> ColorShade.BLACK.setColor((Color)setting.getValue());
+            case GAMMA -> ppu.setGamma((float) setting.getValue());
+            case SQUARE_1_ENABLED -> apu.enableSquare1((boolean) setting.getValue());
+            case SQUARE_2_ENABLED -> apu.enableSquare2((boolean) setting.getValue());
+            case WAVE_ENABLED -> apu.enableWave((boolean) setting.getValue());
+            case NOISE_ENABLED -> apu.enableNoise((boolean) setting.getValue());
+            case AUDIO_MIXER -> AudioEngine.getInstance().setOutput((int) setting.getValue());
+            case VOLUME -> AudioEngine.getInstance().setVolume((float) setting.getValue());
+        }
+    }
+
     public enum Mode {
-        DMG(4194304, 70224, 208, 456, 80, 168),
-        CGB(8388608, 70224, 208, 456, 80, 168);
+        DMG(4194304),
+        CGB(8388608);
 
         public final int cpu_cycles_per_second;
         public final int cpu_cycles_per_frame;
@@ -221,13 +256,13 @@ public class GameBoy {
         public final int cpu_cycles_64HZ = 4194304 / 64;
         public float cpu_cycles_per_sample = 4194304f / APU.SAMPLE_RATE;
 
-        Mode(int cpu_cycles_per_second, int cpu_cycles_per_frame, int cpu_cycles_per_hblank, int cpu_cycles_per_vblank_scanline, int cpu_cycles_per_oam, int cpu_cycles_per_transfer) {
+        Mode(int cpu_cycles_per_second) {
             this.cpu_cycles_per_second = cpu_cycles_per_second;
-            this.cpu_cycles_per_frame = cpu_cycles_per_frame;
-            this.cpu_cycles_per_hblank = cpu_cycles_per_hblank;
-            this.cpu_cycles_per_vblank_scanline = cpu_cycles_per_vblank_scanline;
-            this.cpu_cycles_per_oam = cpu_cycles_per_oam;
-            this.cpu_cycles_per_transfer = cpu_cycles_per_transfer;
+            this.cpu_cycles_per_frame = 70224;
+            this.cpu_cycles_per_hblank = 208;
+            this.cpu_cycles_per_vblank_scanline = 456;
+            this.cpu_cycles_per_oam = 80;
+            this.cpu_cycles_per_transfer = 168;
         }
     }
 }

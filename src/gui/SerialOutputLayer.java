@@ -1,6 +1,5 @@
 package gui;
 
-import core.GameBoy;
 import debug.Debugger;
 import imgui.ImGui;
 

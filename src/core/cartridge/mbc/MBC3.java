@@ -4,6 +4,8 @@ import core.GameBoy;
 
 public class MBC3 extends MemoryBankController {
 
+    private static boolean rtc_enabled = false;
+
     private boolean ram_enabled = false;
     private int selected_rom_bank = 1;
     private int selected_ram_bank = 0;
@@ -76,38 +78,44 @@ public class MBC3 extends MemoryBankController {
 
     @Override
     public void clock() {
-        mcycles++;
-        if (hasTimer && !rtcLatched) {
-            if (mcycles >= gameboy.mode.cpu_cycles_per_second) {
-                rtc[0]++;
-                mcycles = 0;
-                //If seconds overflow
-                if (rtc[0] >= 0x3B) {
-                    rtc[0] = 0;
-                    rtc[1]++;
-                    //If minutes overflow
-                    if (rtc[1] >= 0x3B) {
-                        rtc[1] = 0;
-                        rtc[2]++;
-                        //If hours overflow
-                        if (rtc[2] >= 0x17) {
-                            rtc[2] = 0;
-                            rtc[3]++;
-                            //If days lower overflow
-                            if (rtc[4] >= 0xFF) {
-                                rtc[4] = 0;
-                                //If days upper has overflowed also
-                                if ((rtc[5] & 0x1) == 0)
-                                    rtc[5] |= 1;
-                                //Set the flags and reset counter
-                                else
-                                    rtc[5] = (rtc[5] & 0xFE) | 0x80;
+        if (rtc_enabled) {
+            mcycles++;
+            if (hasTimer && !rtcLatched) {
+                if (mcycles >= gameboy.mode.cpu_cycles_per_second) {
+                    rtc[0]++;
+                    mcycles = 0;
+                    //If seconds overflow
+                    if (rtc[0] >= 0x3B) {
+                        rtc[0] = 0;
+                        rtc[1]++;
+                        //If minutes overflow
+                        if (rtc[1] >= 0x3B) {
+                            rtc[1] = 0;
+                            rtc[2]++;
+                            //If hours overflow
+                            if (rtc[2] >= 0x17) {
+                                rtc[2] = 0;
+                                rtc[3]++;
+                                //If days lower overflow
+                                if (rtc[4] >= 0xFF) {
+                                    rtc[4] = 0;
+                                    //If days upper has overflowed also
+                                    if ((rtc[5] & 0x1) == 0)
+                                        rtc[5] |= 1;
+                                        //Set the flags and reset counter
+                                    else
+                                        rtc[5] = (rtc[5] & 0xFE) | 0x80;
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    public static void enableRTC(boolean rtc_enabled) {
+        MBC3.rtc_enabled = rtc_enabled;
     }
 
     public int readTimer() {
@@ -119,5 +127,14 @@ public class MBC3 extends MemoryBankController {
     public void writeTimer(int data) {
         if (hasTimer && rtcMapped != 0x00)
             rtc[rtcMapped - 0x8] = data;
+    }
+
+    public int[] dumpRTC() {
+        return rtc;
+    }
+
+    public void restoreRTC(int start, byte[] bytes) {
+        for (int i = 0; i < rtc.length; i++)
+            rtc[i] = bytes[i + start] & 0xFF;
     }
 }

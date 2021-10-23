@@ -10,5 +10,5 @@ public enum DebuggerMode {
     OAMS,
     APU,
     CONSOLE,
-    SERIAL;
+    SERIAL
 }

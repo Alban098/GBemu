@@ -1,11 +1,9 @@
 package core.ppu.helper;
 
 import core.memory.MMU;
-import core.settings.SettingsContainer;
 
 import java.awt.*;
 
-//TODO Optimize CGB palette management
 public class ColorPalettes implements IMMUListener {
 
     private final MMU memory;
@@ -14,6 +12,7 @@ public class ColorPalettes implements IMMUListener {
     private final ColorPalette objPalette0;
     private final ColorPalette objPalette1;
     private final ColorPalette[] cgbPaletteBuffer;
+    private float gamma = 1;
 
     public ColorPalettes(MMU memory) {
         this.memory = memory;
@@ -61,7 +60,6 @@ public class ColorPalettes implements IMMUListener {
 
     private void calculateCGBPalettes(boolean obj_pal) {
         double r, g, b;
-        float gamma = (float)SettingsContainer.getInstance().getSetting("gamma").getValue();
         for (int pal = 0; pal < 8; pal++) {
             for (int i = 0; i < 4; i++) {
                 int rgb555 = memory.readCGBPalette(obj_pal, pal * 8 + i * 2) | (memory.readCGBPalette(obj_pal, pal * 8 + i * 2 + 1) << 8);
@@ -82,6 +80,12 @@ public class ColorPalettes implements IMMUListener {
         palette.colors[1] = ColorShade.get((data & 0xC) >> 2);
         palette.colors[2] = ColorShade.get((data & 0x30) >> 4);
         palette.colors[3] = ColorShade.get((data & 0xC0) >> 6);
+    }
+
+    public void setGamma(float gamma) {
+        this.gamma = gamma;
+        calculateCGBPalettes(false);
+        calculateCGBPalettes(true);
     }
 
     public static class ColorPalette {

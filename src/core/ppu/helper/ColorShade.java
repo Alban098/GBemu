@@ -2,7 +2,7 @@ package core.ppu.helper;
 
 import java.awt.*;
 
-public record ColorShade(Color color) {
+public class ColorShade {
 
     public static final ColorShade WHITE = new ColorShade(new Color(0xE0, 0xF8, 0xD0, 0xFF));
     public static final ColorShade LIGHT_GRAY = new ColorShade(new Color(0x88, 0xC0, 0x70, 0xFF));
@@ -11,8 +11,18 @@ public record ColorShade(Color color) {
     public static final ColorShade TRANSPARENT = new ColorShade(new Color(0xFF, 0xFF, 0xFF, 0x00));
     public static final ColorShade EMPTY = new ColorShade(new Color(0xFF, 0xFF, 0xFF, 0xFF));
 
+    private Color color;
+
+    public ColorShade(Color color) {
+        this.color = color;
+    }
+
     public Color getColor() {
         return color;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
     }
 
     public static ColorShade get(int data) {

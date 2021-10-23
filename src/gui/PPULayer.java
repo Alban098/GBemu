@@ -193,4 +193,13 @@ public class PPULayer extends AbstractDebugLayer {
     public void setCgbMode(boolean cgbMode) {
         this.cgbMode = cgbMode;
     }
+
+    public void cleanUp() {
+        oam.cleanUp();
+        for (Texture tex : tileMaps)
+            tex.cleanUp();
+        for (Texture[] texs : tileTables)
+            for (Texture tex : texs)
+                tex.cleanUp();
+    }
 }

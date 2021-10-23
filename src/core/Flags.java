@@ -104,7 +104,7 @@ public class Flags {
     public static final int NR51_CHANNEL_2_RIGHT  = 0x02;
     public static final int NR51_CHANNEL_1_RIGHT  = 0x01;
 
-    public static final int NR52_SOUND_ENABLED = 0x10;
+    public static final int NR52_SOUND_ENABLED = 0x80;
     public static final int NR52_CHANNEL_4_ON  = 0x08;
     public static final int NR52_CHANNEL_3_ON  = 0x04;
     public static final int NR52_CHANNEL_2_ON  = 0x02;

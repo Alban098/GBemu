@@ -1,6 +1,5 @@
 package gui;
 
-import core.GameBoy;
 import debug.BreakPoint;
 import debug.Debugger;
 import debug.Logger;

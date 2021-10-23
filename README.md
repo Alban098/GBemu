@@ -43,6 +43,16 @@
 - Pause / Resume emulation
 - Reset
 
+### Settings Window
+- Enable / Disable RTC
+- Enable / Disable Bootstrap
+- Specify Bootstrap ROMs (for DMG and CGB)
+- Edit Gamma factor for color correction (Only in CGB Mode)
+- Select an existing DMG palette or customize it yourself
+- Choose audio output
+- Change master volume
+- Enable / Disable audio channels
+
 #### Debug Window
 - Enter step by step code execution
 - Display flags and ```CPU registers``` (as 8bit and merge as 16bit)
@@ -80,22 +90,13 @@ To launch the Emulator set the Main Class to ```Main.java```
 ---
 
 ## Screenshots
-| CPU |
-|-----|
-|![CPU Viewer](img/cpu.gif)![Memory Viewer](img/memory.gif)|
-
-| PPU |
-|-----|
-|![PPU Viewer](img/ppu.gif)|
-
-| APU |
-|-----|
-|![APU Viewer](img/apu.gif)|
-
-
-| I/O |
-|-----|
-|![Console](img/console.png)![Serial Output](img/serial.png)|
+![Settings](img/settings.gif)
+![CPU Viewer](img/cpu.gif)
+![Memory Viewer](img/memory.gif)
+![PPU Viewer](img/ppu.gif)
+![APU Viewer](img/apu.gif)
+![Console](img/console.png)
+![Serial Output](img/serial.png)
 
 ---
 
@@ -113,7 +114,7 @@ To launch the Emulator set the Main Class to ```Main.java```
 * [x] MBC3
 * [x] MBC5
 * [x] Game Boy Color features
-* [ ] Settings pannel (Inputs, Audio, Graphics, Emulation Speed ...)
+* [x] Settings pannel (Inputs, Audio, Graphics ...)
 * [ ] Input customization
 * [ ] Javadoc
 

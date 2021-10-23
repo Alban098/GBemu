@@ -403,4 +403,8 @@ public class MMU {
             return obj_pal ? cgb_obj_palettes[addr] : cgb_bg_palettes[addr];
         return 0x00;
     }
+
+    public void loadBootstrap(GameBoy.Mode mode, String file) {
+        bootstrap.loadBootstrap(mode, file);
+    }
 }
