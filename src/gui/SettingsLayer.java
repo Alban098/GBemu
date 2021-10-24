@@ -48,6 +48,7 @@ public class SettingsLayer extends AbstractDebugLayer {
             if (ImGui.beginTabItem("System")) {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Misc Options")) {
+                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.SPEED).process();
                     SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.RTC).process();
                     SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.BOOTSTRAP).process();
                     ImGui.treePop();

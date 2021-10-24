@@ -19,7 +19,6 @@ import java.awt.*;
 
 public class GameBoy {
 
-    public static final boolean ENABLE_BOOTSTRAP = true;
     private boolean hasCartridge = false;
     public Mode mode = Mode.DMG;
     private long mcycles = 0;
@@ -34,6 +33,7 @@ public class GameBoy {
 
     private GameBoyState currentState;
     private boolean half_exec_step = false;
+    private int speed_factor = 1;
 
     public GameBoy() {
         debugger = new Debugger(this);
@@ -186,8 +186,8 @@ public class GameBoy {
         memory.flushSerialOutput();
     }
 
-    public void executeFrames(int nb) {
-        for (int i = 0; i < nb; i++)
+    public void executeFrames() {
+        for (int i = 0; i < speed_factor; i++)
             while(ppu.isFrameIncomplete() && currentState == GameBoyState.RUNNING)
                 executeInstruction();
     }
@@ -224,6 +224,10 @@ public class GameBoy {
     public void propagateSetting(SettingsContainer.Setting<?> setting) {
         switch (setting.getIdentifier()) {
             case RTC -> MBC3.enableRTC((boolean) setting.getValue());
+            case SPEED -> {
+                speed_factor = (int) setting.getValue();
+                mode.cpu_cycles_per_sample = 4194304f / APU.SAMPLE_RATE * speed_factor;
+            }
             case BOOTSTRAP -> cpu.enableBootstrap((boolean) setting.getValue());
             case DMG_BOOTROM -> memory.loadBootstrap(Mode.DMG, (String)setting.getValue());
             case CGB_BOOTROM -> memory.loadBootstrap(Mode.CGB, (String)setting.getValue());

@@ -162,7 +162,7 @@ public class Window {
         if (gameboy.hasCartridge()) {
             if (gameboy.isDebuggerHooked(DebuggerMode.CPU)) {
                 if (gameboy.getState() == GameBoyState.RUNNING)
-                    gameboy.executeFrames(1);
+                    gameboy.executeFrames();
                 if (gameboy.getState() == GameBoyState.DEBUG) {
                     if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
                         gameboy.executeInstructions(1, true);
@@ -180,7 +180,7 @@ public class Window {
                         gameboy.executeInstructions(1000, false);
                 }
             } else {
-                gameboy.executeFrames(1);
+                gameboy.executeFrames();
             }
         }
     }

@@ -41,6 +41,13 @@ public class SettingsContainer {
                 gameboy.propagateSetting(setting);
             }
         }));
+        settings.put(SettingIdentifiers.SPEED, new Setting<>(SettingIdentifiers.SPEED, 1, (Setting<Integer> setting) -> {
+            int[] tmp = {setting.value};
+            if (ImGui.sliderInt(setting.getIdentifier().getDescription(), tmp, 1, 5)) {
+                setting.setValue(tmp[0]);
+                gameboy.propagateSetting(setting);
+            }
+        }));
         settings.put(SettingIdentifiers.BOOTSTRAP, new Setting<>(SettingIdentifiers.BOOTSTRAP, false, (Setting<Boolean> setting) -> {
             ImBoolean tmp = new ImBoolean(setting.value);
             if (ImGui.checkbox(setting.getIdentifier().getDescription(), tmp)) {
@@ -231,6 +238,7 @@ public class SettingsContainer {
 
     public enum SettingIdentifiers {
         RTC("MBC3 RTC Capability"),
+        SPEED("Emulation Speed Multiplier"),
         DMG_BOOTROM("DMG Bootrom path"),
         CGB_BOOTROM("CGB Bootrom path"),
         DMG_PALETTE_0("DMG Color 0"),
