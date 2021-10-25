@@ -62,7 +62,7 @@ public class APU implements IMMUListener {
         wave = new WaveChannel(gameboy.getMemory());
         noise = new NoiseChannel(gameboy.getMemory());
         debugger = gameboy.getDebugger();
-        debugger.link(sampleQueue);
+        debugger.link(debugSampleQueue);
     }
 
     public void clock() {

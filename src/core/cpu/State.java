@@ -24,7 +24,7 @@ public class State {
         instruction = new Instruction(0, Instruction.Type.MISC, "NOP", 1, null, this);
     }
 
-    public void set(RegisterWord af, RegisterWord bc, RegisterWord de, RegisterWord hl, RegisterWord sp, RegisterWord pc, boolean ime, Instruction instruction) {
+    public synchronized void set(RegisterWord af, RegisterWord bc, RegisterWord de, RegisterWord hl, RegisterWord sp, RegisterWord pc, boolean ime, Instruction instruction) {
         this.af.write(af.read());
         this.bc.write(bc.read());
         this.de.write(de.read());
@@ -35,39 +35,39 @@ public class State {
         this.instruction.copyMeta(instruction);
     }
 
-    public RegisterWord getAf() {
+    public synchronized RegisterWord getAf() {
         return af;
     }
 
-    public RegisterWord getBc() {
+    public synchronized RegisterWord getBc() {
         return bc;
     }
 
-    public RegisterWord getDe() {
+    public synchronized RegisterWord getDe() {
         return de;
     }
 
-    public RegisterWord getHl() {
+    public synchronized RegisterWord getHl() {
         return hl;
     }
 
-    public RegisterWord getSp() {
+    public synchronized RegisterWord getSp() {
         return sp;
     }
 
-    public RegisterWord getPc() {
+    public synchronized RegisterWord getPc() {
         return pc;
     }
 
-    public boolean getIME() {
+    public synchronized boolean getIME() {
         return ime;
     }
 
-    public Instruction getInstruction() {
+    public synchronized Instruction getInstruction() {
         return instruction;
     }
 
-    public boolean hasFlag(int flag) {
+    public synchronized boolean hasFlag(int flag) {
         return (af.getLow().read() & flag) == flag;
     }
 

@@ -29,8 +29,8 @@ public class InputManager {
         }
     }
 
-    public void setButtonState(Button button, State state) {
-        if (state == State.PRESSED)
+    public synchronized void setButtonState(Button button, InputState state) {
+        if (state == InputState.PRESSED)
             requestedState &= ~button.getMask();
         else
             requestedState |= button.getMask();

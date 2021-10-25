@@ -8,6 +8,7 @@ import core.cpu.State;
 import core.memory.MMU;
 import core.ppu.helper.IMMUListener;
 
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
@@ -96,8 +97,7 @@ public class Debugger implements IMMUListener {
         breakpoints.remove(addr);
     }
 
-    public void clock() {
-        decompile();
+    public void breakpointCheck() {
         if (breakpoints.containsKey(cpuState.getInstruction().getAddr()) && breakpoints.get(cpuState.getInstruction().getAddr()).type() == BreakPoint.Type.EXEC) {
             gameboy.setState(GameBoyState.DEBUG);
             Logger.log(Logger.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (breakpoint reached (EXEC))");
@@ -117,6 +117,19 @@ public class Debugger implements IMMUListener {
                 gameboy.setState(GameBoyState.DEBUG);
                 Logger.log(Logger.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (write to " + String.format("%04X", addr) + ")");
             }
+        }
+    }
+
+    public void clock() {
+        if (isHooked(DebuggerMode.CPU))
+            decompile();
+        if (isHooked(DebuggerMode.PPU)) {
+            if (isHooked(DebuggerMode.OAMS))
+                gameboy.getPpu().computeOAM();
+            else if (isHooked(DebuggerMode.TILES))
+                gameboy.getPpu().computeTileTables();
+            else if (isHooked(DebuggerMode.TILEMAPS))
+                gameboy.getPpu().computeTileMaps();
         }
     }
 
@@ -159,10 +172,6 @@ public class Debugger implements IMMUListener {
         return sampleQueue;
     }
 
-    public core.ppu.State getPpuState() {
-        return ppuState;
-    }
-
     public int readCGBPalette(boolean obj_pal, int addr) {
         return gameboy.getMemory().readCGBPalette(obj_pal, addr);
     }
@@ -187,12 +196,20 @@ public class Debugger implements IMMUListener {
             memorySnapshot[i] = gameboy.getMemory().readByte(i, true);
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
-
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public synchronized ByteBuffer[] getTileTableBuffers() {
+        return ppuState.getTileTableBuffers();
+    }
+
+    public synchronized ByteBuffer[] getTileMapBuffers() {
+        return ppuState.getTileMapBuffers();
+    }
+
+    public synchronized ByteBuffer getOAMBuffer() {
+        return ppuState.getOAMBuffer();
     }
 }
 

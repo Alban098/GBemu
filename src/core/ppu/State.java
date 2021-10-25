@@ -9,8 +9,10 @@ public class State {
     private final ByteBuffer[] tileMaps;
     private final ByteBuffer[] tileTables;
     private final ByteBuffer oam_buffer;
+    private final PPU ppu;
 
-    public State() {
+    public State(PPU ppu) {
+        this.ppu = ppu;
         oam_buffer = BufferUtils.createByteBuffer(PPU.SCREEN_HEIGHT * PPU.SCREEN_WIDTH * 4);
         tileMaps = new ByteBuffer[]{
                 BufferUtils.createByteBuffer(256 * 256 * 4),

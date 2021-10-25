@@ -1,6 +1,6 @@
 package core.input;
 
-public enum State {
+public enum InputState {
     PRESSED,
     RELEASED
 }

@@ -36,6 +36,7 @@ public class PPU {
 
     private final Debugger debugger;
     private final State state;
+    private boolean isBufferUpdated = false;
 
     public PPU(GameBoy gameboy) {
         this.gameboy = gameboy;
@@ -43,12 +44,12 @@ public class PPU {
         screen_buffer = BufferUtils.createByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
         palettes = new ColorPalettes(memory);
         sprites = new TreeSet<>();
-        state = new State();
+        state = new State(this);
         debugger = gameboy.getDebugger();
         debugger.link(state);
     }
 
-    public ByteBuffer getScreenBuffer() {
+    public synchronized ByteBuffer getScreenBuffer() {
         return screen_buffer;
     }
 
@@ -59,14 +60,7 @@ public class PPU {
             off_cycles++;
             if (off_cycles >= gameboy.mode.cpu_cycles_per_frame) {
                 screen_buffer.clear();
-                if (debugger.isHooked(DebuggerMode.PPU)) {
-                    if (debugger.isHooked(DebuggerMode.TILES))
-                        computeTileTables();
-                    else if (debugger.isHooked(DebuggerMode.TILEMAPS))
-                        computeTileMaps();
-                    else if (debugger.isHooked(DebuggerMode.OAMS))
-                        computeOAM();
-                }
+                isBufferUpdated = true;
                 isFrameComplete = true;
                 off_cycles = 0;
             }
@@ -86,15 +80,8 @@ public class PPU {
         if (cycles >= gameboy.mode.cpu_cycles_per_vblank_scanline) {
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT) {
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, true);
-                if (debugger.isHooked(DebuggerMode.PPU)) {
-                    if (debugger.isHooked(DebuggerMode.TILES))
-                        computeTileTables();
-                    else if (debugger.isHooked(DebuggerMode.TILEMAPS))
-                        computeTileMaps();
-                    else if (debugger.isHooked(DebuggerMode.OAMS))
-                        computeOAM();
-                }
                 isFrameComplete = true;
+                isBufferUpdated = true;
                 screen_buffer.flip();
             }
 
@@ -351,7 +338,7 @@ public class PPU {
         }
     }
 
-    private void computeOAM() {
+    public synchronized void computeOAM() {
         state.getOAMBuffer().clear();
         int spriteSize = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_SIZE) ? 16 : 8;
         ColorShade color;
@@ -383,7 +370,7 @@ public class PPU {
         state.getOAMBuffer().flip();
     }
 
-    private void computeTileMaps() {
+    public synchronized void computeTileMaps() {
         int i = 0, tileIdAddr, tileId, cgb_tile_attr, cgb_vram_bank, cgb_palette_nb;
         boolean mode1 = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
         int scx = memory.readByte(MMU.SCX, true);
@@ -437,7 +424,7 @@ public class PPU {
         }
     }
 
-    private void computeTileTables() {
+    public synchronized void computeTileTables() {
         /*
             We iterate over rows of tiles
             for each row we iterate over each tile
@@ -494,5 +481,11 @@ public class PPU {
 
     public void setGamma(float gamma) {
         palettes.setGamma(gamma);
+    }
+
+    public boolean isBufferUpdated() {
+        boolean result = isBufferUpdated;
+        isBufferUpdated = false;
+        return result;
     }
 }

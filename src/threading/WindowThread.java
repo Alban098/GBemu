@@ -1,12 +1,13 @@
-package gui;
+package threading;
 
 import core.GameBoy;
 import core.GameBoyState;
 import core.input.Button;
-import core.input.State;
+import core.input.InputState;
 import core.ppu.PPU;
 import debug.DebuggerMode;
 import debug.Logger;
+import gui.*;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.extension.implot.ImPlot;
@@ -15,6 +16,7 @@ import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import imgui.type.ImBoolean;
+import net.beadsproject.beads.ugens.SignalReporter;
 import openGL.Texture;
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
@@ -28,7 +30,8 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
-public class Window {
+public class WindowThread {
+
     private final ImGuiImplGlfw imGuiGlfw = new ImGuiImplGlfw();
     private final ImGuiImplGl3 imGuiGl3 = new ImGuiImplGl3();
 
@@ -58,10 +61,12 @@ public class Window {
     private final ImBoolean consoleLayerVisible = new ImBoolean(false);
 
     private final ImBoolean debug = new ImBoolean(false);
+    private final GameBoyThread gameboyThread;
+    private final DebuggerThread debuggerThread;
 
-    public Window(GameBoy gameboy) {
+    public WindowThread(GameBoy gameboy, GameBoyThread gameBoyThread, DebuggerThread debuggerThread) {
         cpuLayer = new CPULayer(gameboy.getDebugger());
-        memoryLayer = new MemoryLayer(gameboy.getDebugger());
+        memoryLayer = new MemoryLayer(gameboy.getDebugger(), debuggerThread);
         serialOutputLayer = new SerialOutputLayer(gameboy.getDebugger());
         consoleLayer = new ConsoleLayer(gameboy.getDebugger());
         ppuLayer = new PPULayer(gameboy.getDebugger());
@@ -69,6 +74,8 @@ public class Window {
         settingsLayer = new SettingsLayer(gameboy.getDebugger());
 
         this.gameboy = gameboy;
+        this.gameboyThread = gameBoyThread;
+        this.debuggerThread = debuggerThread;
     }
 
     public void init() {
@@ -139,13 +146,20 @@ public class Window {
             ImGui.newFrame();
 
             handleInput();
-            tickEmulator();
+            handleDebugInputs();
             renderMenuBar();
             renderGameScreen();
             renderDebugLayers();
 
             ImGui.render();
             imGuiGl3.renderDrawData(ImGui.getDrawData());
+
+            synchronized (gameboyThread) {
+                gameboyThread.notify();
+            }
+            synchronized (debuggerThread) {
+                debuggerThread.notify();
+            }
 
             if (ImGui.getIO().hasConfigFlags(ImGuiConfigFlags.ViewportsEnable)) {
                 final long backupWindowPtr = org.lwjgl.glfw.GLFW.glfwGetCurrentContext();
@@ -158,29 +172,25 @@ public class Window {
         }
     }
 
-    private void tickEmulator() {
+    private void handleDebugInputs() {
         if (gameboy.hasCartridge()) {
             if (gameboy.isDebuggerHooked(DebuggerMode.CPU)) {
-                if (gameboy.getState() == GameBoyState.RUNNING)
-                    gameboy.executeFrames();
                 if (gameboy.getState() == GameBoyState.DEBUG) {
                     if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
-                        gameboy.executeInstructions(1, true);
+                        gameboyThread.requestInstructions(1);
                         isSpacePressed = true;
                     }
                     if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
                         isSpacePressed = false;
                     if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_PRESS && !isFPressed) {
-                        gameboy.forceFrame();
+                        gameboyThread.requestOneFrame();
                         isFPressed = true;
                     }
                     if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_RELEASE && isFPressed)
                         isFPressed = false;
                     if (glfwGetKey(windowPtr, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
-                        gameboy.executeInstructions(1000, false);
+                        gameboyThread.requestInstructions(1000);
                 }
-            } else {
-                gameboy.executeFrames();
             }
         }
     }
@@ -211,7 +221,8 @@ public class Window {
     }
 
     private void renderGameScreen() {
-        screen_texture.load(gameboy.getPpu().getScreenBuffer());
+        if (gameboy.getPpu().isBufferUpdated())
+            screen_texture.load(gameboy.getPpu().getScreenBuffer());
 
         glEnable(GL_TEXTURE_2D);
         screen_texture.bind();
@@ -307,43 +318,43 @@ public class Window {
 
     private void handleInput() {
         if (glfwGetKey(windowPtr, GLFW_KEY_W) == GLFW_PRESS)
-            gameboy.setButtonState(Button.UP, State.PRESSED);
+            gameboy.setButtonState(Button.UP, InputState.PRESSED);
         else
-            gameboy.setButtonState(Button.UP, State.RELEASED);
+            gameboy.setButtonState(Button.UP, InputState.RELEASED);
 
         if (glfwGetKey(windowPtr, GLFW_KEY_S) == GLFW_PRESS)
-            gameboy.setButtonState(Button.DOWN, State.PRESSED);
+            gameboy.setButtonState(Button.DOWN, InputState.PRESSED);
         else
-            gameboy.setButtonState(Button.DOWN, State.RELEASED);
+            gameboy.setButtonState(Button.DOWN, InputState.RELEASED);
 
         if (glfwGetKey(windowPtr, GLFW_KEY_A) == GLFW_PRESS)
-            gameboy.setButtonState(Button.LEFT, State.PRESSED);
+            gameboy.setButtonState(Button.LEFT, InputState.PRESSED);
         else
-            gameboy.setButtonState(Button.LEFT, State.RELEASED);
+            gameboy.setButtonState(Button.LEFT, InputState.RELEASED);
 
         if (glfwGetKey(windowPtr, GLFW_KEY_D) == GLFW_PRESS)
-            gameboy.setButtonState(Button.RIGHT, State.PRESSED);
+            gameboy.setButtonState(Button.RIGHT, InputState.PRESSED);
         else
-            gameboy.setButtonState(Button.RIGHT, State.RELEASED);
+            gameboy.setButtonState(Button.RIGHT, InputState.RELEASED);
 
         if (glfwGetKey(windowPtr, GLFW_KEY_I) == GLFW_PRESS)
-            gameboy.setButtonState(Button.A, State.PRESSED);
+            gameboy.setButtonState(Button.A, InputState.PRESSED);
         else
-            gameboy.setButtonState(Button.A, State.RELEASED);
+            gameboy.setButtonState(Button.A, InputState.RELEASED);
 
         if (glfwGetKey(windowPtr, GLFW_KEY_O) == GLFW_PRESS)
-            gameboy.setButtonState(Button.B, State.PRESSED);
+            gameboy.setButtonState(Button.B, InputState.PRESSED);
         else
-            gameboy.setButtonState(Button.B, State.RELEASED);
+            gameboy.setButtonState(Button.B, InputState.RELEASED);
 
         if (glfwGetKey(windowPtr, GLFW_KEY_K) == GLFW_PRESS)
-            gameboy.setButtonState(Button.START, State.PRESSED);
+            gameboy.setButtonState(Button.START, InputState.PRESSED);
         else
-            gameboy.setButtonState(Button.START, State.RELEASED);
+            gameboy.setButtonState(Button.START, InputState.RELEASED);
 
         if (glfwGetKey(windowPtr, GLFW_KEY_L) == GLFW_PRESS)
-            gameboy.setButtonState(Button.SELECT, State.PRESSED);
+            gameboy.setButtonState(Button.SELECT, InputState.PRESSED);
         else
-            gameboy.setButtonState(Button.SELECT, State.RELEASED);
+            gameboy.setButtonState(Button.SELECT, InputState.RELEASED);
     }
 }

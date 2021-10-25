@@ -5,7 +5,7 @@ import core.apu.APU;
 import core.cartridge.mbc.MBC3;
 import core.cpu.LR35902;
 import core.input.InputManager;
-import core.input.State;
+import core.input.InputState;
 import core.input.Button;
 import core.memory.MMU;
 import core.ppu.PPU;
@@ -49,7 +49,6 @@ public class GameBoy {
     public Debugger getDebugger() {
         return debugger;
     }
-
 
     public void insertCartridge(String file) throws Exception {
         memory.loadCart(file);
@@ -209,7 +208,7 @@ public class GameBoy {
         return apu.getNextSample();
     }
 
-    public void setButtonState(Button button, State state) {
+    public synchronized void setButtonState(Button button, InputState state) {
         inputManager.setButtonState(button, state);
     }
 

@@ -90,7 +90,7 @@ public class Instruction {
         boolean rel8 = name.contains("r8") && name.contains("jr") && parameters != null;
         boolean param16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
         StringBuilder op;
-        if (db) {
+        if (db && parameters != null) {
             op = new StringBuilder(String.format("$%04X", addr) + " : ");
             for (int i = 0; i < 3; i++)
                 op.append(String.format("%02X ", parameters[i]));
@@ -99,11 +99,11 @@ public class Instruction {
                 op.append(String.format("%02X ", parameter));
         } else {
             op = new StringBuilder(String.format("$%04X", addr) + " : " + String.format("%02X ", opcode));
-            if (param8)
+            if (param8 && parameters != null)
                 op.append(String.format("%02X   ", parameters[0])).append("   | ").append(name.replaceAll(".8", String.format("%02X", parameters[0])));
-            else if (param16)
+            else if (param16 && parameters != null)
                 op.append(String.format("%02X ", parameters[0])).append(String.format("%02X", parameters[1])).append("   | ").append(name.replaceAll(".16", String.format("%04X", parameters[0] | (parameters[1] << 8))));
-            else if (rel8)
+            else if (rel8 && parameters != null)
                 op.append(String.format("%02X   ", parameters[0])).append("   | ").append(name.replaceAll("r8", String.format("%04X", addr + length + signedByte(parameters[0]))));
             else
                 op.append("        | ").append(name);

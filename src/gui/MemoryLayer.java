@@ -2,21 +2,23 @@ package gui;
 
 import debug.Debugger;
 import imgui.ImGui;
-import imgui.flag.ImGuiSliderFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
+import threading.DebuggerThread;
 
 public class MemoryLayer extends AbstractDebugLayer {
 
     private static final int HIGHLIGH_DURATION = 64;
+    private final DebuggerThread debuggerThread;
     private int highlight = -1;
     private int highlight_cooldown = 0;
     private final ImString goTo = new ImString();
     private final ImBoolean gradient = new ImBoolean();
     private final int[] currentPage = new int[1];
 
-    public MemoryLayer(Debugger debugger) {
+    public MemoryLayer(Debugger debugger, DebuggerThread debuggerThread) {
         super(debugger);
+        this.debuggerThread = debuggerThread;
     }
 
     public void render() {

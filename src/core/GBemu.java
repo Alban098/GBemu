@@ -2,11 +2,15 @@ package core;
 
 import audio.AudioEngine;
 import core.settings.SettingsContainer;
-import gui.Window;
+import threading.DebuggerThread;
+import threading.GameBoyThread;
+import threading.WindowThread;
 
 public class GBemu {
 
-    private final Window window;
+    private final WindowThread windowThread;
+    private final GameBoyThread gameboyThread;
+    private final DebuggerThread debuggerThread;
 
     public GBemu(String configFile) {
         SettingsContainer.getInstance();
@@ -14,14 +18,22 @@ public class GBemu {
         SettingsContainer.hook(gameboy);
         SettingsContainer.loadFile(configFile);
         AudioEngine.getInstance().linkGameboy(gameboy);
-        window = new Window(gameboy);
-        window.init();
+        gameboyThread = new GameBoyThread(gameboy);
+        debuggerThread = new DebuggerThread(gameboy.getDebugger());
+        windowThread = new WindowThread(gameboy, gameboyThread, debuggerThread);
+        windowThread.init();
     }
 
-    public void run() {
+    public void run() throws InterruptedException {
         AudioEngine.getInstance().start();
-        window.run();
-        window.destroy();
+        gameboyThread.start();
+        debuggerThread.start();
+        windowThread.run();
+        windowThread.destroy();
+        gameboyThread.shouldExit();
+        debuggerThread.shouldExit();
+        gameboyThread.join();
+        debuggerThread.join();
         AudioEngine.getInstance().stop();
     }
 }

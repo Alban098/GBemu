@@ -607,13 +607,13 @@ public class LR35902 {
                 fetchInstruction();
                 state.set(af, bc, de, hl, sp, pc, ime, next_instr);
                 if (debugger.isHooked(DebuggerMode.CPU))
-                    debugger.clock();
+                    debugger.breakpointCheck();
             }
         } else if (handleInterrupts()) {
             fetchInstruction();
             state.set(af, bc, de, hl, sp, pc, ime, next_instr);
             if (debugger.isHooked(DebuggerMode.CPU))
-                debugger.clock();
+                debugger.breakpointCheck();
         }
         return opcode_mcycle;
     }
