@@ -2,6 +2,10 @@
 
 > An experimental Game Boy Emulator written in Java
 
+<p align="center">
+  <img src="img/bootstrap2_DX.gif" />
+</p>
+
 | Game Boy Color | Game Boy |
 |---|---|
 |![Zelda : Link's Awakening DX](img/zelda_DX.gif)|![Zelda : Link's Awakening](img/zelda.gif)|
