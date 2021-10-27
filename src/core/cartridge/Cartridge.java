@@ -1,8 +1,8 @@
 package core.cartridge;
 
+import console.Console;
 import core.GameBoy;
 import core.cartridge.mbc.*;
-import debug.Logger;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -124,7 +124,7 @@ public class Cartridge {
             try {
                 Files.write(path, ram_export, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             } catch (IOException e) {
-                Logger.log(Logger.Type.ERROR, e.getMessage());
+                Console.getInstance().log(Console.Type.ERROR, e.getMessage());
             }
         }
     }
@@ -141,7 +141,7 @@ public class Cartridge {
                     ((MBC3)mbc).restoreRTC(ram.length, bytes);
                 }
             } catch (IOException e) {
-                Logger.log(Logger.Type.ERROR, e.getMessage());
+                Console.getInstance().log(Console.Type.ERROR, e.getMessage());
             }
         }
     }

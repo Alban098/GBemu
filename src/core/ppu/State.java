@@ -1,42 +1,41 @@
 package core.ppu;
 
+import openGL.SwappingByteBuffer;
 import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
 
 public class State {
 
-    private final ByteBuffer[] tileMaps;
-    private final ByteBuffer[] tileTables;
-    private final ByteBuffer oam_buffer;
-    private final PPU ppu;
+    private final SwappingByteBuffer[] tileMaps;
+    private final SwappingByteBuffer[] tileTables;
+    private final SwappingByteBuffer oam_buffer;
 
-    public State(PPU ppu) {
-        this.ppu = ppu;
-        oam_buffer = BufferUtils.createByteBuffer(PPU.SCREEN_HEIGHT * PPU.SCREEN_WIDTH * 4);
-        tileMaps = new ByteBuffer[]{
-                BufferUtils.createByteBuffer(256 * 256 * 4),
-                BufferUtils.createByteBuffer(256 * 256 * 4)
+    public State() {
+        oam_buffer = new SwappingByteBuffer(PPU.SCREEN_HEIGHT * PPU.SCREEN_WIDTH * 4);
+        tileMaps = new SwappingByteBuffer[]{
+                new SwappingByteBuffer(256 * 256 * 4),
+                new SwappingByteBuffer(256 * 256 * 4)
         };
-        tileTables = new ByteBuffer[]{
-                BufferUtils.createByteBuffer(128 * 64 * 4),
-                BufferUtils.createByteBuffer(128 * 64 * 4),
-                BufferUtils.createByteBuffer(128 * 64 * 4),
-                BufferUtils.createByteBuffer(128 * 64 * 4),
-                BufferUtils.createByteBuffer(128 * 64 * 4),
-                BufferUtils.createByteBuffer(128 * 64 * 4)
+        tileTables = new SwappingByteBuffer[]{
+                new SwappingByteBuffer(128 * 64 * 4),
+                new SwappingByteBuffer(128 * 64 * 4),
+                new SwappingByteBuffer(128 * 64 * 4),
+                new SwappingByteBuffer(128 * 64 * 4),
+                new SwappingByteBuffer(128 * 64 * 4),
+                new SwappingByteBuffer(128 * 64 * 4)
         };
     }
 
-    public ByteBuffer getOAMBuffer() {
+    public SwappingByteBuffer getOAMBuffer() {
         return oam_buffer;
     }
 
-    public ByteBuffer[] getTileMapBuffers() {
+    public SwappingByteBuffer[] getTileMapBuffers() {
         return tileMaps;
     }
 
-    public ByteBuffer[] getTileTableBuffers() {
+    public SwappingByteBuffer[] getTileTableBuffers() {
         return tileTables;
     }
 

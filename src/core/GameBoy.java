@@ -1,6 +1,7 @@
 package core;
 
 import audio.AudioEngine;
+import console.Console;
 import core.apu.APU;
 import core.cartridge.mbc.MBC3;
 import core.cpu.LR35902;
@@ -13,7 +14,6 @@ import core.ppu.helper.ColorShade;
 import core.settings.SettingsContainer;
 import debug.Debugger;
 import debug.DebuggerMode;
-import debug.Logger;
 
 import java.awt.*;
 
@@ -117,7 +117,7 @@ public class GameBoy {
         memory.writeRaw(MMU.CGB_OCPS_OBPI, 0xFF);
         memory.writeRaw(MMU.CGB_OCPD_OBPD, 0xFF);
         memory.writeRaw(MMU.CGB_WRAM_BANK, 0xFF);
-        Logger.log(Logger.Type.INFO, "Emulation reset");
+        Console.getInstance().log(Console.Type.INFO, "Emulation reset");
         cpu.init();
     }
 

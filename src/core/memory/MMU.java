@@ -5,6 +5,8 @@ import core.GameBoy;
 import core.cartridge.Cartridge;
 import core.ppu.LCDMode;
 import core.ppu.helper.IMMUListener;
+import debug.Debugger;
+import debug.DebuggerMode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,7 +68,6 @@ public class MMU {
     public static final int CGB_BCPD_BGPD       = 0xFF69;
     public static final int CGB_OCPS_OBPI       = 0xFF6A;
     public static final int CGB_OCPD_OBPD       = 0xFF6B;
-    public static final int CGB_OPRI            = 0xFF6C;
     public static final int CGB_WRAM_BANK       = 0xFF70;
     public static final int IE                  = 0xFFFF;
 
@@ -106,7 +107,7 @@ public class MMU {
     private StringBuilder serialOutput;
     private LCDMode ppuMode = LCDMode.H_BLANK;
     private final List<IMMUListener> listeners;
-
+    private Debugger debugger;
 
     public MMU(GameBoy gb) {
         serialOutput = new StringBuilder();
@@ -220,12 +221,9 @@ public class MMU {
             if (cartridge != null)
                 cartridge.write(addr, data);
         } else if (addr <= 0x9FFF) {
-            if (gameboy.mode == GameBoy.Mode.CGB && (readByte(CGB_VRAM_BANK) & 0x01) == 0x1) {
-                if (data != 0) {
-                    int a = (addr & 0x1FFF) + (0x2000 * (readByte(CGB_VRAM_BANK) & 0x01));
-                }
+            if (gameboy.mode == GameBoy.Mode.CGB && (readByte(CGB_VRAM_BANK) & 0x01) == 0x1)
                 vram[(addr & 0x1FFF) + (0x2000 * (readByte(CGB_VRAM_BANK) & 0x01))] = data;
-            } else
+            else
                 vram[addr & 0x1FFF] = data;
         } else if (addr <= 0xBFFF) {
             if (cartridge != null)
@@ -275,6 +273,9 @@ public class MMU {
         }
         for (IMMUListener listener : listeners)
             listener.onWriteToMMU(addr, data);
+
+        if (debugger.isHooked(DebuggerMode.MEMORY))
+            debugger.writeByte(addr, data);
     }
 
     private void executeHdmaTransfer(int data) {
@@ -288,11 +289,11 @@ public class MMU {
             hdma_remaining_cycles = length;
             for (int i = 0; i < length; i++)
                 writeRaw(dest + i, readByte(source + i, true));
-            io_registers[CGB_HDMA1 & 0x7F] = 0xFF;
-            io_registers[CGB_HDMA2 & 0x7F] = 0xFF;
-            io_registers[CGB_HDMA3 & 0x7F] = 0xFF;
-            io_registers[CGB_HDMA4 & 0x7F] = 0xFF;
-            io_registers[CGB_HDMA5 & 0x7F] = 0xFF;
+            writeRaw(CGB_HDMA1, 0xFF);
+            writeRaw(CGB_HDMA2, 0xFF);
+            writeRaw(CGB_HDMA3, 0xFF);
+            writeRaw(CGB_HDMA4, 0xFF);
+            writeRaw(CGB_HDMA5, 0xFF);
         } else {
             hdma_current_source = source;
             hdma_current_dest = dest;
@@ -339,6 +340,9 @@ public class MMU {
         }
         for (IMMUListener listener : listeners)
             listener.onWriteToMMU(addr, data);
+
+        if (debugger.isHooked(DebuggerMode.MEMORY))
+            debugger.writeByte(addr, data);
     }
 
     private void executeDmaTransfer(int data) {
@@ -354,10 +358,12 @@ public class MMU {
     }
 
     public void writeIORegisterBit(int register, int flag, boolean value) {
-        if(value)
-            io_registers[register & 0x7F] |= flag;
+        int toWrite;
+        if (value)
+            toWrite = io_registers[register & 0x7F] | flag;
         else
-            io_registers[register & 0x7F] &= ~flag;
+            toWrite = io_registers[register & 0x7F] & ~flag;
+        writeRaw(register, toWrite);
     }
 
     public LCDMode readLcdMode() {
@@ -406,5 +412,9 @@ public class MMU {
 
     public void loadBootstrap(GameBoy.Mode mode, String file) {
         bootstrap.loadBootstrap(mode, file);
+    }
+
+    public void linkDebugger(Debugger debugger) {
+        this.debugger = debugger;
     }
 }

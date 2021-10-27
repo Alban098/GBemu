@@ -52,12 +52,12 @@ public class PPULayer extends AbstractDebugLayer {
                 debugger.setHooked(DebuggerMode.OAMS, false);
                 if (cgbMode) {
                     synchronized (debugger) {
-                        tileTables[0][0].load(debugger.getTileTableBuffers()[0]);
-                        tileTables[0][1].load(debugger.getTileTableBuffers()[1]);
-                        tileTables[0][2].load(debugger.getTileTableBuffers()[2]);
-                        tileTables[1][0].load(debugger.getTileTableBuffers()[3]);
-                        tileTables[1][1].load(debugger.getTileTableBuffers()[4]);
-                        tileTables[1][2].load(debugger.getTileTableBuffers()[5]);
+                        tileTables[0][0].load(debugger.getTileTableBuffer(0).getBuffer());
+                        tileTables[0][1].load(debugger.getTileTableBuffer(1).getBuffer());
+                        tileTables[0][2].load(debugger.getTileTableBuffer(2).getBuffer());
+                        tileTables[1][0].load(debugger.getTileTableBuffer(3).getBuffer());
+                        tileTables[1][1].load(debugger.getTileTableBuffer(4).getBuffer());
+                        tileTables[1][2].load(debugger.getTileTableBuffer(5).getBuffer());
                     }
                     ImGui.setWindowSize(535, 450);
                     ImGui.image(tileTables[0][0].getID(), 128 * 2, 64 * 2);
@@ -71,9 +71,9 @@ public class PPULayer extends AbstractDebugLayer {
                     ImGui.image(tileTables[1][2].getID(), 128 * 2, 64 * 2);
                 } else {
                     synchronized (debugger) {
-                        tileTables[0][0].load(debugger.getTileTableBuffers()[0]);
-                        tileTables[0][1].load(debugger.getTileTableBuffers()[1]);
-                        tileTables[0][2].load(debugger.getTileTableBuffers()[2]);
+                        tileTables[0][0].load(debugger.getTileTableBuffer(0).getBuffer());
+                        tileTables[0][1].load(debugger.getTileTableBuffer(1).getBuffer());
+                        tileTables[0][2].load(debugger.getTileTableBuffer(2).getBuffer());
                     }
                     ImGui.setWindowSize(270, 450);
                     ImGui.image(tileTables[0][0].getID(), 128 * 2, 64 * 2);
@@ -115,8 +115,8 @@ public class PPULayer extends AbstractDebugLayer {
                 debugger.setHooked(DebuggerMode.TILEMAPS, true);
                 debugger.setHooked(DebuggerMode.OAMS, false);
                 synchronized (debugger) {
-                    tileMaps[0].load(debugger.getTileMapBuffers()[0]);
-                    tileMaps[1].load(debugger.getTileMapBuffers()[1]);
+                    tileMaps[0].load(debugger.getTileMapBuffer(0).getBuffer());
+                    tileMaps[1].load(debugger.getTileMapBuffer(1).getBuffer());
                 }
                 ImGui.setWindowSize(535, 315);
                 ImGui.image(tileMaps[0].getID(), 256, 256);
@@ -130,7 +130,7 @@ public class PPULayer extends AbstractDebugLayer {
                 debugger.setHooked(DebuggerMode.TILEMAPS, false);
                 debugger.setHooked(DebuggerMode.OAMS, true);
                 synchronized (debugger) {
-                    oam.load(debugger.getOAMBuffer());
+                    oam.load(debugger.getOAMBuffer().getBuffer());
                 }
                 ImGui.setWindowSize(1068, 485);
                 ImGui.newLine();

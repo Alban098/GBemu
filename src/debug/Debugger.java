@@ -1,5 +1,6 @@
 package debug;
 
+import console.Console;
 import core.GameBoy;
 import core.GameBoyState;
 import core.apu.Sample;
@@ -7,14 +8,14 @@ import core.cpu.Instruction;
 import core.cpu.State;
 import core.memory.MMU;
 import core.ppu.helper.IMMUListener;
+import openGL.SwappingByteBuffer;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class Debugger implements IMMUListener {
+public class Debugger {
 
     private static final int DECOMPILE_SIZE = 0x08;
 
@@ -57,7 +58,7 @@ public class Debugger implements IMMUListener {
     }
 
     public void link(MMU memory) {
-        memory.addListener(this);
+        memory.linkDebugger(this);
     }
 
     private void decompile() {
@@ -100,14 +101,14 @@ public class Debugger implements IMMUListener {
     public void breakpointCheck() {
         if (breakpoints.containsKey(cpuState.getInstruction().getAddr()) && breakpoints.get(cpuState.getInstruction().getAddr()).type() == BreakPoint.Type.EXEC) {
             gameboy.setState(GameBoyState.DEBUG);
-            Logger.log(Logger.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (breakpoint reached (EXEC))");
+            Console.getInstance().log(Console.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (breakpoint reached (EXEC))");
         }
 
         if (cpuState.getInstruction().getType() == Instruction.Type.R || cpuState.getInstruction().getType() == Instruction.Type.RW) {
             int addr = cpuState.getInstruction().getParamAddress();
             if (breakpoints.containsKey(addr) && breakpoints.get(addr).type() == BreakPoint.Type.READ) {
                 gameboy.setState(GameBoyState.DEBUG);
-                Logger.log(Logger.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (read from " + String.format("%04X", addr) + ")");
+                Console.getInstance().log(Console.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (read from " + String.format("%04X", addr) + ")");
             }
         }
 
@@ -115,7 +116,7 @@ public class Debugger implements IMMUListener {
             int addr = cpuState.getInstruction().getParamAddress();
             if (breakpoints.containsKey(addr) && breakpoints.get(addr).type() == BreakPoint.Type.WRITE) {
                 gameboy.setState(GameBoyState.DEBUG);
-                Logger.log(Logger.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (write to " + String.format("%04X", addr) + ")");
+                Console.getInstance().log(Console.Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (write to " + String.format("%04X", addr) + ")");
             }
         }
     }
@@ -159,9 +160,8 @@ public class Debugger implements IMMUListener {
         hookedModes.put(mode, hooked);
     }
 
-    @Override
-    public void onWriteToMMU(int addr, int data) {
-        memorySnapshot[addr] = gameboy.getMemory().readByte(addr, true);
+    public void writeByte(int addr, int data) {
+        memorySnapshot[addr] = data;
     }
 
     public void setGameboyState(GameBoyState state) {
@@ -200,16 +200,20 @@ public class Debugger implements IMMUListener {
         this.enabled = enabled;
     }
 
-    public synchronized ByteBuffer[] getTileTableBuffers() {
-        return ppuState.getTileTableBuffers();
+    public synchronized SwappingByteBuffer getTileTableBuffer(int index) {
+        return ppuState.getTileTableBuffers()[index];
     }
 
-    public synchronized ByteBuffer[] getTileMapBuffers() {
-        return ppuState.getTileMapBuffers();
+    public synchronized SwappingByteBuffer getTileMapBuffer(int index) {
+        return ppuState.getTileMapBuffers()[index];
     }
 
-    public synchronized ByteBuffer getOAMBuffer() {
+    public synchronized SwappingByteBuffer getOAMBuffer() {
         return ppuState.getOAMBuffer();
+    }
+
+    public boolean isEnabled() {
+        return enabled;
     }
 }
 

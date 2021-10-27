@@ -7,10 +7,9 @@ import core.memory.MMU;
 import core.ppu.helper.ColorPalettes;
 import core.ppu.helper.ColorShade;
 import core.ppu.helper.Sprite;
-import debug.Debugger;
-import debug.DebuggerMode;
-import org.lwjgl.BufferUtils;
+import openGL.SwappingByteBuffer;
 
+import java.awt.*;
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -22,7 +21,7 @@ public class PPU {
     public static final int SCREEN_HEIGHT = 144;
     private static final int MAX_SPRITES_PER_SCANLINE = 10;
 
-    private final ByteBuffer screen_buffer;
+    private final SwappingByteBuffer screen_buffer;
     private Collection<Sprite> sprites;
 
     private final MMU memory;
@@ -34,23 +33,20 @@ public class PPU {
     private boolean isFrameComplete;
     private int off_cycles = 0;
 
-    private final Debugger debugger;
     private final State state;
-    private boolean isBufferUpdated = false;
 
     public PPU(GameBoy gameboy) {
         this.gameboy = gameboy;
         this.memory = gameboy.getMemory();
-        screen_buffer = BufferUtils.createByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
+        screen_buffer = new SwappingByteBuffer(SCREEN_HEIGHT * SCREEN_WIDTH * 4);
         palettes = new ColorPalettes(memory);
         sprites = new TreeSet<>();
-        state = new State(this);
-        debugger = gameboy.getDebugger();
-        debugger.link(state);
+        state = new State();
+        gameboy.getDebugger().link(state);
     }
 
     public synchronized ByteBuffer getScreenBuffer() {
-        return screen_buffer;
+        return screen_buffer.getBuffer();
     }
 
     public void clock() {
@@ -59,8 +55,7 @@ public class PPU {
             //prevent rendering routine from getting stuck when LCD is off
             off_cycles++;
             if (off_cycles >= gameboy.mode.cpu_cycles_per_frame) {
-                screen_buffer.clear();
-                isBufferUpdated = true;
+                screen_buffer.swap();
                 isFrameComplete = true;
                 off_cycles = 0;
             }
@@ -81,12 +76,10 @@ public class PPU {
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT) {
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, true);
                 isFrameComplete = true;
-                isBufferUpdated = true;
-                screen_buffer.flip();
+                screen_buffer.swap();
             }
 
             if (memory.readByte(MMU.LY, true) == 154) {
-                screen_buffer.clear();
                 memory.writeRaw(MMU.LY, 0);
                 switchToLCDMode(LCDMode.OAM);
             } else {
@@ -233,12 +226,7 @@ public class PPU {
                 else
                     finalColor = spriteColor;
                 
-                if (screen_buffer.position() < screen_buffer.limit()) {
-                    screen_buffer.put((byte) finalColor.getColor().getRed());
-                    screen_buffer.put((byte) finalColor.getColor().getGreen());
-                    screen_buffer.put((byte) finalColor.getColor().getBlue());
-                    screen_buffer.put((byte) 255);
-                }
+                screen_buffer.put(finalColor.getColor());
             }
 
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT - 1)
@@ -361,13 +349,10 @@ public class PPU {
                             break;
                     }
                 }
-                state.getOAMBuffer().put((byte) color.getColor().getRed());
-                state.getOAMBuffer().put((byte) color.getColor().getGreen());
-                state.getOAMBuffer().put((byte) color.getColor().getBlue());
-                state.getOAMBuffer().put((byte) color.getColor().getAlpha());
+                state.getOAMBuffer().put(color.getColor());
             }
         }
-        state.getOAMBuffer().flip();
+        state.getOAMBuffer().swap();
     }
 
     public synchronized void computeTileMaps() {
@@ -376,7 +361,7 @@ public class PPU {
         int scx = memory.readByte(MMU.SCX, true);
         int scy = memory.readByte(MMU.SCY, true);
         ColorShade color;
-        for (ByteBuffer tileMap : state.getTileMapBuffers()) {
+        for (SwappingByteBuffer tileMap : state.getTileMapBuffers()) {
             tileMap.clear();
             for (int y = 0; y < 256; y++) {
                 for (int x = 0; x < 256; x++) {
@@ -384,10 +369,7 @@ public class PPU {
                         (y == ((scy + 144) & 0xFF) && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
                         (x == scx && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF))) ||
                         (x == ((scx + 160) & 0xFF) && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF))))) {
-                        tileMap.put((byte) 255);
-                        tileMap.put((byte) 0);
-                        tileMap.put((byte) 0);
-                        tileMap.put((byte) 255);
+                        tileMap.put(Color.RED);
                     } else {
                         tileIdAddr = (i == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | (x >> 3) | ((y & 0xF8) << 2);
                         if (gameboy.mode == GameBoy.Mode.CGB) {
@@ -412,14 +394,11 @@ public class PPU {
                             color = palettes.getBgPalette().colors[getTileColorIndex(0, mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7)];
                         }
 
-                        tileMap.put((byte) color.getColor().getRed());
-                        tileMap.put((byte) color.getColor().getGreen());
-                        tileMap.put((byte) color.getColor().getBlue());
-                        tileMap.put((byte) 255);
+                        tileMap.put(color.getColor());
                     }
                 }
             }
-            tileMap.flip();
+            tileMap.swap();
             i++;
         }
     }
@@ -432,7 +411,7 @@ public class PPU {
             this ensure that pixels are pushed to the ByteBuffer in the correct order
         */
         int i = 0;
-        for (ByteBuffer tileTable : state.getTileTableBuffers()) {
+        for (SwappingByteBuffer tileTable : state.getTileTableBuffers()) {
             if (gameboy.mode == GameBoy.Mode.DMG && i == 4)
                 break;
             tileTable.clear();
@@ -445,15 +424,12 @@ public class PPU {
                         //Iterate over each pixel of the tile line
                         for (int x = 0; x < 8; x++) {
                             ColorShade color = palettes.getBgPalette().colors[getTileColorIndex((i > 2) ? 1 : 0, i % 3, tileId, x, y)];
-                            tileTable.put((byte) color.getColor().getRed());
-                            tileTable.put((byte) color.getColor().getGreen());
-                            tileTable.put((byte) color.getColor().getBlue());
-                            tileTable.put((byte) 255);
+                            tileTable.put(color.getColor());
                         }
                     }
                 }
             }
-            tileTable.flip();
+            tileTable.swap();
             i++;
         }
     }
@@ -481,11 +457,5 @@ public class PPU {
 
     public void setGamma(float gamma) {
         palettes.setGamma(gamma);
-    }
-
-    public boolean isBufferUpdated() {
-        boolean result = isBufferUpdated;
-        isBufferUpdated = false;
-        return result;
     }
 }

@@ -1,12 +1,12 @@
 package threading;
 
+import console.Console;
 import core.GameBoy;
 import core.GameBoyState;
 import core.input.Button;
 import core.input.InputState;
 import core.ppu.PPU;
 import debug.DebuggerMode;
-import debug.Logger;
 import gui.*;
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -16,15 +16,21 @@ import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import imgui.type.ImBoolean;
-import net.beadsproject.beads.ugens.SignalReporter;
 import openGL.Texture;
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
+import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.stb.STBImage;
+import org.lwjgl.system.MemoryStack;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.util.Objects;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -62,11 +68,12 @@ public class WindowThread {
 
     private final ImBoolean debug = new ImBoolean(false);
     private final GameBoyThread gameboyThread;
-    private final DebuggerThread debuggerThread;
+    private DebuggerThread debuggerThread;
+    private ConsoleThread consoleThread;
 
-    public WindowThread(GameBoy gameboy, GameBoyThread gameBoyThread, DebuggerThread debuggerThread) {
+    public WindowThread(GameBoy gameboy, GameBoyThread gameBoyThread) {
         cpuLayer = new CPULayer(gameboy.getDebugger());
-        memoryLayer = new MemoryLayer(gameboy.getDebugger(), debuggerThread);
+        memoryLayer = new MemoryLayer(gameboy.getDebugger());
         serialOutputLayer = new SerialOutputLayer(gameboy.getDebugger());
         consoleLayer = new ConsoleLayer(gameboy.getDebugger());
         ppuLayer = new PPULayer(gameboy.getDebugger());
@@ -75,7 +82,6 @@ public class WindowThread {
 
         this.gameboy = gameboy;
         this.gameboyThread = gameBoyThread;
-        this.debuggerThread = debuggerThread;
     }
 
     public void init() {
@@ -92,6 +98,10 @@ public class WindowThread {
         imGuiGlfw.dispose();
         screen_texture.cleanUp();
         ppuLayer.cleanUp();
+        if (consoleThread != null)
+            consoleThread.kill();
+        if (debuggerThread != null)
+            debuggerThread.kill();
         ImPlot.destroyContext(plotCtx);
         ImGui.destroyContext();
         Callbacks.glfwFreeCallbacks(windowPtr);
@@ -124,6 +134,13 @@ public class WindowThread {
         }
 
         glfwMakeContextCurrent(windowPtr);
+        GLFWImage logo = GLFWImage.malloc();
+        GLFWImage.Buffer logoBuf = GLFWImage.malloc(1);
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            logo.set(87, 87, Objects.requireNonNull(STBImage.stbi_load("logo.png", stack.mallocInt(1), stack.mallocInt(1), stack.mallocInt(1), 4)));
+            logoBuf.put(0, logo);
+        }
+        glfwSetWindowIcon(windowPtr, logoBuf);
         glfwSwapInterval(1);
         glfwShowWindow(windowPtr);
 
@@ -157,8 +174,10 @@ public class WindowThread {
             synchronized (gameboyThread) {
                 gameboyThread.notify();
             }
-            synchronized (debuggerThread) {
-                debuggerThread.notify();
+            if (gameboy.getDebugger().isEnabled()) {
+                synchronized (debuggerThread) {
+                    debuggerThread.notify();
+                }
             }
 
             if (ImGui.getIO().hasConfigFlags(ImGuiConfigFlags.ViewportsEnable)) {
@@ -221,8 +240,7 @@ public class WindowThread {
     }
 
     private void renderGameScreen() {
-        if (gameboy.getPpu().isBufferUpdated())
-            screen_texture.load(gameboy.getPpu().getScreenBuffer());
+        screen_texture.load(gameboy.getPpu().getScreenBuffer());
 
         glEnable(GL_TEXTURE_2D);
         screen_texture.bind();
@@ -255,7 +273,7 @@ public class WindowThread {
                         gameboy.insertCartridge(chooser.getSelectedFile().getAbsolutePath());
                         gameboy.setState(GameBoyState.RUNNING);
                     } catch (Exception e) {
-                        Logger.log(Logger.Type.ERROR, "Invalid file : " + e.getMessage());
+                        Console.getInstance().log(Console.Type.ERROR, "Invalid file : " + e.getMessage());
                     }
 
                 }
@@ -279,8 +297,16 @@ public class WindowThread {
         }
 
         if (ImGui.beginMenu("Debug")) {
-            if (ImGui.checkbox("Debug features", debug))
+            if (ImGui.checkbox("Debug features", debug)) {
                 gameboy.getDebugger().setEnabled(debug.get());
+                if (debug.get()) {
+                    debuggerThread = new DebuggerThread(gameboy.getDebugger());
+                    debuggerThread.start();
+                } else {
+                    debuggerThread.kill();
+                    consoleThread.kill();
+                }
+            }
             if (debug.get()) {
                 ImGui.separator();
                 if (ImGui.checkbox("CPU Inspector", cpuLayerVisible))
@@ -294,8 +320,16 @@ public class WindowThread {
                 ImGui.separator();
                 if (ImGui.checkbox("Serial Output", serialOutputLayerVisible))
                     serialOutputLayer.setVisible(serialOutputLayerVisible.get());
-                if (ImGui.checkbox("Console", consoleLayerVisible))
+                if (ImGui.checkbox("Console", consoleLayerVisible)) {
                     consoleLayer.setVisible(consoleLayerVisible.get());
+                    if (consoleLayer.isVisible()) {
+                        consoleThread = new ConsoleThread(gameboy.getDebugger());
+                        consoleThread.start();
+                        consoleLayer.hookThread(consoleThread);
+                    } else {
+                        consoleThread.kill();
+                    }
+                }
             }
 
             gameboy.getDebugger().setHooked(DebuggerMode.CPU, cpuLayerVisible.get());

@@ -2,8 +2,8 @@ package core.settings;
 
 import audio.AudioEngine;
 import audio.AudioOutput;
+import console.Console;
 import core.GameBoy;
-import debug.Logger;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiInputTextFlags;
@@ -72,7 +72,7 @@ public class SettingsContainer {
                             throw new Exception("Invalid DMG Size (must be 256 bytes");
                         gameboy.propagateSetting(setting);
                     } catch (Exception e) {
-                        Logger.log(Logger.Type.ERROR, "Invalid file : " + e.getMessage());
+                        Console.getInstance().log(Console.Type.ERROR, "Invalid file : " + e.getMessage());
                     }
                 }
             }
@@ -94,7 +94,7 @@ public class SettingsContainer {
                             throw new Exception("Invalid CGB Size (must be 2304 bytes");
                         gameboy.propagateSetting(setting);
                     } catch (Exception e) {
-                        Logger.log(Logger.Type.ERROR, "Invalid file : " + e.getMessage());
+                        Console.getInstance().log(Console.Type.ERROR, "Invalid file : " + e.getMessage());
                     }
                 }
             }

@@ -79,6 +79,12 @@
 - Display emulator information (Emulation reset, Breakpoint reached ...)
 - Enabled user to enter commands (for now just 'help' and breakpoints)
   
+#### Multithreading
+Each of the following features run on a dedicated thread :
+- Gameboy core hardware (CPU, APU, PPU, MMU, Timers, Cartridge)
+- Windows rendering routines (Screen rendering, ImGui Layers, Input capture, Console command (Forwarded to the Console Thread))
+- Debugger (CPU and MMU snapshots, breakpoint system, PPU Debug rendering, APU Visualizer and Serial Output)
+- Console interpreter
 ---
 
 ## How to Use
@@ -115,6 +121,7 @@ To launch the Emulator set the Main Class to ```Main.java```
 * [x] MBC5
 * [x] Game Boy Color features
 * [x] Settings pannel (Inputs, Audio, Graphics ...)
+* [x] Multithreading
 * [ ] Input customization
 * [ ] Javadoc
 

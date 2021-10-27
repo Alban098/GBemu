@@ -1,23 +1,20 @@
 package threading;
 
-import core.GameBoy;
-import core.GameBoyState;
 import debug.Debugger;
-import debug.DebuggerMode;
 
-public class DebuggerThread extends Thread {
+public class DebuggerThread extends GBemuThread {
 
-    private boolean shouldExit = false;
     private final Debugger debugger;
 
     public DebuggerThread(Debugger debugger) {
+        super();
         this.debugger = debugger;
     }
 
     @Override
     public void run() {
         try {
-            while(!shouldExit) {
+            while(!shouldExit.get()) {
                 debugger.clock();
                 synchronized (this) {
                     wait();
@@ -26,9 +23,5 @@ public class DebuggerThread extends Thread {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-    }
-
-    public void shouldExit() {
-        shouldExit = true;
     }
 }

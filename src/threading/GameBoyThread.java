@@ -4,21 +4,24 @@ import core.GameBoy;
 import core.GameBoyState;
 import debug.DebuggerMode;
 
-public class GameBoyThread extends Thread {
+import java.util.concurrent.atomic.AtomicBoolean;
 
-    private boolean shouldExit = false;
+public class GameBoyThread extends GBemuThread {
+
     private final GameBoy gameboy;
-    private boolean requestedFrame = false;
+    private final AtomicBoolean requestedFrame;
     private int requestedInstructions = 0;
 
     public GameBoyThread(GameBoy gameboy) {
+        super();
         this.gameboy = gameboy;
+        requestedFrame = new AtomicBoolean(false);
     }
 
     @Override
     public void run() {
         try {
-            while(!shouldExit) {
+            while(!shouldExit.get()) {
                 if (gameboy.hasCartridge()) {
                     if (gameboy.isDebuggerHooked(DebuggerMode.CPU)) {
                         if (gameboy.getState() == GameBoyState.RUNNING)
@@ -28,9 +31,9 @@ public class GameBoyThread extends Thread {
                                 gameboy.executeInstructions(requestedInstructions, true);
                                 requestedInstructions = 0;
                             }
-                            if (requestedFrame) {
+                            if (requestedFrame.get()) {
                                 gameboy.forceFrame();
-                                requestedFrame = false;
+                                requestedFrame.set(false);
                             }
                         }
                     } else {
@@ -46,15 +49,11 @@ public class GameBoyThread extends Thread {
         }
     }
 
-    public synchronized void requestOneFrame() {
-        requestedFrame = true;
+    public void requestOneFrame() {
+        requestedFrame.set(true);
     }
 
     public void requestInstructions(int nb) {
         requestedInstructions = nb;
-    }
-
-    public void shouldExit() {
-        shouldExit = true;
     }
 }
