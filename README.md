@@ -11,6 +11,9 @@
 |![Zelda : Link's Awakening DX](img/zelda_DX.gif)|![Zelda : Link's Awakening](img/zelda.gif)|
 |![Pokemon Silver](img/pokemon_DX.gif)|![Pokemon Red](img/pokemon.gif)|
 |![Bootstrap DX](img/bootstrap_DX.gif)|![Bootstrap](img/bootstrap.gif)|
+<p align="center">
+  <img src="img/cpu_instr.png" />
+</p>
 
 
 ---
@@ -48,6 +51,7 @@
 - Reset
 
 ### Settings Window
+- Change emulation speed
 - Enable / Disable RTC
 - Enable / Disable Bootstrap
 - Specify Bootstrap ROMs (for DMG and CGB)
@@ -61,20 +65,25 @@
 - Enter step by step code execution
 - Display flags and ```CPU registers``` (as 8bit and merge as 16bit)
 - Display the current code execution
+- Manage breakpoints (Execution, Memory access ...)
 
 #### Memory Window
 - Display one page of memory (256 bytes)
 - Search for a specified address
 - Display RAW memory as ASCII and hexadecimal
+- Display which sector a RAM address belongs to
 - Display ```RAM``` with color gradient to help spot patterns
+- Display a formatted view of the I/O registers
 
 #### PPU Window
-- Display the 2 ```tilemaps``` and current viewport
-- Display the ```tileset```
+- Display the ```tilemaps``` and current viewport and tile information
+- Display the ```tileset``` with tile information
+- Display the ```palettes``` with color details
 - Display ```OAM``` as list and as a rendered layer
 
 #### APU Window
 - Display waveforms of all Audio Channels and the master DAC
+- Display the state of the Audio Registers and the Wave data
 
 #### Serial Window
 - Display the serial output of the Game Boy as a String
@@ -100,13 +109,27 @@ To launch the Emulator set the Main Class to ```Main.java```
 ---
 
 ## Screenshots
-![Settings](img/settings.gif)
-![CPU Viewer](img/cpu.gif)
-![Memory Viewer](img/memory.gif)
-![PPU Viewer](img/ppu.gif)
-![APU Viewer](img/apu.gif)
-![Console](img/console.png)
-![Serial Output](img/serial.png)
+<p align="center">
+  <img src="img/settings.gif" />
+</p>
+<p align="center">
+  <img src="img/cpu.gif" />
+</p>
+<p align="center">
+  <img src="img/memory.gif" />
+</p>
+<p align="center">
+  <img src="img/ppu.gif" />
+</p>
+<p align="center">
+  <img src="img/apu.gif" />
+</p>
+<p align="center">
+  <img src="img/console.png" />
+</p>
+<p align="center">
+  <img src="img/serial.png" />
+</p>
 
 ---
 

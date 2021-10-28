@@ -137,4 +137,14 @@ public class MBC3 extends MemoryBankController {
         for (int i = 0; i < rtc.length; i++)
             rtc[i] = bytes[i + start] & 0xFF;
     }
+
+    @Override
+    public int getROMBank() {
+        return selected_rom_bank;
+    }
+
+    @Override
+    public int getRAMBank() {
+        return selected_ram_bank;
+    }
 }

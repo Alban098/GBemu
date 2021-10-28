@@ -72,7 +72,7 @@ public class WindowThread {
     private ConsoleThread consoleThread;
 
     public WindowThread(GameBoy gameboy, GameBoyThread gameBoyThread) {
-        cpuLayer = new CPULayer(gameboy.getDebugger());
+        cpuLayer = new CPULayer(gameboy.getDebugger(), gameBoyThread);
         memoryLayer = new MemoryLayer(gameboy.getDebugger());
         serialOutputLayer = new SerialOutputLayer(gameboy.getDebugger());
         consoleLayer = new ConsoleLayer(gameboy.getDebugger());
@@ -303,8 +303,8 @@ public class WindowThread {
                     debuggerThread = new DebuggerThread(gameboy.getDebugger());
                     debuggerThread.start();
                 } else {
-                    debuggerThread.kill();
-                    consoleThread.kill();
+                    if (debuggerThread != null) debuggerThread.kill();
+                    if (consoleThread != null) consoleThread.kill();
                 }
             }
             if (debug.get()) {
@@ -327,7 +327,7 @@ public class WindowThread {
                         consoleThread.start();
                         consoleLayer.hookThread(consoleThread);
                     } else {
-                        consoleThread.kill();
+                        if (consoleThread != null) consoleThread.kill();
                     }
                 }
             }

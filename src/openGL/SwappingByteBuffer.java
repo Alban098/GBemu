@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
  */
 public class SwappingByteBuffer {
 
-    //The 2 Buffer used for flip flop
+    //The 2 Buffers used for flip flop
     private final ByteBuffer[] buffers;
     //Index of the buffer being filled
     private int currentBuffer;

@@ -142,7 +142,7 @@ public class PPU {
                     cgb_tile_attr = memory.readVRAM(tileIdAddr, 1);
                     cgb_vram_bank = (cgb_tile_attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
                     cgb_palette_nb = (cgb_tile_attr & Flags.CGB_TILE_PALETTE);
-                    tileId = memory.readVRAM(tileIdAddr & 0x7FFF, 0);
+                    tileId = memory.readVRAM(tileIdAddr, 0);
                     if (!mode1)
                         tileId = signedByte(tileId);
                     bgColorIndex = getTileColorIndex(
@@ -326,112 +326,130 @@ public class PPU {
         }
     }
 
-    public synchronized void computeOAM() {
+    public synchronized void computeOAM(int hoveredSpriteX, int hoveredSpriteY) {
         state.getOAMBuffer().clear();
         int spriteSize = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_SIZE) ? 16 : 8;
         ColorShade color;
         for (int y = 0; y < 144; y++) {
             Set<Sprite> sprites = new TreeSet<>();
             fetchSprites(sprites, y);
-
             for (int x = 0; x < 160; x++) {
                 color = ColorShade.EMPTY;
-                for (Sprite sprite : sprites) {
-                    if (sprite.x() - 8 <= x && sprite.x() > x) {
-                        int colorIndex = fetchSpriteColorIndex(x, y, spriteSize, sprite);
-                        if (gameboy.mode != GameBoy.Mode.CGB)
-                            color = ((sprite.attributes() & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[colorIndex];
-                        else
-                            color = palettes.getCGBObjPalette(sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_PAL).colors[colorIndex];
-                        if (color == ColorShade.TRANSPARENT || colorIndex == 0)
-                            color = ColorShade.EMPTY;
-                        else
-                            break;
+                if (hoveredSpriteX >= 0 && hoveredSpriteY >= 0 && ((BitUtils.inRange(x, hoveredSpriteX, hoveredSpriteX + 8) && (y == hoveredSpriteY || y == hoveredSpriteY + spriteSize)) || ((BitUtils.inRange(y, hoveredSpriteY, hoveredSpriteY + spriteSize) && (x == hoveredSpriteX || x == hoveredSpriteX + 8))))) {
+                    state.getOAMBuffer().put(Color.GREEN);
+                } else {
+                    for (Sprite sprite : sprites) {
+                        if (sprite.x() - 8 <= x && sprite.x() > x) {
+                            int colorIndex = fetchSpriteColorIndex(x, y, spriteSize, sprite);
+                            if (gameboy.mode != GameBoy.Mode.CGB) {
+                                color = ((sprite.attributes() & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[colorIndex];
+                            } else {
+                                color = palettes.getCGBObjPalette(sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_PAL).colors[colorIndex];
+                            }
+                            if (color == ColorShade.TRANSPARENT || colorIndex == 0) {
+                                color = ColorShade.EMPTY;
+                            } else {
+                                break;
+                            }
+                        }
                     }
+                    state.getOAMBuffer().put(color.getColor());
                 }
-                state.getOAMBuffer().put(color.getColor());
             }
         }
         state.getOAMBuffer().swap();
     }
 
-    public synchronized void computeTileMaps() {
+    public synchronized void computeTileMaps(boolean showViewport, int selectedTileMap, int hoveredTileX, int hoveredTileY, boolean grid) {
         int i = 0, tileIdAddr, tileId, cgb_tile_attr, cgb_vram_bank, cgb_palette_nb;
         boolean mode1 = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
         int scx = memory.readByte(MMU.SCX, true);
         int scy = memory.readByte(MMU.SCY, true);
         ColorShade color;
-        for (SwappingByteBuffer tileMap : state.getTileMapBuffers()) {
-            tileMap.clear();
-            for (int y = 0; y < 256; y++) {
-                for (int x = 0; x < 256; x++) {
-                    if (((memory.readByte(MMU.LCDC) & Flags.LCDC_BG_TILE_MAP) >> 3) == i && ((y == scy && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
-                        (y == ((scy + 144) & 0xFF) && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
-                        (x == scx && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF))) ||
-                        (x == ((scx + 160) & 0xFF) && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF))))) {
-                        tileMap.put(Color.RED);
+        SwappingByteBuffer tileMap = state.getTileMapBuffers()[selectedTileMap];
+        tileMap.clear();
+        for (int y = 0; y < 256; y++) {
+            for (int x = 0; x < 256; x++) {
+                int cornerX = hoveredTileX * 8;
+                int cornerY = hoveredTileY * 8;
+                if (hoveredTileX >= 0 && hoveredTileY >= 0 && ((BitUtils.inRange(x, cornerX, cornerX + 8) && (y == cornerY || y == cornerY + 8)) || ((BitUtils.inRange(y, cornerY, cornerY + 8) && (x == cornerX || x == cornerX + 8))))) {
+                    tileMap.put(Color.GREEN);
+                } else if (showViewport && (((memory.readByte(MMU.LCDC) & Flags.LCDC_BG_TILE_MAP) >> 3) == i && ((y == scy && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
+                    (y == ((scy + 144) & 0xFF) && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
+                    (x == scx && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF))) ||
+                    (x == ((scx + 160) & 0xFF) && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF)))))) {
+                    tileMap.put(Color.RED);
+                } else if (grid && ((x & 0x7) == 0 || (y & 0x7) == 0)) {
+                    tileMap.put(Color.LIGHT_GRAY);
+                } else {
+                    tileIdAddr = (selectedTileMap == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | (x >> 3) | ((y & 0xF8) << 2);
+                    if (gameboy.mode == GameBoy.Mode.CGB) {
+                        cgb_tile_attr = memory.readVRAM(tileIdAddr, 1);
+                        cgb_vram_bank = (cgb_tile_attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
+                        cgb_palette_nb = (cgb_tile_attr & Flags.CGB_TILE_PALETTE);
+                        tileId = memory.readVRAM(tileIdAddr, 0);
+                        if (!mode1)
+                            tileId = signedByte(tileId);
+                        int colorIndex = getTileColorIndex(
+                                cgb_vram_bank,
+                                mode1 ? 0 : 2,
+                                tileId,
+                                (cgb_tile_attr & Flags.CGB_TILE_HFLIP) == 0 ? x & 0x7 : (7 - x) & 0x7,
+                                (cgb_tile_attr & Flags.CGB_TILE_VFLIP) == 0 ? y & 0x7 : (7 - y) & 0x7
+                        );
+                        color = palettes.getCGBBgPalette(cgb_palette_nb).colors[colorIndex];
                     } else {
-                        tileIdAddr = (i == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | (x >> 3) | ((y & 0xF8) << 2);
-                        if (gameboy.mode == GameBoy.Mode.CGB) {
-                            cgb_tile_attr = memory.readVRAM(tileIdAddr, 1);
-                            cgb_vram_bank = (cgb_tile_attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
-                            cgb_palette_nb = (cgb_tile_attr & Flags.CGB_TILE_PALETTE);
-                            tileId = memory.readVRAM(tileIdAddr - 0x8000, 0);
-                            if (!mode1)
-                                tileId = signedByte(tileId);
-                            int colorIndex = getTileColorIndex(
-                                    cgb_vram_bank,
-                                    mode1 ? 0 : 2,
-                                    tileId,
-                                    (cgb_tile_attr & Flags.CGB_TILE_HFLIP) == 0 ? x & 0x7 : (7 - x) & 0x7,
-                                    (cgb_tile_attr & Flags.CGB_TILE_VFLIP) == 0 ? y & 0x7 : (7 - y) & 0x7
-                            );
-                            color = palettes.getCGBBgPalette(cgb_palette_nb).colors[colorIndex];
-                        } else {
-                            tileId = memory.readByte(tileIdAddr, true);
-                            if (!mode1)
-                                tileId = signedByte(tileId);
-                            color = palettes.getBgPalette().colors[getTileColorIndex(0, mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7)];
-                        }
-
-                        tileMap.put(color.getColor());
+                        tileId = memory.readByte(tileIdAddr, true);
+                        if (!mode1)
+                            tileId = signedByte(tileId);
+                        color = palettes.getBgPalette().colors[getTileColorIndex(0, mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7)];
                     }
+
+                    tileMap.put(color.getColor());
                 }
             }
-            tileMap.swap();
-            i++;
         }
-    }
+        tileMap.swap();    }
 
-    public synchronized void computeTileTables() {
+    public synchronized void computeTileTables(int hoveredTileX, int hoveredTileY, boolean grid) {
         /*
             We iterate over rows of tiles
             for each row we iterate over each tile
             for each tile we draw one line of it before going to the next
             this ensure that pixels are pushed to the ByteBuffer in the correct order
         */
-        int i = 0;
-        for (SwappingByteBuffer tileTable : state.getTileTableBuffers()) {
-            if (gameboy.mode == GameBoy.Mode.DMG && i == 4)
-                break;
-            tileTable.clear();
-            //Iterate over tiles rows
-            for (int tileRow = 0; tileRow < 8; tileRow++) {
-                //Iterate over rows of pixels
-                for (int y = 0; y < 8; y++) {
-                    //Iterate over tiles of the row
-                    for (int tileId = 16 * tileRow; tileId < 16 * tileRow + 16; tileId++) {
-                        //Iterate over each pixel of the tile line
-                        for (int x = 0; x < 8; x++) {
-                            ColorShade color = palettes.getBgPalette().colors[getTileColorIndex((i > 2) ? 1 : 0, i % 3, tileId, x, y)];
-                            tileTable.put(color.getColor());
+        int x = 0, y = 0;
+        SwappingByteBuffer table = state.getTileTableBuffer();
+        for (int tileRow = 0; tileRow < 24; tileRow++) {
+            for (int pixelY = 0; pixelY < 8; pixelY++) {
+                for (int bank = 0; bank < 2; bank++) {
+                    for (int tileId = 16 * (tileRow & 0x7); tileId < 16 * (tileRow & 0x7) + 16; tileId++) {
+                        for (int pixelX = 0; pixelX < 8; pixelX++) {
+                            int cornerX = hoveredTileX * 8;
+                            int cornerY = hoveredTileY * 8;
+                            if (hoveredTileX >= 0 && hoveredTileY >= 0 && ((BitUtils.inRange(x, cornerX, cornerX + 8) && (y == cornerY || y == cornerY + 8)) || ((BitUtils.inRange(y, cornerY, cornerY + 8) && (x == cornerX || x == cornerX + 8))))) {
+                                table.put(Color.GREEN);
+                            } else if (grid && ((x & 0x7) == 0 || (y & 0x7) == 0)) {
+                                table.put(Color.LIGHT_GRAY);
+                            } else {
+                                ColorShade color;
+                                if (gameboy.mode == GameBoy.Mode.DMG && bank == 1)
+                                    color = palettes.getBgPalette().colors[0];
+                                else
+                                    color = palettes.getBgPalette().colors[getTileColorIndex(bank, tileRow >> 3, tileId, pixelX, pixelY)];
+                                table.put(color.getColor());
+                            }
+                            x++;
+                            if (x == 256) {
+                                x = 0;
+                                y++;
+                            }
                         }
                     }
                 }
             }
-            tileTable.swap();
-            i++;
         }
+        table.swap();
     }
 
     private int getTileColorIndex(int vram_brank, int tileBank, int tileId, int x, int y) {
@@ -457,5 +475,46 @@ public class PPU {
 
     public void setGamma(float gamma) {
         palettes.setGamma(gamma);
+    }
+
+    public void renderTile(int tileId, int attr, ByteBuffer buffer, int bank, boolean mode1, GameBoy.Mode mode) {
+        ColorShade color;
+        buffer.clear();
+        if (mode == GameBoy.Mode.CGB) {
+            int cgb_vram_bank = (attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
+            int cgb_palette_nb = (attr & Flags.CGB_TILE_PALETTE);
+            if (!mode1)
+                tileId = signedByte(tileId);
+            for (int y = 0; y < 8; y++) {
+                for (int x = 0; x < 8; x++) {
+                    int colorIndex = getTileColorIndex(
+                            cgb_vram_bank,
+                            mode1 ? 0 : 2,
+                            tileId,
+                            (attr & Flags.CGB_TILE_HFLIP) == 0 ? x & 0x7 : (7 - x) & 0x7,
+                            (attr & Flags.CGB_TILE_VFLIP) == 0 ? y & 0x7 : (7 - y) & 0x7
+                    );
+                    color = palettes.getCGBBgPalette(cgb_palette_nb).colors[colorIndex];
+                    buffer.put((byte) color.getColor().getRed());
+                    buffer.put((byte) color.getColor().getGreen());
+                    buffer.put((byte) color.getColor().getBlue());
+                    buffer.put((byte) color.getColor().getAlpha());
+                }
+            }
+
+        } else {
+            if (!mode1)
+                tileId = signedByte(tileId);
+            for (int y = 0; y < 8; y++) {
+                for (int x = 0; x < 8; x++) {
+                    color = palettes.getBgPalette().colors[getTileColorIndex(bank, mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7)];
+                    buffer.put((byte) color.getColor().getRed());
+                    buffer.put((byte) color.getColor().getGreen());
+                    buffer.put((byte) color.getColor().getBlue());
+                    buffer.put((byte) color.getColor().getAlpha());
+                }
+            }
+        }
+        buffer.flip();
     }
 }

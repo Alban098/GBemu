@@ -74,4 +74,14 @@ public class MBC1 extends MemoryBankController {
         }
         return addr & 0x7FFF;
     }
+
+    @Override
+    public int getROMBank() {
+        return selected_rom_bank;
+    }
+
+    @Override
+    public int getRAMBank() {
+        return selected_ram_bank;
+    }
 }

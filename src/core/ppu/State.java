@@ -8,7 +8,7 @@ import java.nio.ByteBuffer;
 public class State {
 
     private final SwappingByteBuffer[] tileMaps;
-    private final SwappingByteBuffer[] tileTables;
+    private final SwappingByteBuffer tileTables;
     private final SwappingByteBuffer oam_buffer;
 
     public State() {
@@ -17,14 +17,7 @@ public class State {
                 new SwappingByteBuffer(256 * 256 * 4),
                 new SwappingByteBuffer(256 * 256 * 4)
         };
-        tileTables = new SwappingByteBuffer[]{
-                new SwappingByteBuffer(128 * 64 * 4),
-                new SwappingByteBuffer(128 * 64 * 4),
-                new SwappingByteBuffer(128 * 64 * 4),
-                new SwappingByteBuffer(128 * 64 * 4),
-                new SwappingByteBuffer(128 * 64 * 4),
-                new SwappingByteBuffer(128 * 64 * 4)
-        };
+        tileTables = new SwappingByteBuffer(256 * 192 * 4);
     }
 
     public SwappingByteBuffer getOAMBuffer() {
@@ -35,7 +28,7 @@ public class State {
         return tileMaps;
     }
 
-    public SwappingByteBuffer[] getTileTableBuffers() {
+    public SwappingByteBuffer getTileTableBuffer() {
         return tileTables;
     }
 
@@ -43,11 +36,6 @@ public class State {
         oam_buffer.clear();
         tileMaps[0].clear();
         tileMaps[1].clear();
-        tileTables[0].clear();
-        tileTables[1].clear();
-        tileTables[2].clear();
-        tileTables[3].clear();
-        tileTables[4].clear();
-        tileTables[5].clear();
+        tileTables.clear();
     }
 }

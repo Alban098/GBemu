@@ -149,4 +149,12 @@ public class Cartridge {
     public void clock() {
         mbc.clock();
     }
+
+    public int getROMBank() {
+        return mbc.getROMBank();
+    }
+
+    public int getRAMBank() {
+        return mbc.getRAMBank();
+    }
 }

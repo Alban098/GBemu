@@ -53,4 +53,14 @@ public class MBC5 extends MemoryBankController {
             return (addr & 0x3FFF) + (0x4000 * selected_rom_bank);
         return addr & 0x3FFF;
     }
+
+    @Override
+    public int getROMBank() {
+        return selected_rom_bank;
+    }
+
+    @Override
+    public int getRAMBank() {
+        return selected_ram_bank;
+    }
 }

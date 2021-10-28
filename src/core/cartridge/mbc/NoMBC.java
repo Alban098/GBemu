@@ -22,4 +22,14 @@ public class NoMBC extends MemoryBankController {
     public int mapROMAddr(int addr) {
         return addr;
     }
+
+    @Override
+    public int getROMBank() {
+        return 1;
+    }
+
+    @Override
+    public int getRAMBank() {
+        return 0;
+    }
 }

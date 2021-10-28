@@ -238,7 +238,7 @@ public class SettingsContainer {
 
     public enum SettingIdentifiers {
         RTC("MBC3 RTC Capability"),
-        SPEED("Emulation Speed Multiplier"),
+        SPEED("Speed Mult."),
         DMG_BOOTROM("DMG Bootrom path"),
         CGB_BOOTROM("CGB Bootrom path"),
         DMG_PALETTE_0("DMG Color 0"),

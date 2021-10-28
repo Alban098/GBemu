@@ -18,4 +18,15 @@ public class Utils {
         }
         return sb.toString();
     }
+
+    public static String binaryString(int value, int nbBits) {
+        StringBuilder s = new StringBuilder();
+        for (int i = 0; i < nbBits; i++) {
+            if (i != 0 && i % 4 == 0)
+                s.append(" ");
+            s.append(((value & 0x80) != 0) ? "1" : "0");
+            value <<= 1;
+        }
+        return s.toString();
+    }
 }

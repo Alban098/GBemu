@@ -19,6 +19,11 @@ public class Instruction {
     private int addr;
     private final State cpu;
 
+    private String addrStr;
+    private String memoryStr;
+    private String disassembled;
+    private String comment;
+
     public Instruction(int opcode, Type type, String name, int length, Supplier<Integer> fct_operate, State cpu) {
         String[] split = name.split(" ");
         this.name = String.format("%1$-5s", split[0]).toLowerCase() + (split.length == 2 ? split[1] : "");
@@ -32,6 +37,7 @@ public class Instruction {
         addr = 0x00;
         this.cpu = cpu;
         this.type = type;
+        updateStrings();
     }
 
     int operate() {
@@ -79,6 +85,66 @@ public class Instruction {
             parameters[1] = params[1];
     }
 
+    public void updateStrings() {
+        this.comment = "";
+        boolean db = name.equals("db   ");
+        boolean param8 = (name.contains("d8") || name.contains("a8") || (name.contains("r8") && !name.contains("jr"))) && parameters != null;
+        boolean rel8 = name.contains("r8") && name.contains("jr") && parameters != null;
+        boolean param16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
+
+        this.addrStr = String.format("%04X", addr);
+
+        if (db && parameters != null) {
+            for (int i = 0; i < 3; i++)
+                this.memoryStr += String.format("%02X ", parameters[i]);
+            this.memoryStr += "...";
+            this.disassembled = "DB ";
+            for (int parameter : parameters)
+                this.disassembled += String.format("%02X ", parameter);
+        } else {
+            this.memoryStr = String.format("%02X ", opcode);
+            if (param8 && parameters != null) {
+                this.memoryStr += String.format("%02X  ", parameters[0]);
+                this.disassembled = name.replaceAll(".8", String.format("%02X", parameters[0]));
+            } else if (param16 && parameters != null) {
+                this.memoryStr += String.format("%02X %02X", parameters[0], parameters[1]);
+                this.disassembled = name.replaceAll(".16", String.format("%04X", parameters[0] | (parameters[1] << 8)));
+            } else if (rel8 && parameters != null) {
+                this.memoryStr += String.format("%02X", parameters[0]);
+                this.disassembled = name.replaceAll("r8", String.format("%04X", addr + length + signedByte(parameters[0])));
+            } else {
+                this.disassembled = name;
+            }
+        }
+        if (disassembled.contains("(BC)")) comment = cpu.getBc().toString();
+        if (disassembled.contains("(DE)")) comment = cpu.getDe().toString();
+        if (disassembled.contains("(HL)")) comment = cpu.getHl().toString();
+        if (disassembled.contains("(HL+)")) comment = cpu.getHl().toString();
+        if (disassembled.contains("(HL-)")) comment = cpu.getHl().toString();
+        if (disassembled.contains("FF00")) comment = "controller";
+        if (disassembled.contains("FF01")) comment = "serial bus";
+        if (disassembled.contains("FF02")) comment = "serial control";
+        if (disassembled.contains("FF04")) comment = "div";
+        if (disassembled.contains("FF05")) comment = "tima";
+        if (disassembled.contains("FF06")) comment = "tma";
+        if (disassembled.contains("FF07")) comment = "tac";
+        if (disassembled.contains("FF0F")) comment = "interrupt flags";
+        if (disassembled.contains("FF40")) comment = "lcdc";
+        if (disassembled.contains("FF41")) comment = "stat";
+        if (disassembled.contains("FF42")) comment = "scroll y";
+        if (disassembled.contains("FF43")) comment = "scroll x";
+        if (disassembled.contains("FF44")) comment = "ly";
+        if (disassembled.contains("FF45")) comment = "lyc";
+        if (disassembled.contains("FF46")) comment = "dma";
+        if (disassembled.contains("FF47")) comment = "bgp";
+        if (disassembled.contains("FF48")) comment = "obp0";
+        if (disassembled.contains("FF49")) comment = "obp1";
+        if (disassembled.contains("FF4A")) comment = "win x";
+        if (disassembled.contains("FF4B")) comment = "win y";
+        if (disassembled.contains("FFFF")) comment = "interrupt enable";
+        disassembled = disassembled.toUpperCase();
+    }
+
     public void setAddr(int addr) {
         this.addr = addr & 0xFFFF;
     }
@@ -91,7 +157,7 @@ public class Instruction {
         boolean param16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
         StringBuilder op;
         if (db && parameters != null) {
-            op = new StringBuilder(String.format("$%04X", addr) + " : ");
+            op = new StringBuilder(String.format("%04X", addr) + ": ");
             for (int i = 0; i < 3; i++)
                 op.append(String.format("%02X ", parameters[i]));
             op.append("+ | ").append(name);
@@ -136,7 +202,7 @@ public class Instruction {
         if (op.toString().contains("FF4A")) op.append(" win x");
         if (op.toString().contains("FF4B")) op.append(" win y");
         if (op.toString().contains("FFFF")) op.append(" interrupt enable");
-        return op.toString();
+        return op.toString().toUpperCase();
     }
 
     public int getLength() {
@@ -181,6 +247,22 @@ public class Instruction {
 
     public Type getType() {
         return type;
+    }
+
+    public String getAddrStr() {
+        return addrStr;
+    }
+
+    public String getMemoryStr() {
+        return memoryStr;
+    }
+
+    public String getDisassembled() {
+        return disassembled;
+    }
+
+    public String getComment() {
+        return comment;
     }
 
     public enum Type {

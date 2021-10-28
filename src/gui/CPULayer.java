@@ -3,155 +3,224 @@ package gui;
 import core.Flags;
 import core.GameBoyState;
 import core.cpu.Instruction;
-import core.memory.MMU;
 import core.cpu.State;
-import core.cpu.register.RegisterByte;
-import core.cpu.register.RegisterWord;
+import debug.BreakPoint;
 import debug.Debugger;
 import imgui.ImGui;
+import imgui.type.ImInt;
+import imgui.type.ImString;
+import threading.GameBoyThread;
 
+import java.util.Map;
 import java.util.Queue;
 
 public class CPULayer extends AbstractDebugLayer {
 
-    private final RegisterByte lcdc = new RegisterByte(0x00);
-    private final RegisterByte stat = new RegisterByte(0x00);
-    private final RegisterByte lcdy = new RegisterByte(0x00);
-    private final RegisterByte divider = new RegisterByte(0x00);
-    private final RegisterByte tima = new RegisterByte(0x00);
-    private final RegisterByte irq_enable = new RegisterByte(0x00);
-    private final RegisterByte irq_flags = new RegisterByte(0x00);
+    private final GameBoyThread gameboyThread;
+    private final ImInt breakType = new ImInt();
+    private final ImString breakAddr = new ImString();
 
-    public CPULayer(Debugger debugger) {
+    public CPULayer(Debugger debugger, GameBoyThread gameBoyThread) {
         super(debugger);
+        this.gameboyThread = gameBoyThread;
     }
 
     public void render() {
-        ImGui.begin("Debug");
-        ImGui.setWindowSize(580, 450);
-
-        ImGui.separator();
-        ImGui.setNextItemOpen(true);
-        if (ImGui.treeNode("Controls")) {
-            ImGui.text("Current State :");
-            ImGui.sameLine();
-            switch (debugger.getGameboyState()) {
-                case RUNNING -> {
-                    ImGui.textColored(0, 255, 255, 255, "Running");
-                    if (ImGui.button("Pause"))
-                        synchronized (debugger) {
-                            debugger.setGameboyState(GameBoyState.PAUSED);
-                        }
-                }
-                case PAUSED -> {
-                    ImGui.textColored(255, 0, 0, 255, "Paused");
-                    if (ImGui.button("Run"))
-                        synchronized (debugger) {
-                            debugger.setGameboyState(GameBoyState.RUNNING);
-                        }
-                }
-                case DEBUG -> ImGui.textColored(255, 255, 0, 255, "Debug Mode");
-            }
-            if (debugger.getGameboyState() == GameBoyState.DEBUG) {
-                if (ImGui.button("Exit Debug"))
+        ImGui.begin("CPU Debugger");
+        ImGui.setWindowSize(380, debugger.getGameboyState() == GameBoyState.DEBUG ? 760 : 490);
+        ImGui.text("Current State :");
+        ImGui.sameLine();
+        switch (debugger.getGameboyState()) {
+            case RUNNING -> {
+                ImGui.textColored(0, 255, 255, 255, "Running");
+                if (ImGui.button("Pause"))
                     synchronized (debugger) {
                         debugger.setGameboyState(GameBoyState.PAUSED);
                     }
-            } else {
-                if (ImGui.button("Enter Debug"))
+            }
+            case PAUSED -> {
+                ImGui.textColored(255, 0, 0, 255, "Paused");
+                if (ImGui.button("Run"))
                     synchronized (debugger) {
-                        debugger.setGameboyState(GameBoyState.DEBUG);
+                        debugger.setGameboyState(GameBoyState.RUNNING);
                     }
             }
-            ImGui.sameLine();
-            if (ImGui.button("Reset"))
-                synchronized (debugger) {
-                    debugger.reset();
-                }
-            ImGui.treePop();
+            case DEBUG -> {
+                ImGui.textColored(255, 255, 0, 255, "Debug Mode");
+                ImGui.newLine();
+            }
         }
+        ImGui.sameLine(80);
+        if (debugger.getGameboyState() == GameBoyState.DEBUG) {
+            if (ImGui.button("Debug"))
+                synchronized (debugger) {
+                    debugger.setGameboyState(GameBoyState.PAUSED);
+                }
+        } else {
+            if (ImGui.button("Debug"))
+                synchronized (debugger) {
+                    debugger.setGameboyState(GameBoyState.DEBUG);
+                }
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Reset")) {
+            synchronized (debugger) {
+                debugger.reset();
+            }
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Step Over") && debugger.getGameboyState() == GameBoyState.DEBUG)
+            gameboyThread.requestInstructions(1);
+        ImGui.sameLine();
+        if (ImGui.button("Step Frame") && debugger.getGameboyState() == GameBoyState.DEBUG)
+            gameboyThread.requestOneFrame();
 
         synchronized (debugger) {
             synchronized (debugger.getCpuState()) {
                 State cpuState = debugger.getCpuState();
                 ImGui.separator();
+                ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Flags")) {
-                    if (cpuState.hasFlag(Flags.Z)) ImGui.textColored(0, 255, 0, 255, "Z");
-                    else ImGui.textColored(255, 0, 0, 255, "Z");
+                    ImGui.newLine();
+                    ImGui.sameLine(145);
+                    ImGui.textColored(255, 0, 255, 255, "Z");
                     ImGui.sameLine();
-                    if (cpuState.hasFlag(Flags.N)) ImGui.textColored(0, 255, 0, 255, "N");
-                    else ImGui.textColored(255, 0, 0, 255, "N");
+                    ImGui.text("=");
                     ImGui.sameLine();
-                    if (cpuState.hasFlag(Flags.H)) ImGui.textColored(0, 255, 0, 255, "H");
-                    else ImGui.textColored(255, 0, 0, 255, "H");
+                    if (cpuState.hasFlag(Flags.Z)) ImGui.textColored(0, 255, 0, 255, "1");
+                    else ImGui.textColored(255, 0, 0, 255, "0");
+                    ImGui.sameLine(200);
+                    ImGui.textColored(255, 0, 255, 255, "N");
                     ImGui.sameLine();
-                    if (cpuState.hasFlag(Flags.C)) ImGui.textColored(0, 255, 0, 255, "C");
-                    else ImGui.textColored(255, 0, 0, 255, "C");
+                    ImGui.text("=");
+                    ImGui.sameLine();
+                    if (cpuState.hasFlag(Flags.N)) ImGui.textColored(0, 255, 0, 255, "1");
+                    else ImGui.textColored(255, 0, 0, 255, "0");
+
+                    ImGui.newLine();
+                    ImGui.sameLine(145);
+                    ImGui.textColored(255, 0, 255, 255, "H");
+                    ImGui.sameLine();
+                    ImGui.text("=");
+                    ImGui.sameLine();
+                    if (cpuState.hasFlag(Flags.H)) ImGui.textColored(0, 255, 0, 255, "1");
+                    else ImGui.textColored(255, 0, 0, 255, "0");
+                    ImGui.sameLine(200);
+                    ImGui.textColored(255, 0, 255, 255, "C");
+                    ImGui.sameLine();
+                    ImGui.text("=");
+                    ImGui.sameLine();
+                    if (cpuState.hasFlag(Flags.C)) ImGui.textColored(0, 255, 0, 255, "1");
+                    else ImGui.textColored(255, 0, 0, 255, "0");
+
+                    ImGui.newLine();
+                    ImGui.sameLine(145);
+                    ImGui.textColored(255, 0, 255, 255, "   IME");
+                    ImGui.sameLine();
+                    ImGui.text("=");
+                    ImGui.sameLine();
+                    if (cpuState.getIME()) ImGui.textColored(0, 255, 0, 255, "1");
+                    else ImGui.textColored(255, 0, 0, 255, "0");
                     ImGui.treePop();
                 }
+                ImGui.separator();
                 ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Registers")) {
-                    lcdc.write(debugger.readMemorySnapshot(MMU.LCDC));
-                    stat.write(debugger.readMemorySnapshot(MMU.STAT));
-                    lcdy.write(debugger.readMemorySnapshot(MMU.LY));
-                    divider.write(debugger.readMemorySnapshot(MMU.DIV));
-                    tima.write(debugger.readMemorySnapshot(MMU.TIMA));
-                    irq_enable.write(debugger.readMemorySnapshot(MMU.IE));
-                    irq_flags.write(debugger.readMemorySnapshot(MMU.IF));
 
-                    printRegister(cpuState.getAf(), "AF", "A", "F");
-                    ImGui.sameLine(420);
-                    ImGui.textColored(255, 255, 0, 255, "LCDC:");
+                    ImGui.textColored(0, 255, 255, 255, " A");
                     ImGui.sameLine();
-                    ImGui.text(lcdc.toString());
-                    printRegister(cpuState.getBc(), "BC", "B", "C");
-                    ImGui.sameLine(420);
-                    ImGui.textColored(255, 255, 0, 255, "LCDS:");
+                    ImGui.text("= " + cpuState.getAf().getHigh().toString());
                     ImGui.sameLine();
-                    ImGui.text(stat.toString());
-                    printRegister(cpuState.getDe(), "DE", "D", "E");
-                    ImGui.sameLine(420);
-                    ImGui.textColored(255, 255, 0, 255, "LCDY:");
+                    ImGui.textColored(0, 255, 255, 255, "  F");
                     ImGui.sameLine();
-                    ImGui.text(lcdy.toString());
-                    printRegister(cpuState.getHl(), "HL", "H", "L");
-                    ImGui.sameLine(420);
-                    ImGui.textColored(255, 255, 0, 255, "IRQF:");
+                    ImGui.text("= " + cpuState.getAf().getLow().toString());
+                    ImGui.sameLine(210);
+                    ImGui.textColored(0, 255, 255, 255, " B");
                     ImGui.sameLine();
-                    ImGui.text(irq_flags.toString());
-                    ImGui.textColored(255, 255, 0, 255, "SP:");
+                    ImGui.text("= " + cpuState.getBc().getHigh().toString());
                     ImGui.sameLine();
-                    ImGui.text(cpuState.getSp().toString());
-                    ImGui.sameLine(420);
-                    ImGui.textColored(255, 255, 0, 255, "IRQE:");
+                    ImGui.textColored(0, 255, 255, 255, "  C");
                     ImGui.sameLine();
-                    ImGui.text(irq_enable.toString());
-                    ImGui.textColored(255, 255, 0, 255, "PC:");
+                    ImGui.text("= " + cpuState.getBc().getLow().toString());
+                    ImGui.text(cpuState.getAf().binaryString());
+                    ImGui.sameLine(210);
+                    ImGui.text(cpuState.getBc().binaryString());
+                    ImGui.separator();
+                    ImGui.textColored(0, 255, 255, 255, " D");
                     ImGui.sameLine();
-                    ImGui.text(cpuState.getPc().toString());
-                    ImGui.sameLine(140);
-                    ImGui.textColored(255, 255, 0, 255, "IME:");
+                    ImGui.text("= " + cpuState.getDe().getHigh().toString());
                     ImGui.sameLine();
-                    ImGui.text(String.valueOf(debugger.getCpuState().getIME()));
-                    ImGui.sameLine(280);
-                    ImGui.textColored(255, 255, 0, 255, "DIV:");
+                    ImGui.textColored(0, 255, 255, 255, "  E");
                     ImGui.sameLine();
-                    ImGui.text(divider.toString());
-                    ImGui.sameLine(420);
-                    ImGui.textColored(255, 255, 0, 255, "TIMA:");
+                    ImGui.text("= " + cpuState.getDe().getLow().toString());
+                    ImGui.sameLine(210);
+                    ImGui.textColored(0, 255, 255, 255, " H");
                     ImGui.sameLine();
-                    ImGui.text(tima.toString());
+                    ImGui.text("= " + cpuState.getHl().getHigh().toString());
+                    ImGui.sameLine();
+                    ImGui.textColored(0, 255, 255, 255, "  L");
+                    ImGui.sameLine();
+                    ImGui.text("= " + cpuState.getHl().getLow().toString());
+                    ImGui.text(cpuState.getDe().binaryString());
+                    ImGui.sameLine(210);
+                    ImGui.text(cpuState.getHl().binaryString());
+                    ImGui.separator();
+                    ImGui.textColored(255, 255, 0, 255, "    SP");
+                    ImGui.sameLine();
+                    ImGui.text("= " + cpuState.getSp().toString());
+                    ImGui.sameLine(210);
+                    ImGui.textColored(255, 255, 0, 255, "    PC");
+                    ImGui.sameLine();
+                    ImGui.text("= " + cpuState.getPc().toString());
+                    ImGui.text(cpuState.getSp().binaryString());
+                    ImGui.sameLine(210);
+                    ImGui.text(cpuState.getPc().binaryString());
                     ImGui.treePop();
                 }
                 ImGui.separator();
+                ImGui.separator();
+                ImGui.setNextItemOpen(true);
+                if (ImGui.treeNode("Breakpoints")) {
+                    ImGui.beginChild("Breakpoints", 340, 100);
+                    for (Map.Entry<Integer, BreakPoint> entry :  debugger.getBreakpoints().entrySet()) {
+                        ImGui.textColored(255, 255, 0, 255, String.format("$%04X", entry.getValue().address()));
+                        ImGui.sameLine();
+                        ImGui.text( ": " + entry.getValue().type().toString());
+                        ImGui.sameLine(260);
+                        if (ImGui.button("Delete"))
+                            debugger.removeBreakpoint(entry.getValue().address());
+                    }
+                    ImGui.endChild();
+                    ImGui.separator();
+                    ImGui.pushItemWidth(70);
+                    if (ImGui.inputText(": Address ", breakAddr))
+                        breakAddr.set(breakAddr.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
+                    ImGui.sameLine();
+                    ImGui.pushItemWidth(70);
+                    ImGui.combo(": Type", breakType, BreakPoint.Type.stringArray());
+                    ImGui.sameLine();
+                    if (ImGui.button("Add")) {
+                        breakAddr.set(breakAddr.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
+                        if (breakAddr.get().equals(""))
+                            breakAddr.set("0");
+                        int addr = Integer.decode("0x" + breakAddr.get());
+                        debugger.addBreakpoint(addr, BreakPoint.Type.values()[breakType.get()]);
+                    }
+                    ImGui.treePop();
+                }
+                ImGui.separator();
+                ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Code Execution")) {
-                    Queue<Instruction> instructions = debugger.getInstructionQueue();
-                    ImGui.textColored(255, 255, 0, 255, cpuState.getInstruction().toString());
-                    for (Instruction instruction : instructions)
-                        ImGui.text(instruction.toString());
+                    if (debugger.getGameboyState() == GameBoyState.DEBUG) {
+                        Queue<Instruction> instructions = debugger.getInstructionQueue();
+                        for (Instruction instruction : instructions)
+                            printInstruction(instruction, instruction.getAddr() == cpuState.getPc().read());
+                    } else {
+                        ImGui.textColored(255, 0, 0, 255, "To Show code, enter Debug Mode !");
+                    }
                     ImGui.treePop();
                 }
             }
@@ -159,17 +228,41 @@ public class CPULayer extends AbstractDebugLayer {
         ImGui.end();
     }
 
-    private void printRegister(RegisterWord reg, String fullName, String highName, String lowName) {
-        ImGui.textColored(255, 255, 0, 255, fullName + ":");
-        ImGui.sameLine();
-        ImGui.text(reg.toString());
-        ImGui.sameLine(140);
-        ImGui.textColored(255, 255, 0, 255, highName + ":");
-        ImGui.sameLine();
-        ImGui.text(reg.getHigh().toString());
-        ImGui.sameLine(280);
-        ImGui.textColored(255, 255, 0, 255, lowName + ":");
-        ImGui.sameLine();
-        ImGui.text(reg.getLow().toString());
+    private void printInstruction(Instruction instruction, boolean overrideColor) {
+        if (instruction.getAddr() == 0x00) ImGui.textColored(0, 255, 0, 255, "Reset 0x00 :");
+        if (instruction.getAddr() == 0x08) ImGui.textColored(0, 255, 0, 255, "Reset 0x08 :");
+        if (instruction.getAddr() == 0x10) ImGui.textColored(0, 255, 0, 255, "Reset 0x10 :");
+        if (instruction.getAddr() == 0x18) ImGui.textColored(0, 255, 0, 255, "Reset 0x18 :");
+        if (instruction.getAddr() == 0x20) ImGui.textColored(0, 255, 0, 255, "Reset 0x20 :");
+        if (instruction.getAddr() == 0x28) ImGui.textColored(0, 255, 0, 255, "Reset 0x28 :");
+        if (instruction.getAddr() == 0x30) ImGui.textColored(0, 255, 0, 255, "Reset 0x30 :");
+        if (instruction.getAddr() == 0x38) ImGui.textColored(0, 255, 0, 255, "Reset 0x38 :");
+        if (instruction.getAddr() == 0x40) ImGui.textColored(0, 255, 0, 255, "VBlank Interrupt :");
+        if (instruction.getAddr() == 0x48) ImGui.textColored(0, 255, 0, 255, "LCDC Interrupt :");
+        if (instruction.getAddr() == 0x50) ImGui.textColored(0, 255, 0, 255, "Timer Overflow Interrupt :");
+        if (instruction.getAddr() == 0x58) ImGui.textColored(0, 255, 0, 255, "Serial Interrupt :");
+        if (instruction.getAddr() == 0x60) ImGui.textColored(0, 255, 0, 255, "Joypad Interrupt :");
+        if (instruction.getAddr() == 0x4000) ImGui.textColored(0, 255, 0, 255, debugger.getSector(0x4000) + " :");
+        if (instruction.getAddr() == 0x8000) ImGui.textColored(0, 255, 0, 255, debugger.getSector(0x8000) + " :");
+        if (instruction.getAddr() == 0xA000) ImGui.textColored(0, 255, 0, 255, debugger.getSector(0xA000) + " :");
+        if (instruction.getAddr() == 0xC000) ImGui.textColored(0, 255, 0, 255, debugger.getSector(0xC000) + " :");
+        if (instruction.getAddr() == 0xD000) ImGui.textColored(0, 255, 0, 255, debugger.getSector(0xD000) + " :");
+        if (!overrideColor) {
+            ImGui.textColored(0, 255, 255, 255, "  " + instruction.getAddrStr() + ":");
+            ImGui.sameLine();
+            ImGui.textColored(128, 128, 128, 255, instruction.getMemoryStr());
+            ImGui.sameLine(150);
+            ImGui.text(instruction.getDisassembled());
+            ImGui.sameLine(275);
+            ImGui.textColored(255, 0, 0, 255, instruction.getComment());
+        } else {
+            ImGui.textColored(255, 255, 0, 255, "  " + instruction.getAddrStr() + ":");
+            ImGui.sameLine();
+            ImGui.textColored(128, 128, 0, 255, instruction.getMemoryStr());
+            ImGui.sameLine(150);
+            ImGui.textColored(255, 255, 0, 255, instruction.getDisassembled());
+            ImGui.sameLine(275);
+            ImGui.textColored(255, 0, 0, 255, instruction.getComment());
+        }
     }
 }

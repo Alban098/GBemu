@@ -39,4 +39,12 @@ public class Bootstrap {
         }
         return -1;
     }
+
+    public String getSector(int addr) {
+        switch (gameboy.mode) {
+            case DMG -> { if (addr <= 0xFF) return "BOOT"; }
+            case CGB -> { if (addr <= 0xFF || (addr >= 0x200 && addr <= 0x8FF)) return "BOOT"; }
+        }
+        return "ROM0";
+    }
 }

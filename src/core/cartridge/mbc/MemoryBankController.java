@@ -35,4 +35,8 @@ public abstract class MemoryBankController {
     public boolean hasTimer() {
         return false;
     }
+
+    public abstract int getROMBank();
+
+    public abstract int getRAMBank();
 }

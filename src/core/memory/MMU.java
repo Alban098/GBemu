@@ -191,10 +191,15 @@ public class MMU {
             if (cartridge != null)
                 return cartridge.read(addr);
             return 0x00;
+
+
+        } else if (addr <= 0xCFFF) {
+            return wram[addr & 0x0FFF];
         } else if (addr <= 0xDFFF) {
             if (gameboy.mode == GameBoy.Mode.CGB)
-                return wram[(addr & 0x1FFF) | (0x2000 * (readByte(CGB_WRAM_BANK) & 0x07))];
-            return wram[addr & 0x1FFF];
+                return wram[(addr & 0x0FFF) | (0x1000 * ((readByte(CGB_WRAM_BANK) & 0x07) + 1))];
+            else
+                return wram[(addr & 0x0FFF) | 0x1000];
         } else if (addr <= 0xFE9F) {
             if (!fromPPU && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
                 return 0xFF;
@@ -228,11 +233,13 @@ public class MMU {
         } else if (addr <= 0xBFFF) {
             if (cartridge != null)
                 cartridge.write(addr, data);
+        } else if (addr <= 0xCFFF) {
+            wram[addr & 0x0FFF] = data;
         } else if (addr <= 0xDFFF) {
             if (gameboy.mode == GameBoy.Mode.CGB)
-                wram[(addr & 0x1FFF) | (0x2000 * (readByte(CGB_WRAM_BANK) & 0x07))] = data;
+                wram[(addr & 0x0FFF) | (0x1000 * ((readByte(CGB_WRAM_BANK) & 0x07) + 1))] = data;
             else
-                wram[addr & 0x1FFF] = data;
+                wram[(addr & 0x0FFF) | 0x1000] = data;
         } else if (addr <= 0xFE9F) {
             oam[(addr & 0xFF) % 0xA0] = data;
         } else if (addr <= 0xFEFF) {
@@ -250,6 +257,8 @@ public class MMU {
                 io_registers[LY & 0x7F] = 0;
             else if(addr == DIV)
                 io_registers[DIV & 0x7F] = 0;
+            else if (addr == CGB_WRAM_BANK)
+                io_registers[CGB_WRAM_BANK & 0x7F] = (data == 0) ? 1 : data;
             else if(addr == DMA)
                 executeDmaTransfer(data);
             else if(addr == P1)
@@ -273,9 +282,6 @@ public class MMU {
         }
         for (IMMUListener listener : listeners)
             listener.onWriteToMMU(addr, data);
-
-        if (debugger.isHooked(DebuggerMode.MEMORY))
-            debugger.writeByte(addr, data);
     }
 
     private void executeHdmaTransfer(int data) {
@@ -316,11 +322,13 @@ public class MMU {
         } else if (addr <= 0xBFFF) {
             if (cartridge != null)
                 cartridge.write(addr, data);
+        } else if (addr <= 0xCFFF) {
+            wram[addr & 0x0FFF] = data;
         } else if (addr <= 0xDFFF) {
             if (gameboy.mode == GameBoy.Mode.CGB)
-                wram[(addr & 0x1FFF) | (0x2000 * (readByte(CGB_WRAM_BANK) & 0x07))] = data;
+                wram[(addr & 0x0FFF) | (0x1000 * ((readByte(CGB_WRAM_BANK) & 0x07) + 1))] = data;
             else
-                wram[addr & 0x1FFF] = data;
+                wram[(addr & 0x0FFF) | 0x1000] = data;
         } else if (addr <= 0xFE9F) {
             oam[addr & 0xFF] = data;
         } else if (addr <= 0xFEFF) {
@@ -330,6 +338,8 @@ public class MMU {
                 char c = (char) readByte(SB);
                 serialOutput.append(c);
                 writeByte(SC, 0);
+            } else if (addr == CGB_WRAM_BANK) {
+                io_registers[CGB_WRAM_BANK & 0x7F] = (data == 0) ? 1 : data;
             } else {
                 io_registers[addr & 0x7F] = data;
             }
@@ -340,9 +350,6 @@ public class MMU {
         }
         for (IMMUListener listener : listeners)
             listener.onWriteToMMU(addr, data);
-
-        if (debugger.isHooked(DebuggerMode.MEMORY))
-            debugger.writeByte(addr, data);
     }
 
     private void executeDmaTransfer(int data) {
@@ -416,5 +423,57 @@ public class MMU {
 
     public void linkDebugger(Debugger debugger) {
         this.debugger = debugger;
+    }
+
+    public String getSector(int addr) {
+        addr &= 0xFFFF;
+        if (addr <= 0x3FFF) {
+            return bootstrap.getSector(addr);
+        } else if (addr <= 0x7FFF) {
+            if (cartridge == null)
+                return "ROM1";
+            int romBank = cartridge.getROMBank();
+            if (romBank >= 0x10)
+                return String.format("RO%2X", romBank);
+            return String.format("ROM%1X", romBank);
+        } else if (addr <= 0x9FFF) {
+            if (gameboy.mode == GameBoy.Mode.CGB)
+                return "VRA" + (readByte(CGB_VRAM_BANK) & 0x1);
+            return "VRAM";
+        } else if (addr <= 0xBFFF) {
+            return "SRA" + ((cartridge == null ) ? 0 : cartridge.getRAMBank());
+        } else if (addr <= 0xCFFF) {
+            return "WRAM";
+        } else if (addr <= 0xDFFF) {
+            return "WRA" + (readByte(CGB_WRAM_BANK) & 0x7);
+        } else if (addr <= 0xFDFF) {
+            return "ECHO";
+        } else if (addr <= 0xFE9F) {
+            return "OAMS";
+        } else if (addr <= 0xFEFF) {
+            return "NONE";
+        } else if (addr <= 0xFF7F) {
+            return "I/O ";
+        } else if (addr <= 0xFFFE) {
+            return "HRAM";
+        } else {
+            return "UNKW";
+        }
+    }
+
+    public int getROMBank() {
+        return cartridge == null ? 1 : cartridge.getROMBank();
+    }
+
+    public int getRAMBank() {
+        return cartridge == null ? 1 : cartridge.getRAMBank();
+    }
+
+    public int getVRAMBank() {
+        return (readByte(CGB_VRAM_BANK) & 0x1);
+    }
+
+    public int getWRAMBank() {
+        return (readByte(CGB_WRAM_BANK) & 0x7);
     }
 }
