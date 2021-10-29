@@ -1,5 +1,6 @@
 package gui;
 
+import core.settings.SettingIdentifiers;
 import core.settings.SettingsContainer;
 import debug.Debugger;
 import imgui.ImGui;
@@ -48,16 +49,16 @@ public class SettingsLayer extends AbstractDebugLayer {
             if (ImGui.beginTabItem("System")) {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Misc Options")) {
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.SPEED).process();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.RTC).process();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.BOOTSTRAP).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.SPEED).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.RTC).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.BOOTSTRAP).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Bootstrap Files")) {
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.DMG_BOOTROM).process();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.CGB_BOOTROM).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.DMG_BOOTROM).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.CGB_BOOTROM).process();
                     ImGui.treePop();
                 }
                 ImGui.endTabItem();
@@ -65,7 +66,7 @@ public class SettingsLayer extends AbstractDebugLayer {
             if (ImGui.beginTabItem("Graphics")) {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Color Settings")) {
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.GAMMA).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.GAMMA).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();
@@ -75,13 +76,13 @@ public class SettingsLayer extends AbstractDebugLayer {
                     ImGui.sameLine();
                     if (ImGui.button("Apply"))
                         SettingsContainer.getInstance().applyPalette(palettes[palette.get()].colors);
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.DMG_PALETTE_0).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.DMG_PALETTE_0).process();
                     ImGui.sameLine();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.DMG_PALETTE_1).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.DMG_PALETTE_1).process();
                     ImGui.sameLine();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.DMG_PALETTE_2).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.DMG_PALETTE_2).process();
                     ImGui.sameLine();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.DMG_PALETTE_3).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.DMG_PALETTE_3).process();
                     ImGui.treePop();
                 }
                 ImGui.endTabItem();
@@ -89,17 +90,17 @@ public class SettingsLayer extends AbstractDebugLayer {
             if (ImGui.beginTabItem("Sounds")) {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Audio Output Settings")) {
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.AUDIO_MIXER).process();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.VOLUME).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.AUDIO_MIXER).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.VOLUME).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Sound Channel Rendering")) {
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.SQUARE_1_ENABLED).process();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.SQUARE_2_ENABLED).process();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.WAVE_ENABLED).process();
-                    SettingsContainer.getInstance().getSetting(SettingsContainer.SettingIdentifiers.NOISE_ENABLED).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.SQUARE_1_ENABLED).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.SQUARE_2_ENABLED).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.WAVE_ENABLED).process();
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.NOISE_ENABLED).process();
                     ImGui.treePop();
                 }
                 ImGui.endTabItem();

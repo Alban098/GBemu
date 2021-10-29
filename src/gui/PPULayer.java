@@ -253,7 +253,7 @@ public class PPULayer extends AbstractDebugLayer {
                         int pal = (sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_PAL);
                         ImGui.textColored(255, 0, 255, 255, "     Palette:");
                         ImGui.sameLine();
-                        if (cgbMode)
+                        if (!cgbMode)
                             ImGui.text(dmgPal == 1 ? "OBP1 " : "OBP0 ");
                         else
                             ImGui.text("OBJ " + pal);

@@ -1,6 +1,7 @@
 package core.cartridge;
 
 import console.Console;
+import console.Type;
 import core.GameBoy;
 import core.cartridge.mbc.*;
 
@@ -124,7 +125,7 @@ public class Cartridge {
             try {
                 Files.write(path, ram_export, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             } catch (IOException e) {
-                Console.getInstance().log(Console.Type.ERROR, e.getMessage());
+                Console.getInstance().log(Type.ERROR, e.getMessage());
             }
         }
     }
@@ -141,7 +142,7 @@ public class Cartridge {
                     ((MBC3)mbc).restoreRTC(ram.length, bytes);
                 }
             } catch (IOException e) {
-                Console.getInstance().log(Console.Type.ERROR, e.getMessage());
+                Console.getInstance().log(Type.ERROR, e.getMessage());
             }
         }
     }

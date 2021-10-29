@@ -2,8 +2,6 @@ package core;
 
 import audio.AudioEngine;
 import core.settings.SettingsContainer;
-import threading.ConsoleThread;
-import threading.DebuggerThread;
 import threading.GameBoyThread;
 import threading.WindowThread;
 

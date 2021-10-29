@@ -87,6 +87,10 @@ public class Texture {
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
+    /**
+     * Return the texture id
+     * @return the texture id
+     */
     public int getID() {
         return id;
     }

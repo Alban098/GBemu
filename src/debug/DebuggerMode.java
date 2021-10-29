@@ -1,5 +1,8 @@
 package debug;
 
+/**
+ * An enum containing all component observable by the debugger
+ */
 public enum DebuggerMode {
     CPU,
     MEMORY,

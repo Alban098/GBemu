@@ -1,6 +1,7 @@
 package threading;
 
 import console.Console;
+import console.Type;
 import core.GameBoy;
 import core.GameBoyState;
 import core.input.Button;
@@ -24,18 +25,18 @@ import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
-
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
-
-import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.util.Objects;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
+/**
+ * This class represent the Main rendering thread
+ * containing the OpenGl Context
+ */
 public class WindowThread {
 
     private final ImGuiImplGlfw imGuiGlfw = new ImGuiImplGlfw();
@@ -71,6 +72,11 @@ public class WindowThread {
     private DebuggerThread debuggerThread;
     private ConsoleThread consoleThread;
 
+    /**
+     * Create a new OpenGl Window
+     * @param gameboy the Game Boy to render
+     * @param gameBoyThread the Thread running the Game Boy
+     */
     public WindowThread(GameBoy gameboy, GameBoyThread gameBoyThread) {
         cpuLayer = new CPULayer(gameboy.getDebugger(), gameBoyThread);
         memoryLayer = new MemoryLayer(gameboy.getDebugger());
@@ -84,6 +90,9 @@ public class WindowThread {
         this.gameboyThread = gameBoyThread;
     }
 
+    /**
+     * Initialize the Window
+     */
     public void init() {
         initWindow();
         initImGui();
@@ -93,6 +102,9 @@ public class WindowThread {
         ppuLayer.initTextures();
     }
 
+    /**
+     * Clean the window and kill every Thread attached
+     */
     public void destroy() {
         imGuiGl3.dispose();
         imGuiGlfw.dispose();
@@ -109,6 +121,9 @@ public class WindowThread {
         glfwTerminate();
     }
 
+    /**
+     * Initialize OpenGl and GLFW
+     */
     private void initWindow() {
         // Setup an error callback. The default implementation
         // will print the error message in System.err.
@@ -147,6 +162,9 @@ public class WindowThread {
         GL.createCapabilities();
     }
 
+    /**
+     * Initialize ImGui and ImPlot
+     */
     private void initImGui() {
         ImGui.createContext();
         plotCtx = ImPlot.createContext();
@@ -154,32 +172,44 @@ public class WindowThread {
         io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable);
     }
 
+    /**
+     * Execute the rendering Loop
+     */
     public void run() {
         while (!glfwWindowShouldClose(windowPtr)) {
+            //Clear the screen
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
+            //Start a new ImGui frame
             imGuiGlfw.newFrame();
             ImGui.newFrame();
 
+            //Capture inputs
             handleInput();
-            handleDebugInputs();
+
+            //Render Menu, emulation and layers
             renderMenuBar();
             renderGameScreen();
-            renderDebugLayers();
+            renderLayers();
 
+            //Render the ImGui Frame
             ImGui.render();
             imGuiGl3.renderDrawData(ImGui.getDrawData());
 
+            //Notify the Game Boy Thread to render a new Frame
             synchronized (gameboyThread) {
                 gameboyThread.notify();
             }
+
+            //Notify the Debugger Thread to compute a debug frame if enabled
             if (gameboy.getDebugger().isEnabled()) {
                 synchronized (debuggerThread) {
                     debuggerThread.notify();
                 }
             }
 
+            //ImGui and GLFW standard call to render the frame
             if (ImGui.getIO().hasConfigFlags(ImGuiConfigFlags.ViewportsEnable)) {
                 final long backupWindowPtr = org.lwjgl.glfw.GLFW.glfwGetCurrentContext();
                 ImGui.updatePlatformWindows();
@@ -191,30 +221,10 @@ public class WindowThread {
         }
     }
 
-    private void handleDebugInputs() {
-        if (gameboy.hasCartridge()) {
-            if (gameboy.isDebuggerHooked(DebuggerMode.CPU)) {
-                if (gameboy.getState() == GameBoyState.DEBUG) {
-                    if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_PRESS && !isSpacePressed) {
-                        gameboyThread.requestInstructions(1);
-                        isSpacePressed = true;
-                    }
-                    if (glfwGetKey(windowPtr, GLFW_KEY_SPACE) == GLFW_RELEASE && isSpacePressed)
-                        isSpacePressed = false;
-                    if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_PRESS && !isFPressed) {
-                        gameboyThread.requestOneFrame();
-                        isFPressed = true;
-                    }
-                    if (glfwGetKey(windowPtr, GLFW_KEY_F) == GLFW_RELEASE && isFPressed)
-                        isFPressed = false;
-                    if (glfwGetKey(windowPtr, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
-                        gameboyThread.requestInstructions(1000);
-                }
-            }
-        }
-    }
-
-    private void renderDebugLayers() {
+    /**
+     * Render the ImGui layers that are visible
+     */
+    private void renderLayers() {
         if (ppuLayer.isVisible()) {
             ppuLayer.setCgbMode(gameboy.mode == GameBoy.Mode.CGB);
             ppuLayer.render();
@@ -239,26 +249,36 @@ public class WindowThread {
             settingsLayer.render();
     }
 
+    /**
+     * Render the emulation screen
+     */
     private void renderGameScreen() {
+        //Load the buffer to the texture
         screen_texture.load(gameboy.getPpu().getScreenBuffer());
 
+        //Bind the texture
         glEnable(GL_TEXTURE_2D);
         screen_texture.bind();
 
         glLoadIdentity();
 
+        //Create the main QUAD
         glBegin(GL_QUADS);
         glTexCoord2f(0, 1); glVertex2f(-1,-1);
         glTexCoord2f(0, 0); glVertex2f(-1,1);
         glTexCoord2f(1, 0); glVertex2f(1,1);
         glTexCoord2f(1, 1); glVertex2f(1,-1);
 
+        //Cleanup the texture
         glDisable(GL_TEXTURE_2D);
         screen_texture.unbind();
 
         glEnd();
     }
 
+    /**
+     * Render the Main Menu
+     */
     private void renderMenuBar() {
         ImGui.beginMainMenuBar();
         if (ImGui.beginMenu("File")) {
@@ -273,7 +293,7 @@ public class WindowThread {
                         gameboy.insertCartridge(chooser.getSelectedFile().getAbsolutePath());
                         gameboy.setState(GameBoyState.RUNNING);
                     } catch (Exception e) {
-                        Console.getInstance().log(Console.Type.ERROR, "Invalid file : " + e.getMessage());
+                        Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
                     }
 
                 }
@@ -300,9 +320,11 @@ public class WindowThread {
             if (ImGui.checkbox("Debug features", debug)) {
                 gameboy.getDebugger().setEnabled(debug.get());
                 if (debug.get()) {
+                    //Create and start the debugger thread
                     debuggerThread = new DebuggerThread(gameboy.getDebugger());
                     debuggerThread.start();
                 } else {
+                    //Kill active thread
                     if (debuggerThread != null) debuggerThread.kill();
                     if (consoleThread != null) consoleThread.kill();
                 }
@@ -323,21 +345,26 @@ public class WindowThread {
                 if (ImGui.checkbox("Console", consoleLayerVisible)) {
                     consoleLayer.setVisible(consoleLayerVisible.get());
                     if (consoleLayer.isVisible()) {
+                        //Create and run the console thread
                         consoleThread = new ConsoleThread(gameboy.getDebugger());
                         consoleThread.start();
                         consoleLayer.hookThread(consoleThread);
                     } else {
+                        //Kill the active thread
                         if (consoleThread != null) consoleThread.kill();
                     }
                 }
             }
 
-            gameboy.getDebugger().setHooked(DebuggerMode.CPU, cpuLayerVisible.get());
-            gameboy.getDebugger().setHooked(DebuggerMode.MEMORY, memoryLayerVisible.get());
-            gameboy.getDebugger().setHooked(DebuggerMode.PPU, ppuLayerVisible.get());
-            gameboy.getDebugger().setHooked(DebuggerMode.APU, apuLayerVisible.get());
-            gameboy.getDebugger().setHooked(DebuggerMode.CONSOLE, consoleLayerVisible.get());
-            gameboy.getDebugger().setHooked(DebuggerMode.SERIAL, serialOutputLayerVisible.get());
+            //Update the hooked component
+            synchronized (gameboy.getDebugger()) {
+                gameboy.getDebugger().setHooked(DebuggerMode.CPU, cpuLayerVisible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.MEMORY, memoryLayerVisible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.PPU, ppuLayerVisible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.APU, apuLayerVisible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.CONSOLE, consoleLayerVisible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.SERIAL, serialOutputLayerVisible.get());
+            }
             ImGui.endMenu();
         }
 
@@ -349,7 +376,11 @@ public class WindowThread {
         ImGui.endMainMenuBar();
     }
 
-
+    /**
+     * Capture the inputs and propagate them to the emulator
+     * to be computed and interpreted
+     * TODO : Rework to allow customization
+     */
     private void handleInput() {
         if (glfwGetKey(windowPtr, GLFW_KEY_W) == GLFW_PRESS)
             gameboy.setButtonState(Button.UP, InputState.PRESSED);

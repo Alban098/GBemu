@@ -2,6 +2,7 @@ package gui;
 
 import console.Command;
 import console.Console;
+import console.Type;
 import debug.Debugger;
 import imgui.ImGui;
 import imgui.type.ImString;
@@ -32,7 +33,7 @@ public class ConsoleLayer extends AbstractDebugLayer {
         ImGui.inputText("", consoleInput);
         ImGui.sameLine();
         if (ImGui.button("Enter")) {
-            Console.getInstance().log(Console.Type.INPUT, "> " + consoleInput.get());
+            Console.getInstance().log(Type.INPUT, "> " + consoleInput.get());
 
             consoleThread.offerCommand(new Command(consoleInput.toString()));
             synchronized (consoleThread) {

@@ -2,6 +2,7 @@ package core;
 
 import audio.AudioEngine;
 import console.Console;
+import console.Type;
 import core.apu.APU;
 import core.cartridge.mbc.MBC3;
 import core.cpu.LR35902;
@@ -11,6 +12,7 @@ import core.input.Button;
 import core.memory.MMU;
 import core.ppu.PPU;
 import core.ppu.helper.ColorShade;
+import core.settings.Setting;
 import core.settings.SettingsContainer;
 import debug.Debugger;
 import debug.DebuggerMode;
@@ -117,7 +119,7 @@ public class GameBoy {
         memory.writeRaw(MMU.CGB_OCPS_OBPI, 0xFF);
         memory.writeRaw(MMU.CGB_OCPD_OBPD, 0xFF);
         memory.writeRaw(MMU.CGB_WRAM_BANK, 0xFF);
-        Console.getInstance().log(Console.Type.INFO, "Emulation reset");
+        Console.getInstance().log(Type.INFO, "Emulation reset");
         cpu.init();
     }
 
@@ -220,7 +222,7 @@ public class GameBoy {
         return debugger.isHooked(mode);
     }
 
-    public void propagateSetting(SettingsContainer.Setting<?> setting) {
+    public void propagateSetting(Setting<?> setting) {
         switch (setting.getIdentifier()) {
             case RTC -> MBC3.enableRTC((boolean) setting.getValue());
             case SPEED -> {
