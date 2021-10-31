@@ -7,6 +7,7 @@ import debug.Debugger;
 import imgui.ImGui;
 import imgui.type.ImString;
 import threading.ConsoleThread;
+import utils.Utils;
 
 
 public class ConsoleLayer extends AbstractDebugLayer {

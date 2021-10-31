@@ -77,6 +77,26 @@ public class SettingsContainer {
                 }
             }
         }));
+        settings.put(SettingIdentifiers.CHEAT_DATABASE, new Setting<>(SettingIdentifiers.CHEAT_DATABASE, "gameshark.cht", (Setting<String> setting) -> {
+            ImString tmp = new ImString(setting.getValue());
+            ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
+            ImGui.sameLine();
+            if (ImGui.button("Load")) {
+                JFileChooser chooser = new JFileChooser();
+                FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                        "GameShark Database", "cht", ".cht");
+                chooser.setFileFilter(filter);
+                int returnVal = chooser.showOpenDialog(null);
+                if (returnVal == JFileChooser.APPROVE_OPTION) {
+                    try {
+                        setting.setValue(chooser.getSelectedFile().getAbsolutePath());
+                        gameboy.propagateSetting(setting);
+                    } catch (Exception e) {
+                        Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                    }
+                }
+            }
+        }));
         settings.put(SettingIdentifiers.CGB_BOOTROM, new Setting<>(SettingIdentifiers.CGB_BOOTROM, "CGB.bin", (Setting<String> setting) -> {
             ImString tmp = new ImString(setting.getValue());
             ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);

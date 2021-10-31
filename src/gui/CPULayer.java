@@ -219,7 +219,7 @@ public class CPULayer extends AbstractDebugLayer {
                         for (Instruction instruction : instructions)
                             printInstruction(instruction, instruction.getAddr() == cpuState.getPc().read());
                     } else {
-                        ImGui.textColored(255, 0, 0, 255, "To Show code, enter Debug Mode !");
+                        ImGui.textColored(255, 0, 0, 255, "To show code, enter Debug Mode !");
                     }
                     ImGui.treePop();
                 }

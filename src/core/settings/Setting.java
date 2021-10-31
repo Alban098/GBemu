@@ -46,15 +46,17 @@ public class Setting<T> {
 
 
     public void setSerializedValue(String val) {
-        if (value instanceof Color)
-            value = (T) new Color(Integer.parseInt(val));
-        else if (value instanceof Float)
-            value = (T) Float.valueOf(val);
-        else if (value instanceof Boolean)
-            value = (T) Boolean.valueOf(val);
-        else if (value instanceof Integer)
-            value = (T) Integer.valueOf(val);
-        else if (value instanceof String)
-            value = (T) val;
+        if (val != null) {
+            if (value instanceof Color)
+                value = (T) new Color(Integer.parseInt(val));
+            else if (value instanceof Float)
+                value = (T) Float.valueOf(val);
+            else if (value instanceof Boolean)
+                value = (T) Boolean.valueOf(val);
+            else if (value instanceof Integer)
+                value = (T) Integer.valueOf(val);
+            else if (value instanceof String)
+                value = (T) val;
+        }
     }
 }

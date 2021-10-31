@@ -238,8 +238,8 @@ public class Debugger {
         int tileAddr = MMU.TILE_BLOCK_START | (tileId << 4) + (mode1 ? 0x1000 : 0x0000);
         //Calculating the VRAM Bank (only relevant in CGB Mode)
         int bank = hoveredTileTables.x > 0x0F ? 1 : 0;
-        //Filling the tile temp variable, tile tables are rendered in DMG mode, because palettes are not specified in tiles
-        gameboy.getPpu().renderTile(tileId, 0, tileTableHoveredTile.renderTarget, bank, mode1, GameBoy.Mode.DMG);
+        //Filling the tile temp variable, tile tables are rendered in null mode, because tile are not palette dependant
+        gameboy.getPpu().renderTile(tileId, 0, tileTableHoveredTile.renderTarget, bank, mode1, null);
         tileTableHoveredTile.fill(0, 0, 0, tileAddr, tileId, 0, bank);
     }
 
@@ -570,5 +570,9 @@ public class Debugger {
     public synchronized void setHoveredSprite(int x, int y) {
         hoveredSprite.x = x;
         hoveredSprite.y = y;
+    }
+
+    public String getGameId() {
+        return gameboy.getGameId();
     }
 }

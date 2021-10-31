@@ -16,7 +16,8 @@ public enum SettingIdentifiers {
     NOISE_ENABLED("Noise Channel"),
     AUDIO_MIXER("Audio Mixer"),
     VOLUME("Volume"),
-    BOOTSTRAP("Enable Bootstrap");
+    BOOTSTRAP("Enable Bootstrap"),
+    CHEAT_DATABASE("Cheats Database");
 
     private final String description;
 

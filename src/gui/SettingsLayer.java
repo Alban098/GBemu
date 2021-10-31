@@ -38,7 +38,7 @@ public class SettingsLayer extends AbstractDebugLayer {
 
     public void render() {
         ImGui.begin("Settings");
-        ImGui.setWindowSize(350, 260);
+        ImGui.setWindowSize(350, 280);
         if (ImGui.button("Save Settings"))
             SettingsContainer.saveFile();
         ImGui.sameLine(305);
@@ -52,6 +52,12 @@ public class SettingsLayer extends AbstractDebugLayer {
                     SettingsContainer.getInstance().getSetting(SettingIdentifiers.SPEED).process();
                     SettingsContainer.getInstance().getSetting(SettingIdentifiers.RTC).process();
                     SettingsContainer.getInstance().getSetting(SettingIdentifiers.BOOTSTRAP).process();
+                    ImGui.treePop();
+                }
+                ImGui.separator();
+                ImGui.setNextItemOpen(true);
+                if (ImGui.treeNode("Cheats")) {
+                    SettingsContainer.getInstance().getSetting(SettingIdentifiers.CHEAT_DATABASE).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();

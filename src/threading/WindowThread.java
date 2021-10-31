@@ -4,6 +4,7 @@ import console.Console;
 import console.Type;
 import core.GameBoy;
 import core.GameBoyState;
+import core.cheats.CheatManager;
 import core.input.Button;
 import core.input.InputState;
 import core.ppu.PPU;
@@ -51,6 +52,7 @@ public class WindowThread {
     private final PPULayer ppuLayer;
     private final APULayer apuLayer;
     private final SettingsLayer settingsLayer;
+    private final CheatsLayer cheatsLayer;
 
     private boolean isSpacePressed = false;
     private boolean isFPressed = false;
@@ -85,6 +87,7 @@ public class WindowThread {
         ppuLayer = new PPULayer(gameboy.getDebugger());
         apuLayer = new APULayer(gameboy.getDebugger());
         settingsLayer = new SettingsLayer(gameboy.getDebugger());
+        cheatsLayer = new CheatsLayer(gameboy.getDebugger(), gameboy.getCheatManager());
 
         this.gameboy = gameboy;
         this.gameboyThread = gameBoyThread;
@@ -130,8 +133,7 @@ public class WindowThread {
         GLFWErrorCallback.createPrint(System.err).set();
 
         // Initialize GLFW. Most GLFW functions will not work before doing this.
-        if ( !glfwInit() ) {
-            System.out.println("Unable to initialize GLFW");
+        if (!glfwInit() ) {
             System.exit(-1);
         }
 
@@ -144,7 +146,6 @@ public class WindowThread {
         windowPtr = glfwCreateWindow(160*3, 144*3+10, "GBemu", NULL, NULL);
 
         if (windowPtr == NULL) {
-            System.out.println("Unable to create window");
             System.exit(-1);
         }
 
@@ -247,6 +248,9 @@ public class WindowThread {
 
         if (settingsLayer.isVisible())
             settingsLayer.render();
+
+        if (cheatsLayer.isVisible())
+            cheatsLayer.render();
     }
 
     /**
@@ -372,7 +376,10 @@ public class WindowThread {
             settingsLayer.setVisible(!settingsLayer.isVisible());
             ImGui.endMenu();
         }
-
+        if (ImGui.beginMenu("Cheats")) {
+            cheatsLayer.setVisible(!cheatsLayer.isVisible());
+            ImGui.endMenu();
+        }
         ImGui.endMainMenuBar();
     }
 

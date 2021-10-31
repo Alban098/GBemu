@@ -4,9 +4,7 @@ import core.Flags;
 import core.GameBoy;
 import core.cartridge.Cartridge;
 import core.ppu.LCDMode;
-import core.ppu.helper.IMMUListener;
 import debug.Debugger;
-import debug.DebuggerMode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -475,5 +473,11 @@ public class MMU {
 
     public int getWRAMBank() {
         return (readByte(CGB_WRAM_BANK) & 0x7);
+    }
+
+    public String readGameId() {
+        if (cartridge != null)
+            return cartridge.getGameId();
+        return "";
     }
 }

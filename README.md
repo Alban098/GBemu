@@ -50,7 +50,7 @@
 - Pause / Resume emulation
 - Reset
 
-### Settings Window
+#### Settings Window
 - Change emulation speed
 - Enable / Disable RTC
 - Enable / Disable Bootstrap
@@ -60,6 +60,10 @@
 - Choose audio output
 - Change master volume
 - Enable / Disable audio channels
+
+#### GameShark Window
+- Enable/Disable cheats
+- Add/Remove cheats
 
 #### Debug Window
 - Enter step by step code execution
@@ -113,6 +117,9 @@ To launch the Emulator set the Main Class to ```Main.java```
   <img src="img/settings.gif" />
 </p>
 <p align="center">
+  <img src="img/cheats.png" />
+</p>
+<p align="center">
   <img src="img/cpu.gif" />
 </p>
 <p align="center">
@@ -149,6 +156,7 @@ To launch the Emulator set the Main Class to ```Main.java```
 * [x] Game Boy Color features
 * [x] Settings pannel (Inputs, Audio, Graphics ...)
 * [x] Multithreading
+* [x] GameShark cheats
 * [ ] Input customization
 * [ ] Javadoc
 

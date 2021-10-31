@@ -2,8 +2,7 @@ package gui;
 
 import debug.Debugger;
 import imgui.ImGui;
-import threading.DebuggerThread;
-import threading.GameBoyThread;
+import utils.Utils;
 
 
 public class SerialOutputLayer extends AbstractDebugLayer {

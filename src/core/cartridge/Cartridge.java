@@ -7,10 +7,12 @@ import core.cartridge.mbc.*;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.Arrays;
 
 public class Cartridge {
 
-    public final String title;
+    private final String file;
+    private String gameId;
     private final MemoryBankController mbc;
 
     private final int[] rom;
@@ -23,8 +25,10 @@ public class Cartridge {
         byte[] bytes = new byte[0];
         try { bytes = Files.readAllBytes(path); } catch (IOException e) { e.printStackTrace(); }
 
-        title = file;
-
+        this.file = file;
+        this.gameId = "";
+        for (int i = 0x134; i < 0x143; i++)
+            gameId += String.valueOf(bytes[i]);
 
         int type = bytes[0x147];
 
@@ -68,14 +72,8 @@ public class Cartridge {
         load();
     }
 
-    private String getTitle(byte[] bytes) {
-        StringBuilder title = new StringBuilder();
-        for (int i = 0x134; i < 0x142; i++) {
-            if (bytes[i] == 0x00)
-                break;
-            title.append((char) bytes[i]);
-        }
-        return title.toString();
+    public String getGameId() {
+        return gameId;
     }
 
     public void write(int addr, int data) {
@@ -111,7 +109,7 @@ public class Cartridge {
     public void save() {
         if (mbc.hasBattery() && mbc.hasRam()) {
             byte[] ram_export;
-            Path path = Paths.get(title.replace(".gb", ".sav"));
+            Path path = Paths.get(file.replace(".gb", ".sav"));
             if (mbc instanceof MBC3 && mbc.hasTimer()) {
                 ram_export = new byte[ram.length + ((MBC3) mbc).dumpRTC().length];
                 for (int i = 0; i < ((MBC3) mbc).dumpRTC().length; i++)
@@ -132,7 +130,7 @@ public class Cartridge {
 
     public void load() {
         if (mbc.hasBattery() && mbc.hasRam()) {
-            Path path = Paths.get(title.replace(".gb", ".sav"));
+            Path path = Paths.get(file.replace(".gb", ".sav"));
             byte[] bytes;
             try {
                 bytes = Files.readAllBytes(path);

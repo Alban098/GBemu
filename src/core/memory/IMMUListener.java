@@ -1,4 +1,4 @@
-package core.ppu.helper;
+package core.memory;
 
 public interface IMMUListener {
 

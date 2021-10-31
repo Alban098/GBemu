@@ -8,7 +8,7 @@ import core.apu.channels.SweepingSquareChannel;
 import core.apu.channels.WaveChannel;
 import core.memory.MMU;
 import core.apu.channels.SquareChannel;
-import core.ppu.helper.IMMUListener;
+import core.memory.IMMUListener;
 import debug.Debugger;
 import debug.DebuggerMode;
 import gui.APULayer;

@@ -5,6 +5,7 @@ import console.Console;
 import console.Type;
 import core.apu.APU;
 import core.cartridge.mbc.MBC3;
+import core.cheats.CheatManager;
 import core.cpu.LR35902;
 import core.input.InputManager;
 import core.input.InputState;
@@ -13,7 +14,6 @@ import core.memory.MMU;
 import core.ppu.PPU;
 import core.ppu.helper.ColorShade;
 import core.settings.Setting;
-import core.settings.SettingsContainer;
 import debug.Debugger;
 import debug.DebuggerMode;
 
@@ -32,6 +32,7 @@ public class GameBoy {
     private final Timer timer;
     private final InputManager inputManager;
     private final Debugger debugger;
+    private final CheatManager cheatManager;
 
     private GameBoyState currentState;
     private boolean half_exec_step = false;
@@ -46,6 +47,7 @@ public class GameBoy {
         timer = new Timer(this);
         inputManager = new InputManager(this);
         currentState = GameBoyState.RUNNING;
+        cheatManager = new CheatManager(this);
     }
 
     public Debugger getDebugger() {
@@ -151,6 +153,7 @@ public class GameBoy {
                             ppu.clock();
                             apu.clock();
                             inputManager.clock();
+                            cheatManager.clock();
                         }
                         half_exec_step = !half_exec_step;
                     }
@@ -162,10 +165,10 @@ public class GameBoy {
                         ppu.clock();
                         apu.clock();
                         inputManager.clock();
+                        cheatManager.clock();
                     }
                 }
             }
-
             mcycles++;
             if (mcycles >= mode.cpu_cycles_per_second * 10L) {
                 memory.saveCartridge();
@@ -232,6 +235,7 @@ public class GameBoy {
             case BOOTSTRAP -> cpu.enableBootstrap((boolean) setting.getValue());
             case DMG_BOOTROM -> memory.loadBootstrap(Mode.DMG, (String)setting.getValue());
             case CGB_BOOTROM -> memory.loadBootstrap(Mode.CGB, (String)setting.getValue());
+            case CHEAT_DATABASE -> cheatManager.loadCheats((String)setting.getValue());
             case DMG_PALETTE_0 -> ColorShade.WHITE.setColor((Color)setting.getValue());
             case DMG_PALETTE_1 -> ColorShade.LIGHT_GRAY.setColor((Color)setting.getValue());
             case DMG_PALETTE_2 -> ColorShade.DARK_GRAY.setColor((Color)setting.getValue());
@@ -244,6 +248,14 @@ public class GameBoy {
             case AUDIO_MIXER -> AudioEngine.getInstance().setOutput((int) setting.getValue());
             case VOLUME -> AudioEngine.getInstance().setVolume((float) setting.getValue());
         }
+    }
+
+    public String getGameId() {
+        return memory.readGameId();
+    }
+
+    public CheatManager getCheatManager() {
+        return cheatManager;
     }
 
     public enum Mode {

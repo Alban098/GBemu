@@ -432,12 +432,18 @@ public class PPU {
                             } else if (grid && ((x & 0x7) == 0 || (y & 0x7) == 0)) {
                                 table.put(Color.LIGHT_GRAY);
                             } else {
-                                ColorShade color;
-                                if (gameboy.mode == GameBoy.Mode.DMG && bank == 1)
-                                    color = palettes.getBgPalette().colors[0];
-                                else
-                                    color = palettes.getBgPalette().colors[getTileColorIndex(bank, tileRow >> 3, tileId, pixelX, pixelY)];
-                                table.put(color.getColor());
+                                Color color;
+                                if (gameboy.mode == GameBoy.Mode.DMG && bank == 1) {
+                                    color = Color.WHITE;
+                                } else {
+                                    switch (getTileColorIndex(bank, tileRow >> 3, tileId, pixelX, pixelY)) {
+                                        case 1 -> color = Color.LIGHT_GRAY;
+                                        case 2 -> color = Color.GRAY;
+                                        case 3 -> color = Color.BLACK;
+                                        default -> color = Color.WHITE;
+                                    }
+                                }
+                                table.put(color);
                             }
                             x++;
                             if (x == 256) {
@@ -502,7 +508,7 @@ public class PPU {
                 }
             }
 
-        } else {
+        } else if (mode == GameBoy.Mode.DMG) {
             if (!mode1)
                 tileId = signedByte(tileId);
             for (int y = 0; y < 8; y++) {
@@ -512,6 +518,24 @@ public class PPU {
                     buffer.put((byte) color.getColor().getGreen());
                     buffer.put((byte) color.getColor().getBlue());
                     buffer.put((byte) color.getColor().getAlpha());
+                }
+            }
+        } else if (mode == null) {
+            if (!mode1)
+                tileId = signedByte(tileId);
+            for (int y = 0; y < 8; y++) {
+                for (int x = 0; x < 8; x++) {
+                    int gray;
+                    switch (getTileColorIndex(bank, mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7)) {
+                        case 1 -> gray = Color.LIGHT_GRAY.getRed();
+                        case 2 -> gray = Color.GRAY.getRed();
+                        case 3 -> gray = Color.BLACK.getRed();
+                        default -> gray = Color.WHITE.getRed();
+                    }
+                    buffer.put((byte) gray);
+                    buffer.put((byte) gray);
+                    buffer.put((byte) gray);
+                    buffer.put((byte) 255);
                 }
             }
         }

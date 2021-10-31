@@ -1,5 +1,6 @@
 package core.ppu.helper;
 
+import core.memory.IMMUListener;
 import core.memory.MMU;
 
 import java.awt.*;
