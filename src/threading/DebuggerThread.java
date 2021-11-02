@@ -2,7 +2,7 @@ package threading;
 
 import console.Console;
 import console.Type;
-import debug.Debugger;
+import gbemu.extension.debug.Debugger;
 
 /**
  * This class represent a Thread running a Debugger

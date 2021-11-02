@@ -1,7 +1,7 @@
 package console;
 
-import debug.BreakPoint;
-import debug.Debugger;
+import gbemu.extension.debug.BreakPoint;
+import gbemu.extension.debug.Debugger;
 
 import java.awt.*;
 import java.util.Queue;

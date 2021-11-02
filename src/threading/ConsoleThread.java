@@ -3,7 +3,7 @@ package threading;
 import console.Command;
 import console.Console;
 import console.Type;
-import debug.Debugger;
+import gbemu.extension.debug.Debugger;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;

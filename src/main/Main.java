@@ -1,10 +1,10 @@
 package main;
 
-import core.GBemu;
+import gbemu.core.GBemu;
 
 public class Main {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
         new GBemu("GBemu.ini").run();
     }
 }

@@ -98,7 +98,7 @@
   
 #### Multithreading
 Each of the following features run on a dedicated thread :
-- Gameboy core hardware (CPU, APU, PPU, MMU, Timers, Cartridge)
+- Gameboy gbemu.core hardware (CPU, APU, PPU, MMU, Timers, Cartridge)
 - Windows rendering routines (Screen rendering, ImGui Layers, Input capture, Console command (Forwarded to the Console Thread))
 - Debugger (CPU and MMU snapshots, breakpoint system, PPU Debug rendering, APU Visualizer and Serial Output)
 - Console interpreter

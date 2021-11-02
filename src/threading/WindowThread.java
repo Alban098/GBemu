@@ -2,14 +2,16 @@ package threading;
 
 import console.Console;
 import console.Type;
-import core.GameBoy;
-import core.GameBoyState;
-import core.cheats.CheatManager;
-import core.input.Button;
-import core.input.InputState;
-import core.ppu.PPU;
-import debug.DebuggerMode;
-import gui.*;
+import gbemu.core.GameBoy;
+import gbemu.core.GameBoyState;
+import gbemu.core.input.Button;
+import gbemu.core.input.InputState;
+import gbemu.core.ppu.PPU;
+import gbemu.extension.debug.DebuggerMode;
+import gui.debug.*;
+import gui.std.Layer;
+import gui.std.CheatsLayer;
+import gui.std.SettingsLayer;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.extension.implot.ImPlot;
@@ -18,7 +20,7 @@ import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import imgui.type.ImBoolean;
-import openGL.Texture;
+import glwrapper.Texture;
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -45,17 +47,14 @@ public class WindowThread {
 
     private String glslVersion = null;
     private long windowPtr;
-    private final CPULayer cpuLayer;
-    private final MemoryLayer memoryLayer;
-    private final SerialOutputLayer serialOutputLayer;
-    private final ConsoleLayer consoleLayer;
-    private final PPULayer ppuLayer;
-    private final APULayer apuLayer;
-    private final SettingsLayer settingsLayer;
-    private final CheatsLayer cheatsLayer;
-
-    private boolean isSpacePressed = false;
-    private boolean isFPressed = false;
+    private final DebugLayer cpuLayer;
+    private final DebugLayer memoryLayer;
+    private final DebugLayer serialOutputLayer;
+    private final DebugLayer consoleLayer;
+    private final DebugLayer ppuLayer;
+    private final DebugLayer apuLayer;
+    private final Layer settingsLayer;
+    private final Layer cheatsLayer;
 
     private Texture screen_texture;
 
@@ -86,8 +85,8 @@ public class WindowThread {
         consoleLayer = new ConsoleLayer(gameboy.getDebugger());
         ppuLayer = new PPULayer(gameboy.getDebugger());
         apuLayer = new APULayer(gameboy.getDebugger());
-        settingsLayer = new SettingsLayer(gameboy.getDebugger());
-        cheatsLayer = new CheatsLayer(gameboy.getDebugger(), gameboy.getCheatManager());
+        settingsLayer = new SettingsLayer(gameboy.getSettingsContainer());
+        cheatsLayer = new CheatsLayer(gameboy, gameboy.getCheatManager());
 
         this.gameboy = gameboy;
         this.gameboyThread = gameBoyThread;
@@ -102,7 +101,7 @@ public class WindowThread {
         imGuiGlfw.init(windowPtr, true);
         imGuiGl3.init(glslVersion);
         screen_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
-        ppuLayer.initTextures();
+        ((PPULayer)ppuLayer).initTextures();
     }
 
     /**
@@ -112,7 +111,7 @@ public class WindowThread {
         imGuiGl3.dispose();
         imGuiGlfw.dispose();
         screen_texture.cleanUp();
-        ppuLayer.cleanUp();
+        ((PPULayer)ppuLayer).cleanUp();
         if (consoleThread != null)
             consoleThread.kill();
         if (debuggerThread != null)
@@ -203,7 +202,7 @@ public class WindowThread {
                 gameboyThread.notify();
             }
 
-            //Notify the Debugger Thread to compute a debug frame if enabled
+            //Notify the Debugger Thread to compute a gbemu.extension.debug frame if enabled
             if (gameboy.getDebugger().isEnabled()) {
                 synchronized (debuggerThread) {
                     debuggerThread.notify();
@@ -227,7 +226,7 @@ public class WindowThread {
      */
     private void renderLayers() {
         if (ppuLayer.isVisible()) {
-            ppuLayer.setCgbMode(gameboy.mode == GameBoy.Mode.CGB);
+            ((PPULayer)ppuLayer).setCgbMode(gameboy.mode == GameBoy.Mode.CGB);
             ppuLayer.render();
         }
 
@@ -352,7 +351,7 @@ public class WindowThread {
                         //Create and run the console thread
                         consoleThread = new ConsoleThread(gameboy.getDebugger());
                         consoleThread.start();
-                        consoleLayer.hookThread(consoleThread);
+                        ((ConsoleLayer)consoleLayer).hookThread(consoleThread);
                     } else {
                         //Kill the active thread
                         if (consoleThread != null) consoleThread.kill();

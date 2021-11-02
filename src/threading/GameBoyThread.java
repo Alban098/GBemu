@@ -2,9 +2,9 @@ package threading;
 
 import console.Console;
 import console.Type;
-import core.GameBoy;
-import core.GameBoyState;
-import debug.DebuggerMode;
+import gbemu.core.GameBoy;
+import gbemu.core.GameBoyState;
+import gbemu.extension.debug.DebuggerMode;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**

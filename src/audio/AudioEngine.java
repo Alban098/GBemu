@@ -1,10 +1,10 @@
 package audio;
 
-import core.GameBoy;
-import core.GameBoyState;
-import core.settings.SettingIdentifiers;
-import core.settings.SettingsContainer;
+import gbemu.core.GameBoy;
+import gbemu.core.GameBoyState;
+import gbemu.settings.SettingIdentifiers;
 import net.beadsproject.beads.core.AudioContext;
+import net.beadsproject.beads.core.UGen;
 import net.beadsproject.beads.core.io.JavaSoundAudioIO;
 import net.beadsproject.beads.ugens.Function;
 import net.beadsproject.beads.ugens.WaveShaper;
@@ -20,41 +20,28 @@ import java.util.List;
  */
 public class AudioEngine {
 
-    //Singleton
-    private static AudioEngine instance;
-
     private final AudioContext ac;
     private final JavaSoundAudioIO jsaIO;
-    private GameBoy gameboy;
+    private final GameBoy gameboy;
     private boolean started;
     private final List<AudioOutput> validOutputs;
     private float master_volume;
 
     /**
-     * Return the current Audio Engine instance
-     * Creating it if necessary
-     * @return the current Audio Engine instance
-     */
-    public static AudioEngine getInstance() {
-        if (instance == null)
-            instance = new AudioEngine();
-        return instance;
-    }
-
-    /**
      * Create a new Audio Engine
      * linking ot to the currently selected Output if valid
      */
-    private AudioEngine() {
+    public AudioEngine(GameBoy gameboy) {
+        this.gameboy = gameboy;
+        gameboy.setAudioEngine(this);
         jsaIO = new JavaSoundAudioIO();
         validOutputs = new ArrayList<>();
         //populating the valid audio output list
         verifyValidOutputs();
 
         //linking the current audio output
-        int out = (int) SettingsContainer.getInstance().getSetting(SettingIdentifiers.AUDIO_MIXER).getValue();
-        if (validOutputs.size() > out) {
-            jsaIO.selectMixer(validOutputs.get(out).id());
+        if (validOutputs.size() > 0) {
+            jsaIO.selectMixer(validOutputs.get(0).id());
             ac = new AudioContext(jsaIO);
             started = true;
             return;
@@ -84,7 +71,7 @@ public class AudioEngine {
                 checker.out.addInput(check);
                 checker.start();
 
-                Thread.sleep(200);
+                Thread.sleep(100);
 
                 if (valid[0])
                     validOutputs.add(new AudioOutput(info, index));
@@ -95,18 +82,10 @@ public class AudioEngine {
     }
 
     /**
-     * Hook the current Game Boy to the audio engine
-     * @param gameboy the Game Boy to hook
-     */
-    public void linkGameboy(GameBoy gameboy) {
-        this.gameboy = gameboy;
-    }
-
-    /**
      * Start the Audio engine
      */
     public void start() {
-        Function audioProcessor = new Function(new WaveShaper(ac)) {
+        ac.out.addInput(new Function(new WaveShaper(ac)) {
             public float calculate() {
                 //If the emulator is running then fetch an audio sample and applying the master volume
                 //Otherwise return 0
@@ -114,22 +93,9 @@ public class AudioEngine {
                     return gameboy.getNextSample() * master_volume;
                 return 0;
             }
-        };
-        ac.out.addInput(audioProcessor);
+        });
         ac.start();
-    }
-
-    /**
-     * Select the current Audio output if it is valid
-     * @param id the id of the output to link
-     */
-    public void setOutput(int id) {
-        if (validOutputs.size() > id) {
-            jsaIO.selectMixer(validOutputs.get(id).id());
-            started = true;
-            return;
-        }
-        started = false;
+        started = true;
     }
 
     /**
@@ -160,6 +126,8 @@ public class AudioEngine {
      * Stop the Audio Engine
      */
     public void stop() {
+        for (UGen input : ac.out.getConnectedInputs())
+            input.kill();
         ac.stop();
     }
 }
