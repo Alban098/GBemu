@@ -107,14 +107,6 @@ public class AudioEngine {
     }
 
     /**
-     * Return the list of valid Audio Outputs
-     * @return the list of valid Output
-     */
-    public List<AudioOutput> getValidOutputs() {
-        return validOutputs;
-    }
-
-    /**
      * Return whether the Audio Engine is started or not
      * @return is the Audio Engine started
      */

@@ -18,6 +18,7 @@ public class GBemu {
         gameboyThread = new GameBoyThread(gameboy);
         windowThread = new WindowThread(gameboy, gameboyThread);
         windowThread.init();
+        gameboy.getSettingsContainer().setWindow(windowThread.getId());
     }
 
     public void run() {

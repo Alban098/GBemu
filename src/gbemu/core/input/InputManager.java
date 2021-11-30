@@ -3,6 +3,7 @@ package gbemu.core.input;
 import gbemu.core.Flags;
 import gbemu.core.GameBoy;
 import gbemu.core.memory.MMU;
+import gbemu.settings.Button;
 
 public class InputManager {
 

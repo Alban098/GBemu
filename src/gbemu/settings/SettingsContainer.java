@@ -1,7 +1,5 @@
 package gbemu.settings;
 
-import audio.AudioEngine;
-import audio.AudioOutput;
 import console.Console;
 import console.Type;
 import gbemu.core.GameBoy;
@@ -9,8 +7,9 @@ import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImBoolean;
-import imgui.type.ImInt;
 import imgui.type.ImString;
+import org.lwjgl.glfw.GLFW;
+import utils.Utils;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -21,12 +20,14 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Consumer;
 
 public class SettingsContainer {
 
     private final String file;
     private final Map<SettingIdentifiers, Setting<?>> settings;
     private final GameBoy gameboy;
+    private long window;
 
     public SettingsContainer(GameBoy gameboy, String file) {
         this.settings = new HashMap<>();
@@ -191,6 +192,25 @@ public class SettingsContainer {
                 gameboy.propagateSetting(setting);
             }
         }));
+        settings.put(SettingIdentifiers.KEYBOARD_CONTROL_MAP, new Setting<>(SettingIdentifiers.KEYBOARD_CONTROL_MAP, Button.getKeyboardMap(), (Setting<Map<Button, Integer>> setting) -> {
+            for (Button button : Button.values()) {
+                if (ImGui.button(button.name(), 80, 20)) {
+                    while(true) {
+                        if (ImGui.isKeyDown(GLFW.GLFW_KEY_ESCAPE))
+                            break;
+                        int keycode = Utils.getPressedKey();
+                        if (keycode != -1 && !setting.getValue().containsValue(keycode)) {
+                            setting.getValue().put(button, keycode);
+                            break;
+                        }
+
+                    }
+                }
+                ImGui.sameLine(120);
+                ImGui.text(Utils.getKeyName(setting.getValue().get(button)));
+
+            }
+        }));
     }
 
     public void loadFile() {
@@ -230,5 +250,9 @@ public class SettingsContainer {
         gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_1))).setValue(new Color(colors[1])));
         gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_2))).setValue(new Color(colors[2])));
         gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_3))).setValue(new Color(colors[3])));
+    }
+
+    public void setWindow(long window) {
+        this.window = window;
     }
 }

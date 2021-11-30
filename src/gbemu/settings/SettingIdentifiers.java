@@ -16,7 +16,9 @@ public enum SettingIdentifiers {
     NOISE_ENABLED("Noise Channel"),
     VOLUME("Volume"),
     BOOTSTRAP("Enable Bootstrap"),
-    CHEAT_DATABASE("Cheats Database");
+    CHEAT_DATABASE("Cheats Database"),
+    KEYBOARD_CONTROL_MAP("Keyboard Controls"),
+    JOYPAD_CONTROL_MAP("Joypad Controls");
 
     private final String description;
 

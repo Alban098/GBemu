@@ -1,6 +1,7 @@
 package gbemu.settings;
 
 import java.awt.*;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class Setting<T> {
@@ -39,16 +40,27 @@ public class Setting<T> {
     public String serializedValue() {
         if (value instanceof Color)
             return String.valueOf(((Color) value).getRGB());
-        else
+        else if (value instanceof Map) {
+            StringBuilder val = new StringBuilder();
+            for (Map.Entry entry : (((Map<Button, Integer>) value).entrySet()))
+                val.append(((Button)entry.getKey()).name()).append(":").append(entry.getValue()).append(";");
+            val.deleteCharAt(val.length()-1);
+            return val.toString();
+        } else
             return value.toString();
     }
-
-
 
     public void setSerializedValue(String val) {
         if (val != null) {
             if (value instanceof Color)
                 value = (T) new Color(Integer.parseInt(val));
+            else if (value instanceof Map) {
+                ((Map<Button, Integer>)value).clear();
+                for (String split : val.split(";")) {
+                    String[] tuple = split.split(":");
+                    ((Map<Button, Integer>)value).put(Button.get(tuple[0]), Integer.parseInt(tuple[1]));
+                }
+            }
             else if (value instanceof Float)
                 value = (T) Float.valueOf(val);
             else if (value instanceof Boolean)

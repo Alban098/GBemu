@@ -9,7 +9,7 @@ import gbemu.extension.cheats.CheatManager;
 import gbemu.core.cpu.LR35902;
 import gbemu.core.input.InputManager;
 import gbemu.core.input.InputState;
-import gbemu.core.input.Button;
+import gbemu.settings.Button;
 import gbemu.core.memory.MMU;
 import gbemu.core.ppu.PPU;
 import gbemu.core.ppu.helper.ColorShade;

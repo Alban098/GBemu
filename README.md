@@ -60,6 +60,7 @@
 - Choose audio output
 - Change master volume
 - Enable / Disable audio channels
+- Input customization (No gamepad support yet)
 
 #### GameShark Window
 - Enable/Disable cheats
@@ -108,8 +109,6 @@ Each of the following features run on a dedicated thread :
 ### Launch
 To launch the Emulator set the Main Class to ```Main.java```
 
-!!! For now the current audio output is hardcoded at ```line 29```, you may need to change it !!!
-
 ---
 
 ## Screenshots
@@ -157,7 +156,10 @@ To launch the Emulator set the Main Class to ```Main.java```
 * [x] Settings pannel (Inputs, Audio, Graphics ...)
 * [x] Multithreading
 * [x] GameShark cheats
-* [ ] Input customization
+* [x] Input customization (W.I.P.)
+  * [x] Keyboard support
+  * [ ] Extended key range
+  * [ ] Gamepad support
 * [ ] Javadoc
 
 ---

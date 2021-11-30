@@ -33,7 +33,7 @@ public class SettingsLayer extends Layer {
      */
     public void render() {
         ImGui.begin("Settings");
-        ImGui.setWindowSize(350, 280);
+        ImGui.setWindowSize(350, 310);
         if (ImGui.button("Save Settings"))
             settingsContainer.saveFile();
         ImGui.sameLine(305);
@@ -101,6 +101,14 @@ public class SettingsLayer extends Layer {
                     settingsContainer.getSetting(SettingIdentifiers.SQUARE_2_ENABLED).process();
                     settingsContainer.getSetting(SettingIdentifiers.WAVE_ENABLED).process();
                     settingsContainer.getSetting(SettingIdentifiers.NOISE_ENABLED).process();
+                    ImGui.treePop();
+                }
+                ImGui.endTabItem();
+            }
+            if (ImGui.beginTabItem("Controls")) {
+                ImGui.setNextItemOpen(true);
+                if (ImGui.treeNode("Keyboard")) {
+                    settingsContainer.getSetting(SettingIdentifiers.KEYBOARD_CONTROL_MAP).process();
                     ImGui.treePop();
                 }
                 ImGui.endTabItem();
