@@ -155,53 +155,6 @@ public class WindowThread {
         glfwSetWindowIcon(windowPtr, logoBuf);
         glfwSwapInterval(1);
         glfwShowWindow(windowPtr);
-        glfwSetKeyCallback(windowPtr, new GLFWKeyCallback() {
-            @Override
-            public void invoke(long window, int key, int scancode, int action, int mods) {
-                // change to settings
-                if (key == Button.getKeyboardMap().get(Button.UP))
-                    if (action == GLFW_PRESS)
-                        gameboy.setButtonState(Button.UP, InputState.PRESSED);
-                    else
-                        gameboy.setButtonState(Button.UP, InputState.RELEASED);
-                if (key == Button.getKeyboardMap().get(Button.DOWN))
-                    if (action == GLFW_PRESS)
-                        gameboy.setButtonState(Button.DOWN, InputState.PRESSED);
-                    else
-                        gameboy.setButtonState(Button.DOWN, InputState.RELEASED);
-                if (key == Button.getKeyboardMap().get(Button.LEFT))
-                    if (action == GLFW_PRESS)
-                        gameboy.setButtonState(Button.LEFT, InputState.PRESSED);
-                    else
-                        gameboy.setButtonState(Button.LEFT, InputState.RELEASED);
-                if (key == Button.getKeyboardMap().get(Button.RIGHT))
-                    if (action == GLFW_PRESS)
-                        gameboy.setButtonState(Button.RIGHT, InputState.PRESSED);
-                    else
-                        gameboy.setButtonState(Button.RIGHT, InputState.RELEASED);
-                if (key == Button.getKeyboardMap().get(Button.A))
-                    if (action == GLFW_PRESS)
-                        gameboy.setButtonState(Button.A, InputState.PRESSED);
-                    else
-                        gameboy.setButtonState(Button.A, InputState.RELEASED);
-                if (key == Button.getKeyboardMap().get(Button.B))
-                    if (action == GLFW_PRESS)
-                        gameboy.setButtonState(Button.B, InputState.PRESSED);
-                    else
-                        gameboy.setButtonState(Button.B, InputState.RELEASED);
-                if (key == Button.getKeyboardMap().get(Button.START))
-                    if (action == GLFW_PRESS)
-                        gameboy.setButtonState(Button.START, InputState.PRESSED);
-                    else
-                        gameboy.setButtonState(Button.START, InputState.RELEASED);
-                if (key == Button.getKeyboardMap().get(Button.SELECT))
-                    if (action == GLFW_PRESS)
-                        gameboy.setButtonState(Button.SELECT, InputState.PRESSED);
-                    else
-                        gameboy.setButtonState(Button.SELECT, InputState.RELEASED);
-            }
-        });
-
         GL.createCapabilities();
     }
 
@@ -230,6 +183,7 @@ public class WindowThread {
 
 
             //Render Menu, emulation and layers
+            handleInput();
             renderMenuBar();
             renderGameScreen();
             renderLayers();
@@ -423,12 +377,13 @@ public class WindowThread {
         ImGui.endMainMenuBar();
     }
 
-    /**
-     * Capture the inputs and propagate them to the emulator
-     * to be computed and interpreted
-     * TODO : Rework to allow customization
-     */
     private void handleInput() {
+        for (Button button : Button.values()) {
+            if (glfwGetKey(windowPtr, Button.getKeyboardMap().get(button)) == GLFW_PRESS)
+                gameboy.setButtonState(button, InputState.PRESSED);
+            else
+                gameboy.setButtonState(button, InputState.RELEASED);
+        }
     }
 
     public long getId() {

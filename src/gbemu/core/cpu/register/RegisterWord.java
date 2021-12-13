@@ -56,7 +56,7 @@ public class RegisterWord {
         for (int i = 0; i < 16; i++) {
             if (i != 0 && i % 4 == 0)
                 s.append(" ");
-            s.append(((val & 0x80) != 0) ? "1" : "0");
+            s.append(((val & 0x8000) != 0) ? "1" : "0");
             val <<= 1;
         }
         return s.toString();

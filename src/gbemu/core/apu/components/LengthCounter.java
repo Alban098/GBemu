@@ -12,7 +12,7 @@ public class LengthCounter {
 
     public boolean clock() {
         length -= length != 0 ? 1 : 0;
-        return !(length == 0 || stopLoop);
+        return !stopLoop || length != 0;
     }
 
     public void reset() {

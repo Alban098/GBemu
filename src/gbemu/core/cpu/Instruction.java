@@ -93,23 +93,24 @@ public class Instruction {
         boolean param16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
 
         this.addrStr = String.format("%04X", addr);
+        this.memoryStr = "";
 
         if (db && parameters != null) {
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 2; i++)
                 this.memoryStr += String.format("%02X ", parameters[i]);
             this.memoryStr += "...";
-            this.disassembled = "DB ";
+            this.disassembled = "db   ";
             for (int parameter : parameters)
                 this.disassembled += String.format("%02X ", parameter);
         } else {
             this.memoryStr = String.format("%02X ", opcode);
-            if (param8 && parameters != null) {
+            if (param8) {
                 this.memoryStr += String.format("%02X  ", parameters[0]);
                 this.disassembled = name.replaceAll(".8", String.format("%02X", parameters[0]));
-            } else if (param16 && parameters != null) {
+            } else if (param16) {
                 this.memoryStr += String.format("%02X %02X", parameters[0], parameters[1]);
                 this.disassembled = name.replaceAll(".16", String.format("%04X", parameters[0] | (parameters[1] << 8)));
-            } else if (rel8 && parameters != null) {
+            } else if (rel8) {
                 this.memoryStr += String.format("%02X", parameters[0]);
                 this.disassembled = name.replaceAll("r8", String.format("%04X", addr + length + signedByte(parameters[0])));
             } else {
@@ -142,7 +143,6 @@ public class Instruction {
         if (disassembled.contains("FF4A")) comment = "win x";
         if (disassembled.contains("FF4B")) comment = "win y";
         if (disassembled.contains("FFFF")) comment = "interrupt enable";
-        disassembled = disassembled.toUpperCase();
     }
 
     public void setAddr(int addr) {
