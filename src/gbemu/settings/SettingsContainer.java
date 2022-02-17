@@ -221,6 +221,7 @@ public class SettingsContainer {
                 setting.setSerializedValue(prop.getProperty(setting.getIdentifier().toString()));
         } catch (IOException e) {
             e.printStackTrace();
+            Console.getInstance().log(Type.ERROR, "Error when saving settings : " + e.getMessage());
         }
         applySettings();
     }
@@ -233,6 +234,7 @@ public class SettingsContainer {
             prop.store(new FileWriter(file), null);
         } catch (IOException e) {
             e.printStackTrace();
+            Console.getInstance().log(Type.ERROR, "Error when saving settings : " + e.getMessage());
         }
     }
 

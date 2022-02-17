@@ -31,7 +31,7 @@ public class ConsoleLayer extends DebugLayer {
             ImGui.textColored(line.getColor().getRed(), line.getColor().getGreen(), line.getColor().getBlue(), 255, Utils.getPrettifiedOutput(line.getContent(), (int) (ImGui.getWindowWidth() - 15 / ImGui.getFontSize())));
         ImGui.endChild();
         ImGui.pushItemWidth(ImGui.getWindowWidth() - 66);
-        ImGui.inputText("", consoleInput);
+        ImGui.inputText("##", consoleInput);
         ImGui.sameLine();
         if (ImGui.button("Enter")) {
             Console.getInstance().log(Type.INPUT, "> " + consoleInput.get());

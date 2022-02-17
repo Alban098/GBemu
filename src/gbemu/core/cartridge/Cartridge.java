@@ -22,7 +22,12 @@ public class Cartridge {
         Path path = Paths.get(file);
 
         byte[] bytes = new byte[0];
-        try { bytes = Files.readAllBytes(path); } catch (IOException e) { e.printStackTrace(); }
+        try {
+            bytes = Files.readAllBytes(path);
+        } catch (IOException e) {
+            e.printStackTrace();
+            Console.getInstance().log(Type.ERROR, "Error when loading ROM : " + e.getMessage());
+        }
 
         this.file = file;
         this.gameId = "";

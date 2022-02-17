@@ -1,5 +1,7 @@
 package gbemu.extension.cheats;
 
+import console.Console;
+import console.Type;
 import gbemu.core.GameBoy;
 import gbemu.core.ppu.LCDMode;
 import org.w3c.dom.*;
@@ -81,7 +83,10 @@ public class CheatManager {
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            e.printStackTrace();
+            Console.getInstance().log(Type.ERROR, "Error when loading cheats : " + e.getMessage());
+        }
     }
 
     public void saveFile() {
@@ -115,7 +120,10 @@ public class CheatManager {
             StreamResult result = new StreamResult(new File(file));
             transformer.transform(source, result);
 
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            e.printStackTrace();
+            Console.getInstance().log(Type.ERROR, "Error when saving cheats : " + e.getMessage());
+        }
     }
 
     public List<GameSharkCode> getCheats(String gameId) {

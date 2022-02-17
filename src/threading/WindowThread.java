@@ -8,6 +8,7 @@ import gbemu.settings.Button;
 import gbemu.core.input.InputState;
 import gbemu.core.ppu.PPU;
 import gbemu.extension.debug.DebuggerMode;
+import glwrapper.SyncTimer;
 import gui.debug.*;
 import gui.std.Layer;
 import gui.std.CheatsLayer;
@@ -69,6 +70,8 @@ public class WindowThread {
     private final GameBoyThread gameboyThread;
     private DebuggerThread debuggerThread;
     private ConsoleThread consoleThread;
+    private final SyncTimer timer;
+
 
     /**
      * Create a new OpenGl Window
@@ -84,6 +87,7 @@ public class WindowThread {
         apuLayer = new APULayer(gameboy.getDebugger());
         settingsLayer = new SettingsLayer(gameboy.getSettingsContainer());
         cheatsLayer = new CheatsLayer(gameboy, gameboy.getCheatManager());
+        timer = new SyncTimer();
 
         this.gameboy = gameboy;
         this.gameboyThread = gameBoyThread;
@@ -213,6 +217,7 @@ public class WindowThread {
             }
             GLFW.glfwSwapBuffers(windowPtr);
             GLFW.glfwPollEvents();
+            timer.sync(60);
         }
     }
 
