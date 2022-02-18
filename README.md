@@ -95,11 +95,11 @@
 
 #### Console Window
 - Display emulator information (Emulation reset, Breakpoint reached ...)
-- Enabled user to enter commands (for now just 'help' and breakpoints)
+- Enable user to enter commands (type help for list of commands)
   
 #### Multithreading
 Each of the following features run on a dedicated thread :
-- Gameboy gbemu.core hardware (CPU, APU, PPU, MMU, Timers, Cartridge)
+- Gameboy core hardware (CPU, APU, PPU, MMU, Timers, Cartridge)
 - Windows rendering routines (Screen rendering, ImGui Layers, Input capture, Console command (Forwarded to the Console Thread))
 - Debugger (CPU and MMU snapshots, breakpoint system, PPU Debug rendering, APU Visualizer and Serial Output)
 - Console interpreter

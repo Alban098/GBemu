@@ -1,7 +1,7 @@
 package threading;
 
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.extension.debug.Debugger;
 
 /**
@@ -37,7 +37,7 @@ public class DebuggerThread extends GBemuThread {
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
-            Console.getInstance().log(Type.ERROR, "Debugger Thread crashed !");
+            Console.getInstance().log(LogLevel.ERROR, "Debugger Thread crashed !");
         }
     }
 }

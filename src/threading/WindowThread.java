@@ -1,7 +1,7 @@
 package threading;
 
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.core.GameBoy;
 import gbemu.core.GameBoyState;
 import gbemu.settings.Button;
@@ -20,7 +20,7 @@ import imgui.extension.implot.ImPlotContext;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
-import imgui.type.ImBoolean;
+import imgui.level.ImBoolean;
 import glwrapper.Texture;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
@@ -29,8 +29,6 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
 
-import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import java.io.File;
 import java.util.Objects;
 
@@ -302,7 +300,7 @@ public class WindowThread {
                             gameboy.insertCartridge(file.getAbsolutePath());
                             gameboy.setState(GameBoyState.RUNNING);
                         } catch (Exception e) {
-                            Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                            Console.getInstance().log(LogLevel.ERROR, "Invalid file : " + e.getMessage());
                         }
                     }
                 });

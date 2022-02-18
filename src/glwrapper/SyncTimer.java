@@ -1,7 +1,7 @@
 package glwrapper;
 
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import org.lwjgl.glfw.GLFW;
 
 public class SyncTimer {
@@ -39,7 +39,7 @@ public class SyncTimer {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Console.getInstance().log(Type.ERROR, "Sync timer crashed : " + e.getMessage());
+            Console.getInstance().log(LogLevel.ERROR, "Sync timer crashed : " + e.getMessage());
         }
 
     }

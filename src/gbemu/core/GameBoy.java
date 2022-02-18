@@ -2,7 +2,7 @@ package gbemu.core;
 
 import audio.AudioEngine;
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.core.apu.APU;
 import gbemu.core.cartridge.mbc.MBC3;
 import gbemu.extension.cheats.CheatManager;
@@ -133,7 +133,7 @@ public class GameBoy {
         memory.writeRaw(MMU.CGB_OCPS_OBPI, 0xFF);
         memory.writeRaw(MMU.CGB_OCPD_OBPD, 0xFF);
         memory.writeRaw(MMU.CGB_WRAM_BANK, 0xFF);
-        Console.getInstance().log(Type.INFO, "Emulation reset");
+        Console.getInstance().log(LogLevel.INFO, "Emulation reset");
         cpu.init();
     }
 

@@ -1,8 +1,8 @@
 package threading;
 
-import console.Command;
+import console.commands.Command;
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.extension.debug.Debugger;
 
 import java.util.Queue;
@@ -45,7 +45,7 @@ public class ConsoleThread extends GBemuThread {
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
-            Console.getInstance().log(Type.ERROR, "Console Thread crashed !");
+            Console.getInstance().log(LogLevel.ERROR, "Console Thread crashed !");
         }
     }
 

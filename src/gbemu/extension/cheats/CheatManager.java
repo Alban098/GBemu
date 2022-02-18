@@ -1,7 +1,7 @@
 package gbemu.extension.cheats;
 
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.core.GameBoy;
 import gbemu.core.ppu.LCDMode;
 import org.w3c.dom.*;
@@ -84,7 +84,7 @@ public class CheatManager {
                 }
             }
         } catch (Exception e) {
-            Console.getInstance().log(Type.ERROR, "Error when loading cheats : " + e.getMessage());
+            Console.getInstance().log(LogLevel.ERROR, "Error when loading cheats : " + e.getMessage());
         }
     }
 
@@ -120,7 +120,7 @@ public class CheatManager {
             transformer.transform(source, result);
 
         } catch (Exception e) {
-            Console.getInstance().log(Type.ERROR, "Error when saving cheats : " + e.getMessage());
+            Console.getInstance().log(LogLevel.ERROR, "Error when saving cheats : " + e.getMessage());
         }
     }
 

@@ -1,7 +1,7 @@
 package gbemu.extension.debug;
 
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.core.Flags;
 import gbemu.core.GameBoy;
 import gbemu.core.GameBoyState;
@@ -152,10 +152,10 @@ public class Debugger {
     /**
      * Add a breakpoint to de debugger
      * @param addr the address to watch
-     * @param type the access type of the breakpoint
+     * @param level the access level of the breakpoint
      */
-    public void addBreakpoint(int addr, BreakPoint.Type type) {
-        breakpoints.put(addr, new BreakPoint(addr, type));
+    public void addBreakpoint(int addr, BreakPoint.Type level) {
+        breakpoints.put(addr, new BreakPoint(addr, level));
     }
 
     /**
@@ -174,31 +174,31 @@ public class Debugger {
         int addr = cpuState.getInstruction().getAddr();
 
         //Test for EXEC breakpoints
-        if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.EXEC  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
+        if (breakpoints.containsKey(addr) && (breakpoints.get(addr).level() == BreakPoint.Type.EXEC  || breakpoints.get(addr).level() == BreakPoint.Type.ALL)) {
             synchronized (gameboy) {
                 gameboy.setState(GameBoyState.DEBUG);
             }
-            Console.getInstance().log(Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (breakpoint reached (EXEC))");
+            Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (breakpoint reached (EXEC))");
         }
 
         addr = cpuState.getInstruction().getParamAddress();
         //Test for READ breakpoints
         if (cpuState.getInstruction().getType() == Instruction.Type.R || cpuState.getInstruction().getType() == Instruction.Type.RW) {
-            if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.READ || breakpoints.get(addr).type() == BreakPoint.Type.RW  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
+            if (breakpoints.containsKey(addr) && (breakpoints.get(addr).level() == BreakPoint.Type.READ || breakpoints.get(addr).level() == BreakPoint.Type.RW  || breakpoints.get(addr).level() == BreakPoint.Type.ALL)) {
                 synchronized (gameboy) {
                     gameboy.setState(GameBoyState.DEBUG);
                 }
-                Console.getInstance().log(Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (read from " + String.format("%04X", addr) + ")");
+                Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (read from " + String.format("%04X", addr) + ")");
             }
         }
 
         //Test for WRITE breakpoints
         if (cpuState.getInstruction().getType() == Instruction.Type.W || cpuState.getInstruction().getType() == Instruction.Type.RW) {
-            if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.WRITE || breakpoints.get(addr).type() == BreakPoint.Type.RW  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
+            if (breakpoints.containsKey(addr) && (breakpoints.get(addr).level() == BreakPoint.Type.WRITE || breakpoints.get(addr).level() == BreakPoint.Type.RW  || breakpoints.get(addr).level() == BreakPoint.Type.ALL)) {
                 synchronized (gameboy) {
                     gameboy.setState(GameBoyState.DEBUG);
                 }
-                Console.getInstance().log(Type.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (write to " + String.format("%04X", addr) + ")");
+                Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (write to " + String.format("%04X", addr) + ")");
             }
         }
     }
@@ -426,6 +426,19 @@ public class Debugger {
     public int readMemory(int addr) {
         synchronized (gameboy.getMemory()) {
             return gameboy.getMemory().readByte(addr, true);
+        }
+    }
+
+    /**
+     * Write a value at a specified address as seen by the emulator
+     * Does not trigger standard behaviour from a normal CPU write such as PPU register update and so
+     * (From addressable space (0x0000 - 0xFFFF)
+     * @param addr the address to write
+     * @param val the value to write
+     */
+    public void writeMemory(int addr, int val) {
+        synchronized (gameboy.getMemory()) {
+            gameboy.getMemory().writeRaw(addr, val);
         }
     }
 

@@ -1,21 +1,18 @@
 package gbemu.settings;
 
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.core.GameBoy;
-import gbemu.core.GameBoyState;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.type.ImBoolean;
-import imgui.type.ImString;
+import imgui.level.ImBoolean;
+import imgui.level.ImString;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
 import org.lwjgl.glfw.GLFW;
 import utils.Utils;
 
-import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.io.File;
 import java.io.FileReader;
@@ -24,7 +21,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.function.Consumer;
 
 public class SettingsContainer {
 
@@ -77,7 +73,7 @@ public class SettingsContainer {
                                 throw new Exception("Invalid DMG Size (must be 256 bytes");
                             gameboy.propagateSetting(setting);
                         } catch (Exception e) {
-                            Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                            Console.getInstance().log(LogLevel.ERROR, "Invalid file : " + e.getMessage());
                         }
                     }
                 });
@@ -98,7 +94,7 @@ public class SettingsContainer {
                             setting.setValue(cht.getAbsolutePath());
                             gameboy.propagateSetting(setting);
                         } catch (Exception e) {
-                            Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                            Console.getInstance().log(LogLevel.ERROR, "Invalid file : " + e.getMessage());
                         }
                     }
                 });
@@ -121,7 +117,7 @@ public class SettingsContainer {
                                 throw new Exception("Invalid CGB Size (must be 2304 bytes");
                             gameboy.propagateSetting(setting);
                         } catch (Exception e) {
-                            Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                            Console.getInstance().log(LogLevel.ERROR, "Invalid file : " + e.getMessage());
                         }
                     }
                 });
@@ -228,7 +224,7 @@ public class SettingsContainer {
                 setting.setSerializedValue(prop.getProperty(setting.getIdentifier().toString()));
         } catch (IOException e) {
             e.printStackTrace();
-            Console.getInstance().log(Type.ERROR, "Error when saving settings : " + e.getMessage());
+            Console.getInstance().log(LogLevel.ERROR, "Error when saving settings : " + e.getMessage());
         }
         applySettings();
     }
@@ -241,7 +237,7 @@ public class SettingsContainer {
             prop.store(new FileWriter(file), null);
         } catch (IOException e) {
             e.printStackTrace();
-            Console.getInstance().log(Type.ERROR, "Error when saving settings : " + e.getMessage());
+            Console.getInstance().log(LogLevel.ERROR, "Error when saving settings : " + e.getMessage());
         }
     }
 

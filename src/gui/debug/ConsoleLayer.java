@@ -1,11 +1,11 @@
 package gui.debug;
 
-import console.Command;
+import console.LogLevel;
+import console.commands.Command;
 import console.Console;
-import console.Type;
 import gbemu.extension.debug.Debugger;
 import imgui.ImGui;
-import imgui.type.ImString;
+import imgui.level.ImString;
 import threading.ConsoleThread;
 import utils.Utils;
 
@@ -34,9 +34,9 @@ public class ConsoleLayer extends DebugLayer {
         ImGui.inputText("##", consoleInput);
         ImGui.sameLine();
         if (ImGui.button("Enter")) {
-            Console.getInstance().log(Type.INPUT, "> " + consoleInput.get());
+            Console.getInstance().log(LogLevel.INPUT, "> " + consoleInput.get());
 
-            consoleThread.offerCommand(new Command(consoleInput.toString()));
+            consoleThread.offerCommand(Command.build(consoleInput.toString()));
             synchronized (consoleThread) {
                 consoleThread.notify();
             }

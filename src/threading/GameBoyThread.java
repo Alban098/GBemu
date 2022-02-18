@@ -1,7 +1,7 @@
 package threading;
 
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.core.GameBoy;
 import gbemu.core.GameBoyState;
 import gbemu.extension.debug.DebuggerMode;
@@ -63,7 +63,7 @@ public class GameBoyThread extends GBemuThread {
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
-            Console.getInstance().log(Type.ERROR, "Emulation Thread crashed !");
+            Console.getInstance().log(LogLevel.ERROR, "Emulation Thread crashed !");
         }
     }
 

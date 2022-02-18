@@ -1,7 +1,7 @@
 package gbemu.core.cartridge;
 
 import console.Console;
-import console.Type;
+import console.LogLevel;
 import gbemu.core.GameBoy;
 import gbemu.core.cartridge.mbc.*;
 
@@ -26,7 +26,7 @@ public class Cartridge {
             bytes = Files.readAllBytes(path);
         } catch (IOException e) {
             e.printStackTrace();
-            Console.getInstance().log(Type.ERROR, "Error when loading ROM : " + e.getMessage());
+            Console.getInstance().log(LogLevel.ERROR, "Error when loading ROM : " + e.getMessage());
         }
 
         this.file = file;
@@ -34,7 +34,7 @@ public class Cartridge {
         for (int i = 0x134; i < 0x143; i++)
             gameId += String.valueOf(bytes[i]);
 
-        int type = bytes[0x147];
+        int level = bytes[0x147];
 
         gameboy.mode = GameBoy.Mode.DMG;
         if ((bytes[0x143] & 0xFF) == 0x80 || (bytes[0x143] & 0xFF) == 0xC0)
@@ -50,7 +50,7 @@ public class Cartridge {
             default -> nb_ram_bank = 0;
         }
 
-        switch(type) {
+        switch(level) {
             case 0x00 -> mbc = new NoMBC(gameboy, 2, 0);
             case 0x01, 0x02 -> mbc = new MBC1(gameboy, nb_rom_bank, nb_ram_bank, false);
             case 0x03 -> mbc = new MBC1(gameboy, nb_rom_bank, nb_ram_bank, true);
@@ -127,7 +127,7 @@ public class Cartridge {
             try {
                 Files.write(path, ram_export, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             } catch (IOException e) {
-                Console.getInstance().log(Type.ERROR, e.getMessage());
+                Console.getInstance().log(LogLevel.ERROR, e.getMessage());
             }
         }
     }
@@ -144,7 +144,7 @@ public class Cartridge {
                     ((MBC3)mbc).restoreRTC(ram.length, bytes);
                 }
             } catch (IOException e) {
-                Console.getInstance().log(Type.ERROR, e.getMessage());
+                Console.getInstance().log(LogLevel.ERROR, e.getMessage());
             }
         }
     }
