@@ -5,7 +5,7 @@ import console.commands.Command;
 import console.Console;
 import gbemu.extension.debug.Debugger;
 import imgui.ImGui;
-import imgui.level.ImString;
+import imgui.type.ImString;
 import threading.ConsoleThread;
 import utils.Utils;
 

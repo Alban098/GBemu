@@ -6,8 +6,8 @@ import gbemu.core.GameBoy;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.level.ImBoolean;
-import imgui.level.ImString;
+import imgui.type.ImBoolean;
+import imgui.type.ImString;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
 import org.lwjgl.glfw.GLFW;
@@ -27,7 +27,6 @@ public class SettingsContainer {
     private final String file;
     private final Map<SettingIdentifiers, Setting<?>> settings;
     private final GameBoy gameboy;
-    private long window;
 
     public SettingsContainer(GameBoy gameboy, String file) {
         this.settings = new HashMap<>();
@@ -255,9 +254,5 @@ public class SettingsContainer {
         gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_1))).setValue(new Color(colors[1])));
         gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_2))).setValue(new Color(colors[2])));
         gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_3))).setValue(new Color(colors[3])));
-    }
-
-    public void setWindow(long window) {
-        this.window = window;
     }
 }

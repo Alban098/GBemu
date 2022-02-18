@@ -4,7 +4,7 @@ import gbemu.settings.Palette;
 import gbemu.settings.SettingIdentifiers;
 import gbemu.settings.SettingsContainer;
 import imgui.ImGui;
-import imgui.level.ImInt;
+import imgui.type.ImInt;
 
 /**
  * This class represent the Setting window

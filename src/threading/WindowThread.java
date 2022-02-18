@@ -20,7 +20,7 @@ import imgui.extension.implot.ImPlotContext;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
-import imgui.level.ImBoolean;
+import imgui.type.ImBoolean;
 import glwrapper.Texture;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;

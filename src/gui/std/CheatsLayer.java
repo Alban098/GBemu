@@ -4,8 +4,8 @@ import gbemu.core.GameBoy;
 import gbemu.extension.cheats.CheatManager;
 import gbemu.extension.cheats.GameSharkCode;
 import imgui.ImGui;
-import imgui.level.ImBoolean;
-import imgui.level.ImString;
+import imgui.type.ImBoolean;
+import imgui.type.ImString;
 
 /**
  * This class represent the Cheats window

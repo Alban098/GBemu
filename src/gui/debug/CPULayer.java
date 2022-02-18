@@ -7,8 +7,8 @@ import gbemu.core.cpu.State;
 import gbemu.extension.debug.BreakPoint;
 import gbemu.extension.debug.Debugger;
 import imgui.ImGui;
-import imgui.level.ImInt;
-import imgui.level.ImString;
+import imgui.type.ImInt;
+import imgui.type.ImString;
 import threading.GameBoyThread;
 
 import java.util.Map;
@@ -187,7 +187,7 @@ public class CPULayer extends DebugLayer {
                     for (Map.Entry<Integer, BreakPoint> entry :  debugger.getBreakpoints().entrySet()) {
                         ImGui.textColored(255, 255, 0, 255, String.format("$%04X", entry.getValue().address()));
                         ImGui.sameLine();
-                        ImGui.text( ": " + entry.getValue().level().toString());
+                        ImGui.text( ": " + entry.getValue().type().toString());
                         ImGui.sameLine(260);
                         if (ImGui.button("Delete"))
                             debugger.removeBreakpoint(entry.getValue().address());

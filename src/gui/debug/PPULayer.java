@@ -9,8 +9,8 @@ import gbemu.extension.debug.Debugger;
 import gbemu.extension.debug.DebuggerMode;
 import gbemu.extension.debug.Tile;
 import imgui.ImGui;
-import imgui.level.ImBoolean;
-import imgui.level.ImInt;
+import imgui.type.ImBoolean;
+import imgui.type.ImInt;
 import glwrapper.Texture;
 
 import java.awt.*;

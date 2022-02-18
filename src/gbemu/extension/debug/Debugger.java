@@ -174,7 +174,7 @@ public class Debugger {
         int addr = cpuState.getInstruction().getAddr();
 
         //Test for EXEC breakpoints
-        if (breakpoints.containsKey(addr) && (breakpoints.get(addr).level() == BreakPoint.Type.EXEC  || breakpoints.get(addr).level() == BreakPoint.Type.ALL)) {
+        if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.EXEC  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
             synchronized (gameboy) {
                 gameboy.setState(GameBoyState.DEBUG);
             }
@@ -184,7 +184,7 @@ public class Debugger {
         addr = cpuState.getInstruction().getParamAddress();
         //Test for READ breakpoints
         if (cpuState.getInstruction().getType() == Instruction.Type.R || cpuState.getInstruction().getType() == Instruction.Type.RW) {
-            if (breakpoints.containsKey(addr) && (breakpoints.get(addr).level() == BreakPoint.Type.READ || breakpoints.get(addr).level() == BreakPoint.Type.RW  || breakpoints.get(addr).level() == BreakPoint.Type.ALL)) {
+            if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.READ || breakpoints.get(addr).type() == BreakPoint.Type.RW  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
                 synchronized (gameboy) {
                     gameboy.setState(GameBoyState.DEBUG);
                 }
@@ -194,7 +194,7 @@ public class Debugger {
 
         //Test for WRITE breakpoints
         if (cpuState.getInstruction().getType() == Instruction.Type.W || cpuState.getInstruction().getType() == Instruction.Type.RW) {
-            if (breakpoints.containsKey(addr) && (breakpoints.get(addr).level() == BreakPoint.Type.WRITE || breakpoints.get(addr).level() == BreakPoint.Type.RW  || breakpoints.get(addr).level() == BreakPoint.Type.ALL)) {
+            if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.WRITE || breakpoints.get(addr).type() == BreakPoint.Type.RW  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
                 synchronized (gameboy) {
                     gameboy.setState(GameBoyState.DEBUG);
                 }
