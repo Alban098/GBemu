@@ -7,6 +7,9 @@ import gbemu.extension.debug.BreakPoint;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+/**
+ * This class represent a concrete Command of type break
+ */
 public class BreakCommand extends Command {
 
     /**
@@ -22,6 +25,10 @@ public class BreakCommand extends Command {
         args.addAll(Arrays.asList(split).subList(1, split.length));;
     }
 
+    /**
+     * Return whether the Command is a valid one or not
+     * @return is the Command valid
+     */
     @Override
     public boolean validate() {
         if (args.size() > 0) {
@@ -64,6 +71,10 @@ public class BreakCommand extends Command {
         return false;
     }
 
+    /**
+     * Execute the command from a Console
+     * @param console the Console instance executing the command
+     */
     @Override
     public void execute(Console console) {
         switch (args.get(0)) {
@@ -107,6 +118,10 @@ public class BreakCommand extends Command {
         }
     }
 
+    /**
+     * Print the manual of the Command to a Console
+     * @param console the Console instance to print to
+     */
     @Override
     public void displayHelp(Console console) {
         console.log(LogLevel.INFO, "================= break =================");

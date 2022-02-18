@@ -584,8 +584,4 @@ public class Debugger {
         hoveredSprite.x = x;
         hoveredSprite.y = y;
     }
-
-    public String getGameId() {
-        return gameboy.getGameId();
-    }
 }

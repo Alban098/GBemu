@@ -1,5 +1,8 @@
 package console.commands;
 
+/**
+ * This class enumerate all possible Commands
+ */
 public class Commands {
 
     public static final Command HELP_COMMAND = new HelpCommand("");

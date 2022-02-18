@@ -153,6 +153,11 @@ public class Utils {
         return s.toString();
     }
 
+    /**
+     * Return the currently pressed keycode
+     * only one keycode is returned, the first pressed in ascending order regarding the keys map
+     * @return the currently pressed keycode
+     */
     public static int getPressedKey() {
         GLFW.glfwPollEvents();
         for (int keycode : keys.keySet()) {
@@ -162,6 +167,11 @@ public class Utils {
         return -1;
     }
 
+    /**
+     * Return whether a keycode is valid or not
+     * @param keycode the keycode to test
+     * @return is the keycode valid
+     */
     public static boolean isValidKey(int keycode) {
        return keys.containsKey(keycode);
     }

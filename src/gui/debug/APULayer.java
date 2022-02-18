@@ -12,7 +12,10 @@ import utils.Utils;
 
 import java.util.Queue;
 
-
+/**
+ * This class represent the DebugLayer in charge of displaying the current state of the APU
+ * waveforms and registers
+ */
 public class APULayer extends DebugLayer {
 
     public static final int DEBUG_SAMPLE_NUMBER = 368;
@@ -20,6 +23,10 @@ public class APULayer extends DebugLayer {
     private final Float[][] samples;
     private final Float[] xs;
 
+    /**
+     * Create a new instance of APULayer
+     * @param debugger the debugger to link to
+     */
     public APULayer(Debugger debugger) {
         super(debugger);
         this.sample_queue = debugger.getSampleQueue();
@@ -35,6 +42,9 @@ public class APULayer extends DebugLayer {
         }
     }
 
+    /**
+     * Render the layer to the screen
+     */
     public void render() {
         ImGui.begin("APU");
         int i = 0;
@@ -132,13 +142,5 @@ public class APULayer extends DebugLayer {
             ImGui.endTabBar();
         }
         ImGui.end();
-    }
-
-    private void inlineRegister(int addr, String name, int value) {
-        ImGui.textColored(0, 255, 255, 255, String.format("    $%04X", addr));
-        ImGui.sameLine();
-        ImGui.textColored(255, 0, 255, 255, name);
-        ImGui.sameLine();
-        ImGui.text(String.format("$%02X", value) + "(" + Utils.binaryString(value, 8) + ")");
     }
 }

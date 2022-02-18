@@ -8,6 +8,10 @@ import imgui.type.ImBoolean;
 import imgui.type.ImString;
 import utils.Utils;
 
+/**
+ * This class represent the DebugLayer in charge of displaying the current state of the MMU
+ * alongside the state of all registers of the Game Boy
+ */
 public class MemoryLayer extends DebugLayer {
 
     private static final int HIGHLIGH_DURATION = 64;
@@ -17,10 +21,17 @@ public class MemoryLayer extends DebugLayer {
     private final ImBoolean gradient = new ImBoolean();
     private final int[] currentPage = new int[1];
 
+    /**
+     * Create a new instance of MemoryLayer
+     * @param debugger the debugger to link to
+     */
     public MemoryLayer(Debugger debugger) {
         super(debugger);
     }
 
+    /**
+     * Render the layer to the screen
+     */
     public void render() {
         ImGui.begin("Memory");
         if (ImGui.beginTabBar("tab")) {
@@ -230,13 +241,5 @@ public class MemoryLayer extends DebugLayer {
             ImGui.endTabBar();
         }
         ImGui.end();
-    }
-
-    private void inlineRegister(int addr, String name, int value) {
-        ImGui.textColored(0, 255, 255, 255, String.format("    $%04X", addr));
-        ImGui.sameLine();
-        ImGui.textColored(255, 0, 255, 255, name);
-        ImGui.sameLine();
-        ImGui.text(String.format("$%02X", value) + "(" + Utils.binaryString(value, 8) + ")");
     }
 }

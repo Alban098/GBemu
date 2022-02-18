@@ -26,14 +26,31 @@ public abstract class Command {
         args.addAll(Arrays.asList(split).subList(1, split.length));
     }
 
+    /**
+     * Execute the command from a Console
+     * @param console the Console instance executing the command
+     */
     public abstract void execute(Console console);
 
+    /**
+     * Return whether the Command is a valid one or not
+     * @return is the Command valid
+     */
     public abstract boolean validate();
 
+    /**
+     * Print the manual of the Command to a Console
+     * @param console the Console instance to print to
+     */
     public void displayHelp(Console console) {
         console.log(LogLevel.WARNING, "No help for this command");
     }
 
+    /**
+     * Create an instance of Command of the appropriate type
+     * @param string the raw String representation
+     * @return a valid instance of Command, null otherwise
+     */
     public static Command build(String string) {
         String[] split = string.split(" ");
         switch (split[0]) {

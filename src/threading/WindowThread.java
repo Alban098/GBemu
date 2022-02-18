@@ -386,6 +386,9 @@ public class WindowThread {
         ImGui.endMainMenuBar();
     }
 
+    /**
+     * Handle the input mapping between keyboard and the emulated Game Boy
+     */
     private void handleInput() {
         for (Button button : Button.values()) {
             if (glfwGetKey(windowPtr, Button.getKeyboardMap().get(button)) == GLFW_PRESS)
@@ -395,6 +398,10 @@ public class WindowThread {
         }
     }
 
+    /**
+     * Return the current Window ID
+     * @return the current Window ID
+     */
     public long getId() {
         return windowPtr;
     }

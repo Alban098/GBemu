@@ -1,5 +1,8 @@
 package gbemu.settings;
 
+/**
+ * This class represent a Game Boy palette that can be used in DMG mode
+ */
 public class Palette {
 
     public static final Palette[] palettes = {
@@ -21,15 +24,31 @@ public class Palette {
     private final String name;
     private final int[] colors;
 
+    /**
+     * Create a new Palette
+     * @param name the palette name
+     * @param color0 color for White as RGB
+     * @param color1 color for Light Grey as RGB
+     * @param color2 color for Dark Grey as RGB
+     * @param color3 color for Black as RGB
+     */
     public Palette(String name, int color0, int color1, int color2, int color3) {
         this.name = name;
         colors = new int[]{color0, color1, color2, color3};
     }
 
+    /**
+     * Return the name of the palette
+     * @return the palette's name
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Return the colors of the palette
+     * @return the colors of the palette as an array of RGB [White, Light Grey, Dark Grey, Black]
+     */
     public int[] getColors() {
         return colors;
     }

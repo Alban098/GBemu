@@ -22,12 +22,21 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+/**
+ * This class represent a Container with all Settings of the emulator,
+ * all settings interaction flows through this container
+ */
 public class SettingsContainer {
 
     private final String file;
     private final Map<SettingIdentifiers, Setting<?>> settings;
     private final GameBoy gameboy;
 
+    /**
+     * Create a new SettingsContainer
+     * @param gameboy the Game Boy to link to
+     * @param file the file to load settings from and save to
+     */
     public SettingsContainer(GameBoy gameboy, String file) {
         this.settings = new HashMap<>();
         this.gameboy = gameboy;
@@ -215,6 +224,9 @@ public class SettingsContainer {
         }));
     }
 
+    /**
+     * Load settings from the settings file
+     */
     public void loadFile() {
         try {
             Properties prop = new Properties();
@@ -228,6 +240,9 @@ public class SettingsContainer {
         applySettings();
     }
 
+    /**
+     * Save settings to the settings file
+     */
     public void saveFile() {
         try {
             Properties prop = new Properties();
@@ -240,15 +255,27 @@ public class SettingsContainer {
         }
     }
 
+    /**
+     * Get a settings by his identifier
+     * @param name the identifier to find
+     * @return the corresponding Setting, null if not found
+     */
     public Setting<?> getSetting(SettingIdentifiers name) {
         return settings.get(name);
     }
 
+    /**
+     * Apply all the settings to the emulator
+     */
     private void applySettings() {
         for (Setting<?> setting : settings.values())
             gameboy.propagateSetting(setting);
     }
 
+    /**
+     * Apply a palette to the emulator if in DMG mode
+     * @param colors the colors to apply
+     */
     public void applyPalette(int[] colors) {
         gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_0))).setValue(new Color(colors[0])));
         gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_1))).setValue(new Color(colors[1])));

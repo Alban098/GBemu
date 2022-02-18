@@ -9,12 +9,19 @@ import imgui.type.ImString;
 import threading.ConsoleThread;
 import utils.Utils;
 
-
+/**
+ * This class represent the DebugLayer in charge of handling command inputs and outputs
+ * alongside error reporting
+ */
 public class ConsoleLayer extends DebugLayer {
 
     private final ImString consoleInput = new ImString();
     private ConsoleThread consoleThread;
 
+    /**
+     * Create a new instance of ConsoleLayer
+     * @param debugger the debugger to link to
+     */
     public ConsoleLayer(Debugger debugger) {
         super(debugger);
     }
@@ -23,6 +30,10 @@ public class ConsoleLayer extends DebugLayer {
         this.consoleThread = consoleThread;
     }
 
+    /**
+     * Render the layer to the screen
+     * and propagate command to the console thread if needed
+     */
     public void render() {
         ImGui.begin("Console");
         ImGui.beginChild("Scrolling", ImGui.getWindowWidth() - 15, ImGui.getWindowHeight() - 58, true);

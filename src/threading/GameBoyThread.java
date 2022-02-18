@@ -17,7 +17,7 @@ public class GameBoyThread extends GBemuThread {
     private int requestedInstructions = 0;
 
     /**
-     * Create a new GameBoy Thread
+     * Create a new Game Boy Thread
      * @param gameboy the Game Boy to run
      */
     public GameBoyThread(GameBoy gameboy) {
@@ -27,7 +27,7 @@ public class GameBoyThread extends GBemuThread {
     }
 
     /**
-     * Run the GameBoy Thread
+     * Run the Game Boy Thread
      */
     @Override
     public void run() {

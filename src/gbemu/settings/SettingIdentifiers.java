@@ -1,5 +1,8 @@
 package gbemu.settings;
 
+/**
+ * This enum contains all possible settings Identifiers
+ */
 public enum SettingIdentifiers {
     RTC("MBC3 RTC Capability"),
     SPEED("Speed Mult."),
@@ -22,10 +25,18 @@ public enum SettingIdentifiers {
 
     private final String description;
 
+    /**
+     * Create a new Identifier
+     * @param description the Setting's description to be displayed on screen
+     */
     SettingIdentifiers(String description) {
         this.description = description;
     }
 
+    /**
+     * Return the description of the Setting
+     * @return the Setting's description
+     */
     public String getDescription() {
         return description;
     }

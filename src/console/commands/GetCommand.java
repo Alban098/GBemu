@@ -3,6 +3,9 @@ package console.commands;
 import console.Console;
 import console.LogLevel;
 
+/**
+ * This class represent a concrete Command of type get
+ */
 public class GetCommand extends Command {
 
     /**
@@ -15,6 +18,10 @@ public class GetCommand extends Command {
         this.command = "get";
     }
 
+    /**
+     * Return whether the Command is a valid one or not
+     * @return is the Command valid
+     */
     @Override
     public boolean validate() {
         try {
@@ -29,6 +36,10 @@ public class GetCommand extends Command {
         }
     }
 
+    /**
+     * Execute the command from a Console
+     * @param console the Console instance executing the command
+     */
     @Override
     public void execute(Console console) {
         try {
@@ -44,6 +55,10 @@ public class GetCommand extends Command {
         }
     }
 
+    /**
+     * Print the manual of the Command to a Console
+     * @param console the Console instance to print to
+     */
     @Override
     public void displayHelp(Console console) {
         console.log(LogLevel.INFO, "================= get =================");

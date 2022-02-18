@@ -3,6 +3,9 @@ package console.commands;
 import console.Console;
 import console.LogLevel;
 
+/**
+ * This class represent a concrete Command of type help
+ */
 public class HelpCommand extends Command {
 
     /**
@@ -16,6 +19,10 @@ public class HelpCommand extends Command {
         this.args = null;
     }
 
+    /**
+     * Execute the command from a Console
+     * @param console the Console instance executing the command
+     */
     @Override
     public void execute(Console console) {
         for (Command command : Commands.all) {
@@ -24,6 +31,10 @@ public class HelpCommand extends Command {
         }
     }
 
+    /**
+     * Return whether the Command is a valid one or not
+     * @return is the Command valid
+     */
     @Override
     public boolean validate() {
         return true;

@@ -1,7 +1,7 @@
 package console;
 
 /**
- * An Enum representing all possible Logging Type
+ * An Enum representing all possible Logging Levels
  */
 public enum LogLevel {
     ERROR,

@@ -6,6 +6,9 @@ import console.LogLevel;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+/**
+ * This class represent a concrete Command of type set
+ */
 public class SetCommand extends Command {
 
     /**
@@ -21,6 +24,10 @@ public class SetCommand extends Command {
         args.addAll(Arrays.asList(split).subList(1, split.length));;
     }
 
+    /**
+     * Return whether the Command is a valid one or not
+     * @return is the Command valid
+     */
     @Override
     public boolean validate() {
         try {
@@ -38,6 +45,10 @@ public class SetCommand extends Command {
         }
     }
 
+    /**
+     * Execute the command from a Console
+     * @param console the Console instance executing the command
+     */
     @Override
     public void execute(Console console) {
         try {
@@ -56,6 +67,10 @@ public class SetCommand extends Command {
         }
     }
 
+    /**
+     * Print the manual of the Command to a Console
+     * @param console the Console instance to print to
+     */
     @Override
     public void displayHelp(Console console) {
         console.log(LogLevel.INFO, "================= set =================");

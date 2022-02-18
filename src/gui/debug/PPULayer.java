@@ -15,6 +15,10 @@ import glwrapper.Texture;
 
 import java.awt.*;
 
+/**
+ * This class represent the DebugLayer in charge of displaying the current state of the PPU
+ * nametables, OAMS, palettes ...
+ */
 public class PPULayer extends DebugLayer {
 
     private Texture tileMap;
@@ -29,12 +33,19 @@ public class PPULayer extends DebugLayer {
     private final ImBoolean tileMapGrid = new ImBoolean();
     private final ImBoolean tileTablesGrid = new ImBoolean();
 
+    /**
+     * Create a new instance of PPULayer
+     * @param debugger the debugger to link to
+     */
     public PPULayer(Debugger debugger) {
         super(debugger);
         tile = new Tile();
         showViewport.set(true);
     }
 
+    /**
+     * Create the needed Textures
+     */
     public void initTextures() {
         tileMap = new Texture(256,256);
         tileTables = new Texture(256, 192);
@@ -42,6 +53,9 @@ public class PPULayer extends DebugLayer {
         oam = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
     }
 
+    /**
+     * Render the layer to the screen
+     */
     public void render() {
         ImGui.begin("PPU");
         if (ImGui.beginTabBar("tab")) {

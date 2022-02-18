@@ -14,17 +14,29 @@ import threading.GameBoyThread;
 import java.util.Map;
 import java.util.Queue;
 
+/**
+ * This class represent the DebugLayer in charge of displaying the current state of the CPU
+ * registers, currently executing code and is in charge of handling breakpoints management
+ */
 public class CPULayer extends DebugLayer {
 
     private final GameBoyThread gameboyThread;
     private final ImInt breakType = new ImInt();
     private final ImString breakAddr = new ImString();
 
+    /**
+     * Create a new instance of CPULayer
+     * @param debugger the debugger to link to
+     */
     public CPULayer(Debugger debugger, GameBoyThread gameBoyThread) {
         super(debugger);
         this.gameboyThread = gameBoyThread;
     }
 
+    /**
+     * Render the layer to the screen
+     * and propagate button presses if needed
+     */
     public void render() {
         ImGui.begin("CPU Debugger");
         ImGui.setWindowSize(380, debugger.getGameboyState() == GameBoyState.DEBUG ? 760 : 490);
@@ -228,6 +240,11 @@ public class CPULayer extends DebugLayer {
         ImGui.end();
     }
 
+    /**
+     * Print an Instruction to the screen
+     * @param instruction the instruction to print
+     * @param overrideColor use alternate color or not
+     */
     private void printInstruction(Instruction instruction, boolean overrideColor) {
         if (instruction.getAddr() == 0x00) ImGui.textColored(0, 255, 0, 255, "Reset 0x00 :");
         if (instruction.getAddr() == 0x08) ImGui.textColored(0, 255, 0, 255, "Reset 0x08 :");
