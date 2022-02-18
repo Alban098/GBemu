@@ -3,17 +3,21 @@ package gbemu.settings;
 import console.Console;
 import console.Type;
 import gbemu.core.GameBoy;
+import gbemu.core.GameBoyState;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
+import javafx.application.Platform;
+import javafx.stage.FileChooser;
 import org.lwjgl.glfw.GLFW;
 import utils.Utils;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -61,21 +65,22 @@ public class SettingsContainer {
             ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load DMG")) {
-                JFileChooser chooser = new JFileChooser();
-                FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                        "GameBoy ROM (.gb, .gbc, .bin)", "gb", ".gb", "gbc", ".gbc", "bin", ".bin");
-                chooser.setFileFilter(filter);
-                int returnVal = chooser.showOpenDialog(null);
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    try {
-                        setting.setValue(chooser.getSelectedFile().getAbsolutePath());
-                        if (chooser.getSelectedFile().length() != 0x100)
-                            throw new Exception("Invalid DMG Size (must be 256 bytes");
-                        gameboy.propagateSetting(setting);
-                    } catch (Exception e) {
-                        Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                FileChooser chooser = new FileChooser();
+                chooser.setInitialDirectory(new File("./"));
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("GameBoy ROM (.gb, .gbc, .bin)", "*.gb", "*.gbc", "*.bin"));
+                Platform.runLater(() -> {
+                    File dmg = chooser.showOpenDialog(null);
+                    if (dmg != null) {
+                        try {
+                            setting.setValue(dmg.getAbsolutePath());
+                            if (dmg.length() != 0x100)
+                                throw new Exception("Invalid DMG Size (must be 256 bytes");
+                            gameboy.propagateSetting(setting);
+                        } catch (Exception e) {
+                            Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                        }
                     }
-                }
+                });
             }
         }));
         settings.put(SettingIdentifiers.CHEAT_DATABASE, new Setting<>(SettingIdentifiers.CHEAT_DATABASE, "gameshark.cht", (Setting<String> setting) -> {
@@ -83,19 +88,20 @@ public class SettingsContainer {
             ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load")) {
-                JFileChooser chooser = new JFileChooser();
-                FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                        "GameShark Database", "cht", ".cht");
-                chooser.setFileFilter(filter);
-                int returnVal = chooser.showOpenDialog(null);
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    try {
-                        setting.setValue(chooser.getSelectedFile().getAbsolutePath());
-                        gameboy.propagateSetting(setting);
-                    } catch (Exception e) {
-                        Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                FileChooser chooser = new FileChooser();
+                chooser.setInitialDirectory(new File("./"));
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("GameShark Database", ".cht"));
+                Platform.runLater(() -> {
+                    File cht = chooser.showOpenDialog(null);
+                    if (cht != null) {
+                        try {
+                            setting.setValue(cht.getAbsolutePath());
+                            gameboy.propagateSetting(setting);
+                        } catch (Exception e) {
+                            Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                        }
                     }
-                }
+                });
             }
         }));
         settings.put(SettingIdentifiers.CGB_BOOTROM, new Setting<>(SettingIdentifiers.CGB_BOOTROM, "CGB.bin", (Setting<String> setting) -> {
@@ -103,21 +109,22 @@ public class SettingsContainer {
             ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load CGB")) {
-                JFileChooser chooser = new JFileChooser();
-                FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                        "GameBoy ROM (.gb, .gbc, .bin)", "gb", ".gb", "gbc", ".gbc", "bin", ".bin");
-                chooser.setFileFilter(filter);
-                int returnVal = chooser.showOpenDialog(null);
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    try {
-                        setting.setValue(chooser.getSelectedFile().getAbsolutePath());
-                        if (chooser.getSelectedFile().length() != 0x900)
-                            throw new Exception("Invalid CGB Size (must be 2304 bytes");
-                        gameboy.propagateSetting(setting);
-                    } catch (Exception e) {
-                        Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                FileChooser chooser = new FileChooser();
+                chooser.setInitialDirectory(new File("./"));
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("GameBoy ROM (.gb, .gbc, .bin)", "*.gb", "*.gbc", "*.bin"));
+                Platform.runLater(() -> {
+                    File cgb = chooser.showOpenDialog(null);
+                    if (cgb != null) {
+                        try {
+                            setting.setValue(cgb.getAbsolutePath());
+                            if (cgb.length() != 0x900)
+                                throw new Exception("Invalid CGB Size (must be 2304 bytes");
+                            gameboy.propagateSetting(setting);
+                        } catch (Exception e) {
+                            Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                        }
                     }
-                }
+                });
             }
         }));
         //Graphics

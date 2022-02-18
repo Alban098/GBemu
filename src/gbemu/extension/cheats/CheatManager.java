@@ -84,7 +84,6 @@ public class CheatManager {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
             Console.getInstance().log(Type.ERROR, "Error when loading cheats : " + e.getMessage());
         }
     }
@@ -121,7 +120,6 @@ public class CheatManager {
             transformer.transform(source, result);
 
         } catch (Exception e) {
-            e.printStackTrace();
             Console.getInstance().log(Type.ERROR, "Error when saving cheats : " + e.getMessage());
         }
     }

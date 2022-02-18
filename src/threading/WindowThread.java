@@ -22,12 +22,16 @@ import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import imgui.type.ImBoolean;
 import glwrapper.Texture;
+import javafx.application.Platform;
+import javafx.stage.FileChooser;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
+
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.File;
 import java.util.Objects;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -71,6 +75,7 @@ public class WindowThread {
     private DebuggerThread debuggerThread;
     private ConsoleThread consoleThread;
     private final SyncTimer timer;
+    private String currentDirectory = "./";
 
 
     /**
@@ -286,20 +291,21 @@ public class WindowThread {
         ImGui.beginMainMenuBar();
         if (ImGui.beginMenu("File")) {
             if(ImGui.menuItem("Load ROM")) {
-                JFileChooser chooser = new JFileChooser();
-                FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                        "GameBoy ROM (.gb, .gbc)", "gb", ".gb", "gbc", ".gbc");
-                chooser.setFileFilter(filter);
-                int returnVal = chooser.showOpenDialog(null);
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    try {
-                        gameboy.insertCartridge(chooser.getSelectedFile().getAbsolutePath());
-                        gameboy.setState(GameBoyState.RUNNING);
-                    } catch (Exception e) {
-                        Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                FileChooser chooser = new FileChooser();
+                chooser.setInitialDirectory(new File(currentDirectory));
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("GameBoy ROM (.gb, .gbc)", "*.gb", "*.gbc"));
+                Platform.runLater(() -> {
+                    File file = chooser.showOpenDialog(null);
+                    if (file != null) {
+                        currentDirectory = file.getAbsolutePath().replace(file.getName(), "");
+                        try {
+                            gameboy.insertCartridge(file.getAbsolutePath());
+                            gameboy.setState(GameBoyState.RUNNING);
+                        } catch (Exception e) {
+                            Console.getInstance().log(Type.ERROR, "Invalid file : " + e.getMessage());
+                        }
                     }
-
-                }
+                });
             }
             ImGui.separator();
             if (gameboy.hasCartridge()) {
