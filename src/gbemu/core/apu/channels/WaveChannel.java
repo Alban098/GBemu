@@ -7,29 +7,29 @@ import gbemu.core.memory.MMU;
 public class WaveChannel {
 
     private final MMU memory;
-    private final LengthCounter lengthCounter;
+    private final LengthCounter length_counter;
 
     public int sample;
 
-    private int sampleIndex = 0;
-    private int cycleSampleUpdate = 0;
-    private int cycleCount = 0;
+    private int sample_index = 0;
+    private int cycle_sample_update = 0;
+    private int cycle_count = 0;
 
     private boolean running = false;
 
     public WaveChannel(MMU memory) {
         this.memory = memory;
-        this.lengthCounter = new LengthCounter();
+        this.length_counter = new LengthCounter();
     }
 
     public void clock() {
-        cycleCount++;
-        if (cycleCount >= cycleSampleUpdate) {
-            sampleIndex++;
-            if (sampleIndex > 31) sampleIndex = 0;
+        cycle_count++;
+        if (cycle_count >= cycle_sample_update) {
+            sample_index++;
+            if (sample_index > 31) sample_index = 0;
 
             updateSample();
-            cycleCount -= cycleSampleUpdate;
+            cycle_count -= cycle_sample_update;
         }
     }
 
@@ -38,31 +38,31 @@ public class WaveChannel {
         memory.writeIORegisterBit(MMU.NR52, Flags.NR52_CHANNEL_3_ON, true);
 
         int length = 256 - memory.readByte(MMU.NR31);
-        boolean lengthStop = memory.readIORegisterBit(MMU.NR34, Flags.NR34_LOOP_CHANNEL);
-        lengthCounter.setLength(length, lengthStop);
+        boolean length_stop = memory.readIORegisterBit(MMU.NR34, Flags.NR34_LOOP_CHANNEL);
+        length_counter.setLength(length, length_stop);
 
-        cycleSampleUpdate = (2048 - getFrequency()) << 1;
-        cycleCount = 0;
-        sampleIndex = 0;
+        cycle_sample_update = (2048 - getFrequency()) << 1;
+        cycle_count = 0;
+        sample_index = 0;
 
     }
 
     private int getFrequency() {
-        int frequencyData = memory.readByte(MMU.NR34);
+        int frequency_data = memory.readByte(MMU.NR34);
         int frequency = memory.readByte(MMU.NR33);
-        frequency |= (frequencyData & Flags.NR34_FREQ_HIGH) << 8;
+        frequency |= (frequency_data & Flags.NR34_FREQ_HIGH) << 8;
         return frequency;
     }
 
     public void tickLength() {
-        running = lengthCounter.clock();
+        running = length_counter.clock();
         if (!running)
             memory.writeIORegisterBit(MMU.NR52, Flags.NR52_CHANNEL_3_ON, false);
     }
 
     public void updateSample() {
-        sample = memory.readByte(MMU.WAVE_PATTERN_START | (sampleIndex >> 1));
-        if ((sampleIndex & 0x1) == 0x1) sample &= 0x0F;
+        sample = memory.readByte(MMU.WAVE_PATTERN_START | (sample_index >> 1));
+        if ((sample_index & 0x1) == 0x1) sample &= 0x0F;
         else sample = (sample & 0xF0) >> 4;
         switch ((memory.readByte(MMU.NR32) & Flags.NR32_OUTPUT_LEVEL) >> 5) {
             case 0 -> sample = 0;
@@ -76,9 +76,9 @@ public class WaveChannel {
     public void reset() {
         sample = 0;
         running = false;
-        sampleIndex = 0;
-        cycleSampleUpdate = 0;
-        cycleCount = 0;
-        lengthCounter.reset();
+        sample_index = 0;
+        cycle_sample_update = 0;
+        cycle_count = 0;
+        length_counter.reset();
     }
 }

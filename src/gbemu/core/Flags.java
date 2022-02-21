@@ -1,5 +1,8 @@
 package gbemu.core;
 
+/**
+ * This class contains all Flags that are used in the Emulator
+ */
 public class Flags {
 
     //CPU Flags

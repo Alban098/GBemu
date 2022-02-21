@@ -20,9 +20,9 @@ import java.util.Queue;
  */
 public class CPULayer extends DebugLayer {
 
-    private final GameBoyThread gameboyThread;
-    private final ImInt breakType = new ImInt();
-    private final ImString breakAddr = new ImString();
+    private final GameBoyThread gameboy_thread;
+    private final ImInt break_type = new ImInt();
+    private final ImString break_addr = new ImString();
 
     /**
      * Create a new instance of CPULayer
@@ -30,7 +30,7 @@ public class CPULayer extends DebugLayer {
      */
     public CPULayer(Debugger debugger, GameBoyThread gameBoyThread) {
         super(debugger);
-        this.gameboyThread = gameBoyThread;
+        this.gameboy_thread = gameBoyThread;
     }
 
     /**
@@ -82,10 +82,10 @@ public class CPULayer extends DebugLayer {
         }
         ImGui.sameLine();
         if (ImGui.button("Step Over") && debugger.getGameboyState() == GameBoyState.DEBUG)
-            gameboyThread.requestInstructions(1);
+            gameboy_thread.requestInstructions(1);
         ImGui.sameLine();
         if (ImGui.button("Step Frame") && debugger.getGameboyState() == GameBoyState.DEBUG)
-            gameboyThread.requestOneFrame();
+            gameboy_thread.requestOneFrame();
 
         synchronized (debugger) {
             synchronized (debugger.getCpuState()) {
@@ -207,18 +207,18 @@ public class CPULayer extends DebugLayer {
                     ImGui.endChild();
                     ImGui.separator();
                     ImGui.pushItemWidth(70);
-                    if (ImGui.inputText(": Address ", breakAddr))
-                        breakAddr.set(breakAddr.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
+                    if (ImGui.inputText(": Address ", break_addr))
+                        break_addr.set(break_addr.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
                     ImGui.sameLine();
                     ImGui.pushItemWidth(70);
-                    ImGui.combo(": Type", breakType, BreakPoint.Type.stringArray());
+                    ImGui.combo(": Type", break_type, BreakPoint.Type.stringArray());
                     ImGui.sameLine();
                     if (ImGui.button("Add")) {
-                        breakAddr.set(breakAddr.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
-                        if (breakAddr.get().equals(""))
-                            breakAddr.set("0");
-                        int addr = Integer.decode("0x" + breakAddr.get());
-                        debugger.addBreakpoint(addr, BreakPoint.Type.values()[breakType.get()]);
+                        break_addr.set(break_addr.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
+                        if (break_addr.get().equals(""))
+                            break_addr.set("0");
+                        int addr = Integer.decode("0x" + break_addr.get());
+                        debugger.addBreakpoint(addr, BreakPoint.Type.values()[break_type.get()]);
                     }
                     ImGui.treePop();
                 }
@@ -243,9 +243,9 @@ public class CPULayer extends DebugLayer {
     /**
      * Print an Instruction to the screen
      * @param instruction the instruction to print
-     * @param overrideColor use alternate color or not
+     * @param override_color use alternate color or not
      */
-    private void printInstruction(Instruction instruction, boolean overrideColor) {
+    private void printInstruction(Instruction instruction, boolean override_color) {
         if (instruction.getAddr() == 0x00) ImGui.textColored(0, 255, 0, 255, "Reset 0x00 :");
         if (instruction.getAddr() == 0x08) ImGui.textColored(0, 255, 0, 255, "Reset 0x08 :");
         if (instruction.getAddr() == 0x10) ImGui.textColored(0, 255, 0, 255, "Reset 0x10 :");
@@ -264,22 +264,20 @@ public class CPULayer extends DebugLayer {
         if (instruction.getAddr() == 0xA000) ImGui.textColored(0, 255, 0, 255, debugger.getSector(0xA000) + " :");
         if (instruction.getAddr() == 0xC000) ImGui.textColored(0, 255, 0, 255, debugger.getSector(0xC000) + " :");
         if (instruction.getAddr() == 0xD000) ImGui.textColored(0, 255, 0, 255, debugger.getSector(0xD000) + " :");
-        if (!overrideColor) {
+        if (!override_color) {
             ImGui.textColored(0, 255, 255, 255, "  " + instruction.getAddrStr() + ":");
             ImGui.sameLine();
             ImGui.textColored(128, 128, 128, 255, instruction.getMemoryStr());
             ImGui.sameLine(150);
             ImGui.text(instruction.getDisassembled());
-            ImGui.sameLine(275);
-            ImGui.textColored(255, 0, 0, 255, instruction.getComment());
         } else {
             ImGui.textColored(255, 255, 0, 255, "  " + instruction.getAddrStr() + ":");
             ImGui.sameLine();
             ImGui.textColored(128, 128, 0, 255, instruction.getMemoryStr());
             ImGui.sameLine(150);
             ImGui.textColored(255, 255, 0, 255, instruction.getDisassembled());
-            ImGui.sameLine(275);
-            ImGui.textColored(255, 0, 0, 255, instruction.getComment());
         }
+        ImGui.sameLine(275);
+        ImGui.textColored(255, 0, 0, 255, instruction.getComment());
     }
 }

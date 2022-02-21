@@ -4,15 +4,15 @@ import gbemu.core.GameBoy;
 
 public abstract class MemoryBankController {
 
-    protected final int nb_ROM_bank;
-    protected final int nb_RAM_bank;
+    protected final int nb_rom_bank;
+    protected final int nb_ram_bank;
     protected boolean battery = false;
 
     protected final GameBoy gameboy;
 
-    public MemoryBankController(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank) {
-        this.nb_ROM_bank = nb_ROM_bank;
-        this.nb_RAM_bank = nb_RAM_bank;
+    public MemoryBankController(GameBoy gameboy, int nb_rom_bank, int nb_ram_bank) {
+        this.nb_rom_bank = nb_rom_bank;
+        this.nb_ram_bank = nb_ram_bank;
         this.gameboy = gameboy;
     }
 
@@ -25,7 +25,7 @@ public abstract class MemoryBankController {
     }
 
     public boolean hasRam() {
-        return nb_RAM_bank > 0;
+        return nb_ram_bank > 0;
     }
 
     public void clock() {
@@ -36,7 +36,7 @@ public abstract class MemoryBankController {
         return false;
     }
 
-    public abstract int getROMBank();
+    public abstract int getRomBank();
 
-    public abstract int getRAMBank();
+    public abstract int getRamBank();
 }

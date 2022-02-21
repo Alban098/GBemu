@@ -2,7 +2,7 @@ package gbemu.core.apu.components;
 
 public class Envelope {
 
-    private int elapsedTicks = 0;
+    private int elapsed_ticks = 0;
     private int ticks = 0;
     private int volume = 0;
     private boolean increasing = false;
@@ -12,15 +12,15 @@ public class Envelope {
         this.volume = volume;
         this.increasing = increase;
 
-        elapsedTicks = 0;
+        elapsed_ticks = 0;
     }
 
     public void clock() {
         if (ticks == 0)
             return;
-        elapsedTicks++;
-        elapsedTicks %= ticks;
-        if (elapsedTicks == 0) {
+        elapsed_ticks++;
+        elapsed_ticks %= ticks;
+        if (elapsed_ticks == 0) {
             if (increasing && volume < 15)
                 volume++;
             else if (!increasing && volume > 0)
@@ -33,7 +33,7 @@ public class Envelope {
     }
 
     public void reset() {
-        elapsedTicks = 0;
+        elapsed_ticks = 0;
         ticks = 0;
         volume = 0;
         increasing = false;

@@ -4,8 +4,8 @@ import gbemu.core.GameBoy;
 
 public class NoMBC extends MemoryBankController {
 
-    public NoMBC(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank) {
-        super(gameboy, nb_ROM_bank, nb_RAM_bank);
+    public NoMBC(GameBoy gameboy, int nb_rom_bank, int nb_ram_bank) {
+        super(gameboy, nb_rom_bank, nb_ram_bank);
     }
 
     @Override
@@ -13,7 +13,7 @@ public class NoMBC extends MemoryBankController {
 
     @Override
     public int mapRAMAddr(int addr) {
-        if (nb_RAM_bank > 0)
+        if (nb_ram_bank > 0)
             return addr & 0x1FFF;
         return -1;
     }
@@ -24,12 +24,12 @@ public class NoMBC extends MemoryBankController {
     }
 
     @Override
-    public int getROMBank() {
+    public int getRomBank() {
         return 1;
     }
 
     @Override
-    public int getRAMBank() {
+    public int getRamBank() {
         return 0;
     }
 }

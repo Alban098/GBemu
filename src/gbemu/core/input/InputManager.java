@@ -7,7 +7,7 @@ import gbemu.settings.Button;
 
 public class InputManager {
 
-    private int requestedState = 0x00;
+    private int requested_state = 0x00;
     private final MMU memory;
 
     public InputManager(GameBoy gameboy) {
@@ -16,24 +16,24 @@ public class InputManager {
 
     public void clock() {
         boolean irq = false;
-        int newState = 0;
+        int new_state = 0;
         if (!memory.readIORegisterBit(MMU.P1, Flags.P1_BUTTON)) {
-            newState = requestedState & 0x0F;
-            irq = ((memory.readByte(MMU.P1) & 0x0F) ^ newState) != 0;
+            new_state = requested_state & 0x0F;
+            irq = ((memory.readByte(MMU.P1) & 0x0F) ^ new_state) != 0;
         } else if (!memory.readIORegisterBit(MMU.P1, Flags.P1_DPAD)) {
-            newState = (requestedState & 0xF0) >> 4;
-            irq = ((memory.readByte(MMU.P1) & 0x0F) ^ newState) != 0;
+            new_state = (requested_state & 0xF0) >> 4;
+            irq = ((memory.readByte(MMU.P1) & 0x0F) ^ new_state) != 0;
         }
         if (irq) {
-            memory.writeRaw(MMU.P1, (memory.readByte(MMU.P1) & 0xF0 | newState));
+            memory.writeRaw(MMU.P1, (memory.readByte(MMU.P1) & 0xF0 | new_state));
             memory.writeIORegisterBit(MMU.IF, Flags.IF_JOYPAD_IRQ, true);
         }
     }
 
     public synchronized void setButtonState(Button button, InputState state) {
         if (state == InputState.PRESSED)
-            requestedState &= ~button.getMask();
+            requested_state &= ~button.getMask();
         else
-            requestedState |= button.getMask();
+            requested_state |= button.getMask();
     }
 }

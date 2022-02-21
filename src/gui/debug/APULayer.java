@@ -8,7 +8,6 @@ import imgui.ImVec2;
 import imgui.extension.implot.ImPlot;
 import imgui.extension.implot.flag.ImPlotAxisFlags;
 import imgui.extension.implot.flag.ImPlotFlags;
-import utils.Utils;
 
 import java.util.Queue;
 
@@ -51,8 +50,8 @@ public class APULayer extends DebugLayer {
         for (Sample s : sample_queue) {
             if (i >= DEBUG_SAMPLE_NUMBER)
                 break;
-            samples[0][i] = s.square1() / 15f + 6f;
-            samples[1][i] = s.square2() / 15f + 4.5f;
+            samples[0][i] = s.square_1() / 15f + 6f;
+            samples[1][i] = s.square_2() / 15f + 4.5f;
             samples[2][i] = s.wave() / 15f + 3f;
             samples[3][i] = s.noise() / 15f + 1.5f;
             samples[4][i] = s.getNormalizedValue();

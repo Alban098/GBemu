@@ -8,20 +8,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class GBemuThread extends Thread {
 
     //Flag signifying if the Thread should exit
-    protected final AtomicBoolean shouldExit;
+    protected final AtomicBoolean should_exit;
 
     /**
      * Create a new Thread with the exit flag reset
      */
     protected GBemuThread() {
-        shouldExit = new AtomicBoolean(false);
+        should_exit = new AtomicBoolean(false);
     }
 
     /**
      * Flags the thread to be killed after next loop
      */
     public synchronized void kill() {
-        shouldExit.set(true);
+        should_exit.set(true);
         //Wake up the thread for it to be able to exit
         notify();
     }

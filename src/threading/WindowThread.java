@@ -42,38 +42,38 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  */
 public class WindowThread {
 
-    private final ImGuiImplGlfw imGuiGlfw = new ImGuiImplGlfw();
-    private final ImGuiImplGl3 imGuiGl3 = new ImGuiImplGl3();
+    private final ImGuiImplGlfw imgui_glfw = new ImGuiImplGlfw();
+    private final ImGuiImplGl3 imgui_gl3 = new ImGuiImplGl3();
 
-    private String glslVersion = null;
-    private long windowPtr;
-    private final DebugLayer cpuLayer;
-    private final DebugLayer memoryLayer;
-    private final DebugLayer serialOutputLayer;
-    private final DebugLayer consoleLayer;
-    private final DebugLayer ppuLayer;
-    private final DebugLayer apuLayer;
-    private final Layer settingsLayer;
-    private final Layer cheatsLayer;
+    private String glsl_version = null;
+    private long window_ptr;
+    private final DebugLayer cpu_layer;
+    private final DebugLayer memory_layer;
+    private final DebugLayer serial_output_layer;
+    private final DebugLayer console_layer;
+    private final DebugLayer ppu_layer;
+    private final DebugLayer apu_layer;
+    private final Layer settings_layer;
+    private final Layer cheats_layer;
 
     private Texture screen_texture;
 
     private final GameBoy gameboy;
-    private ImPlotContext plotCtx;
+    private ImPlotContext plot_ctx;
 
-    private final ImBoolean cpuLayerVisible = new ImBoolean(false);
-    private final ImBoolean memoryLayerVisible = new ImBoolean(false);
-    private final ImBoolean ppuLayerVisible = new ImBoolean(false);
-    private final ImBoolean apuLayerVisible = new ImBoolean(false);
-    private final ImBoolean serialOutputLayerVisible = new ImBoolean(false);
-    private final ImBoolean consoleLayerVisible = new ImBoolean(false);
+    private final ImBoolean cpu_layer_visible = new ImBoolean(false);
+    private final ImBoolean memory_layer_visible = new ImBoolean(false);
+    private final ImBoolean ppu_layer_visible = new ImBoolean(false);
+    private final ImBoolean apu_layer_visible = new ImBoolean(false);
+    private final ImBoolean serial_output_layer_visible = new ImBoolean(false);
+    private final ImBoolean console_layer_visible = new ImBoolean(false);
 
     private final ImBoolean debug = new ImBoolean(false);
-    private final GameBoyThread gameboyThread;
-    private DebuggerThread debuggerThread;
-    private ConsoleThread consoleThread;
+    private final GameBoyThread gameboy_thread;
+    private DebuggerThread debugger_thread;
+    private ConsoleThread console_thread;
     private final SyncTimer timer;
-    private String currentDirectory = "./";
+    private String current_directory = "./";
 
 
     /**
@@ -82,18 +82,18 @@ public class WindowThread {
      * @param gameBoyThread the Thread running the Game Boy
      */
     public WindowThread(GameBoy gameboy, GameBoyThread gameBoyThread) {
-        cpuLayer = new CPULayer(gameboy.getDebugger(), gameBoyThread);
-        memoryLayer = new MemoryLayer(gameboy.getDebugger());
-        serialOutputLayer = new SerialOutputLayer(gameboy.getDebugger());
-        consoleLayer = new ConsoleLayer(gameboy.getDebugger());
-        ppuLayer = new PPULayer(gameboy.getDebugger());
-        apuLayer = new APULayer(gameboy.getDebugger());
-        settingsLayer = new SettingsLayer(gameboy.getSettingsContainer());
-        cheatsLayer = new CheatsLayer(gameboy, gameboy.getCheatManager());
+        cpu_layer = new CPULayer(gameboy.getDebugger(), gameBoyThread);
+        memory_layer = new MemoryLayer(gameboy.getDebugger());
+        serial_output_layer = new SerialOutputLayer(gameboy.getDebugger());
+        console_layer = new ConsoleLayer(gameboy.getDebugger());
+        ppu_layer = new PPULayer(gameboy.getDebugger());
+        apu_layer = new APULayer(gameboy.getDebugger());
+        settings_layer = new SettingsLayer(gameboy.getSettingsContainer());
+        cheats_layer = new CheatsLayer(gameboy, gameboy.getCheatManager());
         timer = new SyncTimer();
 
         this.gameboy = gameboy;
-        this.gameboyThread = gameBoyThread;
+        this.gameboy_thread = gameBoyThread;
 
         init();
     }
@@ -104,28 +104,28 @@ public class WindowThread {
     public void init() {
         initWindow();
         initImGui();
-        imGuiGlfw.init(windowPtr, true);
-        imGuiGl3.init(glslVersion);
+        imgui_glfw.init(window_ptr, true);
+        imgui_gl3.init(glsl_version);
         screen_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
-        ((PPULayer)ppuLayer).initTextures();
+        ((PPULayer) ppu_layer).initTextures();
     }
 
     /**
      * Clean the window and kill every Thread attached
      */
     public void destroy() {
-        imGuiGl3.dispose();
-        imGuiGlfw.dispose();
+        imgui_gl3.dispose();
+        imgui_glfw.dispose();
         screen_texture.cleanUp();
-        ((PPULayer)ppuLayer).cleanUp();
-        if (consoleThread != null)
-            consoleThread.kill();
-        if (debuggerThread != null)
-            debuggerThread.kill();
-        ImPlot.destroyContext(plotCtx);
+        ((PPULayer) ppu_layer).cleanUp();
+        if (console_thread != null)
+            console_thread.kill();
+        if (debugger_thread != null)
+            debugger_thread.kill();
+        ImPlot.destroyContext(plot_ctx);
         ImGui.destroyContext();
-        Callbacks.glfwFreeCallbacks(windowPtr);
-        glfwDestroyWindow(windowPtr);
+        Callbacks.glfwFreeCallbacks(window_ptr);
+        glfwDestroyWindow(window_ptr);
         glfwTerminate();
         Platform.exit();
     }
@@ -144,28 +144,28 @@ public class WindowThread {
             System.exit(-1);
         }
 
-        glslVersion = "#version 130";
+        glsl_version = "#version 130";
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-        windowPtr = glfwCreateWindow(160*3, 144*3+10, "GBemu", NULL, NULL);
+        window_ptr = glfwCreateWindow(160*3, 144*3+10, "GBemu", NULL, NULL);
 
-        if (windowPtr == NULL) {
+        if (window_ptr == NULL) {
             System.exit(-1);
         }
 
-        glfwMakeContextCurrent(windowPtr);
+        glfwMakeContextCurrent(window_ptr);
         GLFWImage logo = GLFWImage.malloc();
-        GLFWImage.Buffer logoBuf = GLFWImage.malloc(1);
+        GLFWImage.Buffer logo_buf = GLFWImage.malloc(1);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             logo.set(87, 87, Objects.requireNonNull(STBImage.stbi_load("logo.png", stack.mallocInt(1), stack.mallocInt(1), stack.mallocInt(1), 4)));
-            logoBuf.put(0, logo);
+            logo_buf.put(0, logo);
         }
-        glfwSetWindowIcon(windowPtr, logoBuf);
+        glfwSetWindowIcon(window_ptr, logo_buf);
         glfwSwapInterval(1);
-        glfwShowWindow(windowPtr);
+        glfwShowWindow(window_ptr);
         GL.createCapabilities();
     }
 
@@ -174,7 +174,7 @@ public class WindowThread {
      */
     private void initImGui() {
         ImGui.createContext();
-        plotCtx = ImPlot.createContext();
+        plot_ctx = ImPlot.createContext();
         ImGuiIO io = ImGui.getIO();
         io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable);
     }
@@ -183,13 +183,13 @@ public class WindowThread {
      * Execute the rendering Loop
      */
     public void run() {
-        while (!glfwWindowShouldClose(windowPtr)) {
+        while (!glfwWindowShouldClose(window_ptr)) {
             //Clear the screen
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
             //Start a new ImGui frame
-            imGuiGlfw.newFrame();
+            imgui_glfw.newFrame();
             ImGui.newFrame();
 
 
@@ -201,17 +201,17 @@ public class WindowThread {
 
             //Render the ImGui Frame
             ImGui.render();
-            imGuiGl3.renderDrawData(ImGui.getDrawData());
+            imgui_gl3.renderDrawData(ImGui.getDrawData());
 
             //Notify the Game Boy Thread to render a new Frame
-            synchronized (gameboyThread) {
-                gameboyThread.notify();
+            synchronized (gameboy_thread) {
+                gameboy_thread.notify();
             }
 
             //Notify the Debugger Thread to compute a gbemu.extension.debug frame if enabled
             if (gameboy.getDebugger().isEnabled()) {
-                synchronized (debuggerThread) {
-                    debuggerThread.notify();
+                synchronized (debugger_thread) {
+                    debugger_thread.notify();
                 }
             }
 
@@ -222,7 +222,7 @@ public class WindowThread {
                 ImGui.renderPlatformWindowsDefault();
                 GLFW.glfwMakeContextCurrent(backupWindowPtr);
             }
-            GLFW.glfwSwapBuffers(windowPtr);
+            GLFW.glfwSwapBuffers(window_ptr);
             GLFW.glfwPollEvents();
             timer.sync(60);
         }
@@ -232,31 +232,31 @@ public class WindowThread {
      * Render the ImGui layers that are visible
      */
     private void renderLayers() {
-        if (ppuLayer.isVisible()) {
-            ((PPULayer)ppuLayer).setCgbMode(gameboy.mode == GameBoy.Mode.CGB);
-            ppuLayer.render();
+        if (ppu_layer.isVisible()) {
+            ((PPULayer) ppu_layer).setCgbMode(gameboy.mode == GameBoy.Mode.CGB);
+            ppu_layer.render();
         }
 
-        if (apuLayer.isVisible())
-            apuLayer.render();
+        if (apu_layer.isVisible())
+            apu_layer.render();
 
-        if (cpuLayer.isVisible())
-            cpuLayer.render();
+        if (cpu_layer.isVisible())
+            cpu_layer.render();
 
-        if (memoryLayer.isVisible())
-            memoryLayer.render();
+        if (memory_layer.isVisible())
+            memory_layer.render();
 
-        if (serialOutputLayer.isVisible())
-            serialOutputLayer.render();
+        if (serial_output_layer.isVisible())
+            serial_output_layer.render();
 
-        if (consoleLayer.isVisible())
-            consoleLayer.render();
+        if (console_layer.isVisible())
+            console_layer.render();
 
-        if (settingsLayer.isVisible())
-            settingsLayer.render();
+        if (settings_layer.isVisible())
+            settings_layer.render();
 
-        if (cheatsLayer.isVisible())
-            cheatsLayer.render();
+        if (cheats_layer.isVisible())
+            cheats_layer.render();
     }
 
     /**
@@ -294,12 +294,12 @@ public class WindowThread {
         if (ImGui.beginMenu("File")) {
             if(ImGui.menuItem("Load ROM")) {
                 FileChooser chooser = new FileChooser();
-                chooser.setInitialDirectory(new File(currentDirectory));
+                chooser.setInitialDirectory(new File(current_directory));
                 chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("GameBoy ROM (.gb, .gbc)", "*.gb", "*.gbc"));
                 Platform.runLater(() -> {
                     File file = chooser.showOpenDialog(null);
                     if (file != null) {
-                        currentDirectory = file.getAbsolutePath().replace(file.getName(), "");
+                        current_directory = file.getAbsolutePath().replace(file.getName(), "");
                         try {
                             gameboy.insertCartridge(file.getAbsolutePath());
                             gameboy.setState(GameBoyState.RUNNING);
@@ -332,59 +332,59 @@ public class WindowThread {
                 gameboy.getDebugger().setEnabled(debug.get());
                 if (debug.get()) {
                     //Create and start the debugger thread
-                    debuggerThread = new DebuggerThread(gameboy.getDebugger());
-                    debuggerThread.start();
+                    debugger_thread = new DebuggerThread(gameboy.getDebugger());
+                    debugger_thread.start();
                 } else {
                     //Kill active thread
-                    if (debuggerThread != null) debuggerThread.kill();
-                    if (consoleThread != null) consoleThread.kill();
+                    if (debugger_thread != null) debugger_thread.kill();
+                    if (console_thread != null) console_thread.kill();
                 }
             }
             if (debug.get()) {
                 ImGui.separator();
-                if (ImGui.checkbox("CPU Inspector", cpuLayerVisible))
-                    cpuLayer.setVisible(cpuLayerVisible.get());
-                if (ImGui.checkbox("Memory Inspector", memoryLayerVisible))
-                    memoryLayer.setVisible(memoryLayerVisible.get());
-                if (ImGui.checkbox("PPU Inspector", ppuLayerVisible))
-                    ppuLayer.setVisible(ppuLayerVisible.get());
-                if (ImGui.checkbox("APU Inspector", apuLayerVisible))
-                    apuLayer.setVisible(apuLayerVisible.get());
+                if (ImGui.checkbox("CPU Inspector", cpu_layer_visible))
+                    cpu_layer.setVisible(cpu_layer_visible.get());
+                if (ImGui.checkbox("Memory Inspector", memory_layer_visible))
+                    memory_layer.setVisible(memory_layer_visible.get());
+                if (ImGui.checkbox("PPU Inspector", ppu_layer_visible))
+                    ppu_layer.setVisible(ppu_layer_visible.get());
+                if (ImGui.checkbox("APU Inspector", apu_layer_visible))
+                    apu_layer.setVisible(apu_layer_visible.get());
                 ImGui.separator();
-                if (ImGui.checkbox("Serial Output", serialOutputLayerVisible))
-                    serialOutputLayer.setVisible(serialOutputLayerVisible.get());
-                if (ImGui.checkbox("Console", consoleLayerVisible)) {
-                    consoleLayer.setVisible(consoleLayerVisible.get());
-                    if (consoleLayer.isVisible()) {
+                if (ImGui.checkbox("Serial Output", serial_output_layer_visible))
+                    serial_output_layer.setVisible(serial_output_layer_visible.get());
+                if (ImGui.checkbox("Console", console_layer_visible)) {
+                    console_layer.setVisible(console_layer_visible.get());
+                    if (console_layer.isVisible()) {
                         //Create and run the console thread
-                        consoleThread = new ConsoleThread(gameboy.getDebugger());
-                        consoleThread.start();
-                        ((ConsoleLayer)consoleLayer).hookThread(consoleThread);
+                        console_thread = new ConsoleThread(gameboy.getDebugger());
+                        console_thread.start();
+                        ((ConsoleLayer) console_layer).hookThread(console_thread);
                     } else {
                         //Kill the active thread
-                        if (consoleThread != null) consoleThread.kill();
+                        if (console_thread != null) console_thread.kill();
                     }
                 }
             }
 
             //Update the hooked component
             synchronized (gameboy.getDebugger()) {
-                gameboy.getDebugger().setHooked(DebuggerMode.CPU, cpuLayerVisible.get());
-                gameboy.getDebugger().setHooked(DebuggerMode.MEMORY, memoryLayerVisible.get());
-                gameboy.getDebugger().setHooked(DebuggerMode.PPU, ppuLayerVisible.get());
-                gameboy.getDebugger().setHooked(DebuggerMode.APU, apuLayerVisible.get());
-                gameboy.getDebugger().setHooked(DebuggerMode.CONSOLE, consoleLayerVisible.get());
-                gameboy.getDebugger().setHooked(DebuggerMode.SERIAL, serialOutputLayerVisible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.CPU, cpu_layer_visible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.MEMORY, memory_layer_visible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.PPU, ppu_layer_visible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.APU, apu_layer_visible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.CONSOLE, console_layer_visible.get());
+                gameboy.getDebugger().setHooked(DebuggerMode.SERIAL, serial_output_layer_visible.get());
             }
             ImGui.endMenu();
         }
 
         if (ImGui.beginMenu("Settings")) {
-            settingsLayer.setVisible(!settingsLayer.isVisible());
+            settings_layer.setVisible(!settings_layer.isVisible());
             ImGui.endMenu();
         }
         if (ImGui.beginMenu("Cheats")) {
-            cheatsLayer.setVisible(!cheatsLayer.isVisible());
+            cheats_layer.setVisible(!cheats_layer.isVisible());
             ImGui.endMenu();
         }
         ImGui.endMainMenuBar();
@@ -395,7 +395,7 @@ public class WindowThread {
      */
     private void handleInput() {
         for (Button button : Button.values()) {
-            if (glfwGetKey(windowPtr, Button.getKeyboardMap().get(button)) == GLFW_PRESS)
+            if (glfwGetKey(window_ptr, Button.getKeyboardMap().get(button)) == GLFW_PRESS)
                 gameboy.setButtonState(button, InputState.PRESSED);
             else
                 gameboy.setButtonState(button, InputState.RELEASED);
@@ -407,6 +407,6 @@ public class WindowThread {
      * @return the current Window ID
      */
     public long getId() {
-        return windowPtr;
+        return window_ptr;
     }
 }

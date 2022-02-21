@@ -13,8 +13,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class GameBoyThread extends GBemuThread {
 
     private final GameBoy gameboy;
-    private final AtomicBoolean requestedFrame;
-    private int requestedInstructions = 0;
+    private final AtomicBoolean requested_frame;
+    private int requested_instructions = 0;
 
     /**
      * Create a new Game Boy Thread
@@ -23,7 +23,7 @@ public class GameBoyThread extends GBemuThread {
     public GameBoyThread(GameBoy gameboy) {
         super();
         this.gameboy = gameboy;
-        requestedFrame = new AtomicBoolean(false);
+        requested_frame = new AtomicBoolean(false);
     }
 
     /**
@@ -33,7 +33,7 @@ public class GameBoyThread extends GBemuThread {
     public void run() {
         try {
             //While the emulator is running
-            while(!shouldExit.get()) {
+            while(!should_exit.get()) {
                 //If a Cartridge is inserted
                 if (gameboy.hasCartridge()) {
                     //If the game Boy has a Debugger hooked up to the CPU
@@ -42,13 +42,13 @@ public class GameBoyThread extends GBemuThread {
                         if (gameboy.getState() == GameBoyState.RUNNING)
                             gameboy.executeFrames();
                         if (gameboy.getState() == GameBoyState.DEBUG) {
-                            if (requestedInstructions != 0) {
-                                gameboy.executeInstructions(requestedInstructions, true);
-                                requestedInstructions = 0;
+                            if (requested_instructions != 0) {
+                                gameboy.executeInstructions(requested_instructions, true);
+                                requested_instructions = 0;
                             }
-                            if (requestedFrame.get()) {
-                                gameboy.forceFrame();
-                                requestedFrame.set(false);
+                            if (requested_frame.get()) {
+                                gameboy.debugFrame();
+                                requested_frame.set(false);
                             }
                         }
                     //Otherwise, run as normal
@@ -71,7 +71,7 @@ public class GameBoyThread extends GBemuThread {
      * Notify that the Debugger has requested a new frame to be computed
      */
     public void requestOneFrame() {
-        requestedFrame.set(true);
+        requested_frame.set(true);
     }
 
     /**
@@ -79,6 +79,6 @@ public class GameBoyThread extends GBemuThread {
      * @param nb the number of instruction to execute
      */
     public void requestInstructions(int nb) {
-        requestedInstructions = nb;
+        requested_instructions = nb;
     }
 }

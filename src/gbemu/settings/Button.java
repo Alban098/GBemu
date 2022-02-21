@@ -19,7 +19,7 @@ public enum Button {
     RIGHT(0x10);
 
     private final int mask;
-    private static final Map<Button, Integer> keyboardMap = new HashMap<>();
+    private static final Map<Button, Integer> keyboard_map = new HashMap<>();
 
     /**
      * Create a new instance of Button
@@ -54,16 +54,16 @@ public enum Button {
      * @return the map of all inputs
      */
     public static Map<Button, Integer> getKeyboardMap() {
-        if (keyboardMap.isEmpty()) {
-            keyboardMap.put(START, GLFW_KEY_K);
-            keyboardMap.put(SELECT, GLFW_KEY_L);
-            keyboardMap.put(A, GLFW_KEY_I);
-            keyboardMap.put(B, GLFW_KEY_O);
-            keyboardMap.put(UP, GLFW_KEY_W);
-            keyboardMap.put(DOWN, GLFW_KEY_S);
-            keyboardMap.put(LEFT, GLFW_KEY_A);
-            keyboardMap.put(RIGHT, GLFW_KEY_D);
+        if (keyboard_map.isEmpty()) {
+            keyboard_map.put(START, GLFW_KEY_K);
+            keyboard_map.put(SELECT, GLFW_KEY_L);
+            keyboard_map.put(A, GLFW_KEY_I);
+            keyboard_map.put(B, GLFW_KEY_O);
+            keyboard_map.put(UP, GLFW_KEY_W);
+            keyboard_map.put(DOWN, GLFW_KEY_S);
+            keyboard_map.put(LEFT, GLFW_KEY_A);
+            keyboard_map.put(RIGHT, GLFW_KEY_D);
         }
-        return keyboardMap;
+        return keyboard_map;
     }
 }

@@ -8,7 +8,7 @@ public class GameSharkCode {
     private final int type;
     private final int address;
     private final int value;
-    private final String rawCheat;
+    private final String raw_cheat;
     private final String name;
     private boolean enabled;
 
@@ -21,7 +21,7 @@ public class GameSharkCode {
      * @param value the value to write at the address
      */
     public GameSharkCode(String name, String cheat, int type, int address, int value) {
-        this.rawCheat = cheat;
+        this.raw_cheat = cheat;
         this.name = name.length() >= 20 ? name.substring(0, 20) : name;
         this.type = type;
         this.address = address;
@@ -42,7 +42,7 @@ public class GameSharkCode {
      * @return the raw representation of the code
      */
     public String getRawCheat() {
-        return rawCheat;
+        return raw_cheat;
     }
 
     /**
@@ -93,7 +93,7 @@ public class GameSharkCode {
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof GameSharkCode)
-            return ((GameSharkCode)obj).name.equals(name) && ((GameSharkCode)obj).rawCheat.equals(rawCheat);
+            return ((GameSharkCode)obj).name.equals(name) && ((GameSharkCode)obj).raw_cheat.equals(raw_cheat);
         return false;
     }
 }

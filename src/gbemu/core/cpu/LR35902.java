@@ -620,35 +620,35 @@ public class LR35902 {
 
     public boolean handleInterrupts() {
         if (ime || halted) {
-            int interruptRequest = readByte(MMU.IF) & readByte(MMU.IE) & 0x1F;
-            if (interruptRequest != 0) {
+            int interrupt_request = readByte(MMU.IF) & readByte(MMU.IE) & 0x1F;
+            if (interrupt_request != 0) {
                 if (ime && !halted) {
                     ime = false;
-                    if ((interruptRequest & Flags.IF_VBLANK_IRQ) == Flags.IF_VBLANK_IRQ) {
+                    if ((interrupt_request & Flags.IF_VBLANK_IRQ) == Flags.IF_VBLANK_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_V_BLANK_VECTOR);
                         opcode_mcycle = 8;
                         return true;
-                    } else if ((interruptRequest & Flags.IF_LCD_STAT_IRQ) == Flags.IF_LCD_STAT_IRQ) {
+                    } else if ((interrupt_request & Flags.IF_LCD_STAT_IRQ) == Flags.IF_LCD_STAT_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_LCD_STAT_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_LCD_VECTOR);
                         opcode_mcycle = 8;
                         return true;
-                    } else if ((interruptRequest & Flags.IF_TIMER_IRQ) == Flags.IF_TIMER_IRQ) {
+                    } else if ((interrupt_request & Flags.IF_TIMER_IRQ) == Flags.IF_TIMER_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_TIMER_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_TIMER_VECTOR);
                         opcode_mcycle = 8;
                         return true;
-                    } else if ((interruptRequest & Flags.IF_SERIAL_IRQ) == Flags.IF_SERIAL_IRQ) {
+                    } else if ((interrupt_request & Flags.IF_SERIAL_IRQ) == Flags.IF_SERIAL_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_SERIAL_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_SERIAL_VECTOR);
                         opcode_mcycle = 8;
                         return true;
-                    } else if ((interruptRequest & Flags.IF_JOYPAD_IRQ) == Flags.IF_JOYPAD_IRQ) {
+                    } else if ((interrupt_request & Flags.IF_JOYPAD_IRQ) == Flags.IF_JOYPAD_IRQ) {
                         memory.writeIORegisterBit(MMU.IF, Flags.IF_JOYPAD_IRQ, false);
                         pushStack(pc.read());
                         pc.write(MMU.IRQ_INPUT_VECTOR);

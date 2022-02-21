@@ -2,21 +2,21 @@ package gbemu.core.apu.components;
 
 public class LengthCounter {
 
-    private boolean stopLoop = false;
+    private boolean stop_loop = false;
     private int length = 0;
 
-    public void setLength(int value, boolean stopLoop) {
+    public void setLength(int value, boolean stop_loop) {
         length = length == 0 ? value : length;
-        this.stopLoop = stopLoop;
+        this.stop_loop = stop_loop;
     }
 
     public boolean clock() {
         length -= length != 0 ? 1 : 0;
-        return !stopLoop || length != 0;
+        return !stop_loop || length != 0;
     }
 
     public void reset() {
-        stopLoop = false;
+        stop_loop = false;
         length = 0;
     }
 }

@@ -102,13 +102,12 @@ public class MMU {
     private int hdma_block_left_hblank = 0;
     private int hdma_current_source = 0;
     private int hdma_current_dest = 0;
-    private StringBuilder serialOutput;
-    private LCDMode ppuMode = LCDMode.H_BLANK;
+    private StringBuilder serial_output;
+    private LCDMode ppu_mode = LCDMode.H_BLANK;
     private final List<IMMUListener> listeners;
-    private Debugger debugger;
 
     public MMU(GameBoy gb) {
-        serialOutput = new StringBuilder();
+        serial_output = new StringBuilder();
         bootstrap = new Bootstrap(gb);
         vram = new int[0x4000];
         wram = new int[0x10000];
@@ -120,7 +119,6 @@ public class MMU {
         ie = 0;
         listeners = new ArrayList<>();
         this.gameboy = gb;
-        gameboy.getDebugger().link(this);
     }
 
     public boolean clock() {
@@ -168,7 +166,7 @@ public class MMU {
         return readByte(addr, false);
     }
 
-    public int readByte(int addr, boolean fromPPU) {
+    public int readByte(int addr, boolean from_ppu) {
         addr &= 0xFFFF;
         if (gameboy.mode == GameBoy.Mode.CGB && addr == CGB_VRAM_BANK)
             return io_registers[addr & 0x7F] | 0xFE;
@@ -189,8 +187,6 @@ public class MMU {
             if (cartridge != null)
                 return cartridge.read(addr);
             return 0x00;
-
-
         } else if (addr <= 0xCFFF) {
             return wram[addr & 0x0FFF];
         } else if (addr <= 0xDFFF) {
@@ -199,11 +195,11 @@ public class MMU {
             else
                 return wram[(addr & 0x0FFF) | 0x1000];
         } else if (addr <= 0xFE9F) {
-            if (!fromPPU && (ppuMode == LCDMode.TRANSFER || ppuMode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
+            if (!from_ppu && (ppu_mode == LCDMode.TRANSFER || ppu_mode == LCDMode.OAM || dma_remaining_cycles > 0) && (readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON) || dma_remaining_cycles > 0))
                 return 0xFF;
             return oam[(addr & 0xFF) % 0xA0];
         } else if (addr <= 0xFEFF) {
-            if (ppuMode == LCDMode.OAM)
+            if (ppu_mode == LCDMode.OAM)
                 return 0xFF;
             if (gameboy.mode == GameBoy.Mode.CGB)
                 return (addr & 0xF0) | ((addr & 0xF0) >> 4);
@@ -248,7 +244,7 @@ public class MMU {
             }
             if (addr == SC && data == 0x81) {
                 char c = (char) readByte(SB);
-                serialOutput.append(c);
+                serial_output.append(c);
                 writeByte(SC, 0);
             }
             if(addr == LY)
@@ -334,7 +330,7 @@ public class MMU {
         } else if (addr <= 0xFF7F) {
             if (addr == SC && data == 0x81) {
                 char c = (char) readByte(SB);
-                serialOutput.append(c);
+                serial_output.append(c);
                 writeByte(SC, 0);
             } else if (addr == CGB_WRAM_BANK) {
                 io_registers[CGB_WRAM_BANK & 0x7F] = (data == 0) ? 1 : data;
@@ -372,22 +368,22 @@ public class MMU {
     }
 
     public LCDMode readLcdMode() {
-        return ppuMode;
+        return ppu_mode;
     }
 
-    public void writeLcdMode(LCDMode lcdMode) {
-        int lcdModeValue = lcdMode.getValue();
+    public void writeLcdMode(LCDMode lcd_mode) {
+        int lcdModeValue = lcd_mode.getValue();
         writeIORegisterBit(STAT, Flags.STAT_MODE >> 1, ((lcdModeValue >> 1) & 0x1) == 0x1);
         writeIORegisterBit(STAT, Flags.STAT_MODE & 0x1, (lcdModeValue & 0x1) == 0x1);
-        ppuMode = lcdMode;
+        ppu_mode = lcd_mode;
     }
 
     public String getSerialOutput() {
-        return serialOutput.toString();
+        return serial_output.toString();
     }
 
     public void flushSerialOutput() {
-        serialOutput = new StringBuilder();
+        serial_output = new StringBuilder();
     }
 
     public void reset() {
@@ -417,10 +413,6 @@ public class MMU {
 
     public void loadBootstrap(GameBoy.Mode mode, String file) {
         bootstrap.loadBootstrap(mode, file);
-    }
-
-    public void linkDebugger(Debugger debugger) {
-        this.debugger = debugger;
     }
 
     public String getSector(int addr) {

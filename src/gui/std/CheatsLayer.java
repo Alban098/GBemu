@@ -14,17 +14,17 @@ import imgui.type.ImString;
 public class CheatsLayer extends Layer {
 
     private final GameBoy gameboy;
-    private final CheatManager cheatManager;
-    private final ImString cheatString = new ImString();
-    private final ImString cheatName = new ImString();
+    private final CheatManager cheat_manager;
+    private final ImString cheat_string = new ImString();
+    private final ImString cheat_name = new ImString();
 
     /**
      * Create a new instance of the layer
      * @param gameboy the Game Boy where the cartridge is inserted
-     * @param cheatManager the Cheat Manager to link the Layer to
+     * @param cheat_manager the Cheat Manager to link the Layer to
      */
-    public CheatsLayer(GameBoy gameboy, CheatManager cheatManager) {
-        this.cheatManager = cheatManager;
+    public CheatsLayer(GameBoy gameboy, CheatManager cheat_manager) {
+        this.cheat_manager = cheat_manager;
         this.gameboy = gameboy;
     }
 
@@ -41,7 +41,7 @@ public class CheatsLayer extends Layer {
         ImGui.separator();
         ImGui.setNextItemOpen(true);
         ImGui.beginChild("Cheats", 340, 428);
-        for (GameSharkCode cheat : cheatManager.getCheats(gameboy.getGameId())) {
+        for (GameSharkCode cheat : cheat_manager.getCheats(gameboy.getGameId())) {
             ImBoolean enabled = new ImBoolean(cheat.isEnabled());
             if (ImGui.checkbox(cheat.getName(), enabled))
                 cheat.setEnabled(enabled.get());
@@ -49,24 +49,24 @@ public class CheatsLayer extends Layer {
             ImGui.textColored(255, 255, 0, 255, cheat.getRawCheat());
             ImGui.sameLine(270);
             if (ImGui.button("Delete"))
-                cheatManager.removeCheat(gameboy.getGameId(), cheat);
+                cheat_manager.removeCheat(gameboy.getGameId(), cheat);
         }
         ImGui.endChild();
         ImGui.separator();
         ImGui.pushItemWidth(70);
         if (!gameboy.getGameId().equals("")) {
-            ImGui.inputText(": Name  ", cheatName);
+            ImGui.inputText(": Name  ", cheat_name);
             ImGui.sameLine();
-            if (ImGui.inputText(": Cheat    ", cheatString))
-                cheatString.set(cheatString.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
+            if (ImGui.inputText(": Cheat    ", cheat_string))
+                cheat_string.set(cheat_string.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
             ImGui.sameLine();
             if (ImGui.button("Add")) {
-                cheatString.set(cheatString.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
-                if (cheatString.get().equals(""))
-                    cheatString.set("0");
-                cheatManager.addCheat(gameboy.getGameId(), cheatName.get(), cheatString.get());
-                cheatName.set("");
-                cheatString.set("");
+                cheat_string.set(cheat_string.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
+                if (cheat_string.get().equals(""))
+                    cheat_string.set("0");
+                cheat_manager.addCheat(gameboy.getGameId(), cheat_name.get(), cheat_string.get());
+                cheat_name.set("");
+                cheat_string.set("");
             }
         } else {
             ImGui.textColored(255, 0, 0, 255, "Please load a game to access GameShark cheats !");

@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class ConsoleThread extends GBemuThread {
 
     private final Console console;
-    private final Queue<Command> pendingCommands;
+    private final Queue<Command> pending_commands;
 
     /**
      * Create a new Console Thread
@@ -24,7 +24,7 @@ public class ConsoleThread extends GBemuThread {
         super();
         console = Console.getInstance();
         console.link(debugger);
-        pendingCommands = new ConcurrentLinkedQueue<>();
+        pending_commands = new ConcurrentLinkedQueue<>();
     }
 
     /**
@@ -34,10 +34,10 @@ public class ConsoleThread extends GBemuThread {
     public void run() {
         try {
             //While the console is active
-            while(!shouldExit.get()) {
+            while(!should_exit.get()) {
                 //Consume all command in order of submission
-                while(!pendingCommands.isEmpty())
-                    console.interpret(pendingCommands.poll());
+                while(!pending_commands.isEmpty())
+                    console.interpret(pending_commands.poll());
                 //Wait for the thread to be waked up
                 synchronized (this) {
                     wait();
@@ -54,6 +54,6 @@ public class ConsoleThread extends GBemuThread {
      * @param command the command to be consumed
      */
     public void offerCommand(Command command) {
-        pendingCommands.offer(command);
+        pending_commands.offer(command);
     }
 }

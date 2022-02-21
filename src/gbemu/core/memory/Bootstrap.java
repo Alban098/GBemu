@@ -19,8 +19,11 @@ public class Bootstrap {
 
     public void loadBootstrap(GameBoy.Mode mode, String file) {
         byte[] bytes = new byte[0];
-        try { bytes = Files.readAllBytes(Paths.get(file));
-        } catch (IOException e) { e.printStackTrace(); }
+        try {
+            bytes = Files.readAllBytes(Paths.get(file));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         if (mode == GameBoy.Mode.DMG) {
             DMG_BOOTSTRAP = new int[bytes.length];
             for (int i = 0; i < bytes.length; i++)

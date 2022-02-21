@@ -9,17 +9,17 @@ public class MBC3 extends MemoryBankController {
     private boolean ram_enabled = false;
     private int selected_rom_bank = 1;
     private int selected_ram_bank = 0;
-    private int latchRegister = 0x00;
-    private int rtcMapped = 0;
-    private final boolean hasTimer;
-    private boolean rtcLatched = false;
+    private int latch_register = 0x00;
+    private int rtc_mapped = 0;
+    private final boolean has_timer;
+    private boolean rtc_latched = false;
     private final int[] rtc = new int[5];
     private long mcycles = 0;
 
-    public MBC3(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank, boolean battery, boolean timer) {
-        super(gameboy, nb_ROM_bank, nb_RAM_bank);
+    public MBC3(GameBoy gameboy, int nb_rom_bank, int nb_ram_bank, boolean battery, boolean timer) {
+        super(gameboy, nb_rom_bank, nb_ram_bank);
         this.battery = battery;
-        hasTimer = timer;
+        has_timer = timer;
     }
 
     /**
@@ -42,22 +42,22 @@ public class MBC3 extends MemoryBankController {
         //RAM Bank Number / RTC Register Select
         } else if (addr <= 0x5FFF) {
             if (data > 0x8 && data < 0xC) {
-                rtcMapped = data;
+                rtc_mapped = data;
             } else {
-                rtcMapped = 0;
+                rtc_mapped = 0;
                 selected_ram_bank = data & 0x03;
             }
         //Latch RTC Timer
         } else if (addr <= 0x7FFF) {
-            if (latchRegister == 0x00 && data == 0x01)
-                rtcLatched = !rtcLatched;
-            latchRegister = data;
+            if (latch_register == 0x00 && data == 0x01)
+                rtc_latched = !rtc_latched;
+            latch_register = data;
         }
     }
 
     @Override
     public int mapRAMAddr(int addr) {
-        if (!ram_enabled || nb_RAM_bank == 0 || rtcMapped != 0)
+        if (!ram_enabled || nb_ram_bank == 0 || rtc_mapped != 0)
             return -1;
         else return addr & 0x1FFF + (0x2000 * selected_ram_bank);
     }
@@ -73,15 +73,15 @@ public class MBC3 extends MemoryBankController {
 
     @Override
     public boolean hasTimer() {
-        return hasTimer;
+        return has_timer;
     }
 
     @Override
     public void clock() {
         if (rtc_enabled) {
             mcycles++;
-            if (hasTimer && !rtcLatched) {
-                if (mcycles >= gameboy.mode.cpu_cycles_per_second) {
+            if (has_timer && !rtc_latched) {
+                if (mcycles >= gameboy.mode.CYCLES_PER_SEC) {
                     rtc[0]++;
                     mcycles = 0;
                     //If seconds overflow
@@ -119,14 +119,14 @@ public class MBC3 extends MemoryBankController {
     }
 
     public int readTimer() {
-        if (hasTimer && rtcMapped != 0x00)
-            return rtc[rtcMapped - 0x8];
+        if (has_timer && rtc_mapped != 0x00)
+            return rtc[rtc_mapped - 0x8];
         return 0x00;
     }
 
     public void writeTimer(int data) {
-        if (hasTimer && rtcMapped != 0x00)
-            rtc[rtcMapped - 0x8] = data;
+        if (has_timer && rtc_mapped != 0x00)
+            rtc[rtc_mapped - 0x8] = data;
     }
 
     public int[] dumpRTC() {
@@ -139,12 +139,12 @@ public class MBC3 extends MemoryBankController {
     }
 
     @Override
-    public int getROMBank() {
+    public int getRomBank() {
         return selected_rom_bank;
     }
 
     @Override
-    public int getRAMBank() {
+    public int getRamBank() {
         return selected_ram_bank;
     }
 }

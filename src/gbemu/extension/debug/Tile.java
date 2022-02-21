@@ -12,10 +12,10 @@ public class Tile {
     public int y;
     public int id;
     public int attrib;
-    public int mapAddr;
-    public int tileAddr;
+    public int map_addr;
+    public int tile_addr;
     public int bank;
-    public ByteBuffer renderTarget;
+    public ByteBuffer render_target;
 
     /**
      * Create an Empty tile
@@ -25,27 +25,27 @@ public class Tile {
         y = 0;
         id = 0;
         attrib = 0;
-        mapAddr = 0;
+        map_addr = 0;
         bank = 0;
-        tileAddr = 0;
-        renderTarget = BufferUtils.createByteBuffer(64 * 4);
+        tile_addr = 0;
+        render_target = BufferUtils.createByteBuffer(64 * 4);
     }
 
     /**
      * Fill a tile, leave the render target untouched
      * @param x tile x
      * @param y tile y
-     * @param mapAddr tile address on tile map
-     * @param tileAddr tile adress on tile tables
+     * @param map_addr tile address on tile map
+     * @param tile_addr tile adress on tile tables
      * @param id tile id
      * @param attrib tile attribute
      * @param bank tile VRAM bank
      */
-    public void fill(int x, int y, int mapAddr, int tileAddr, int id, int attrib, int bank) {
+    public void fill(int x, int y, int map_addr, int tile_addr, int id, int attrib, int bank) {
         this.x = x;
         this.y = y;
-        this.mapAddr = mapAddr;
-        this.tileAddr = tileAddr;
+        this.map_addr = map_addr;
+        this.tile_addr = tile_addr;
         this.id = id;
         this.attrib = attrib;
         this.bank = bank;
@@ -58,13 +58,13 @@ public class Tile {
     public void fill(Tile tile) {
         this.x = tile.x;
         this.y = tile.y;
-        this.mapAddr = tile.mapAddr;
-        this.tileAddr = tile.tileAddr;
+        this.map_addr = tile.map_addr;
+        this.tile_addr = tile.tile_addr;
         this.id = tile.id;
         this.attrib = tile.attrib;
         this.bank = tile.bank;
-        this.renderTarget.clear();
-        this.renderTarget.put(tile.renderTarget);
-        this.renderTarget.flip();
+        this.render_target.clear();
+        this.render_target.put(tile.render_target);
+        this.render_target.flip();
     }
 }

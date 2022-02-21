@@ -7,8 +7,8 @@ public class MBC2 extends MemoryBankController {
     private boolean ram_enabled = false;
     private int selected_rom_bank = 1;
 
-    public MBC2(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank, boolean battery) {
-        super(gameboy, nb_ROM_bank, nb_RAM_bank);
+    public MBC2(GameBoy gameboy, int nb_rom_bank, int nb_ram_bank, boolean battery) {
+        super(gameboy, nb_rom_bank, nb_ram_bank);
         this.battery = battery;
     }
 
@@ -18,8 +18,8 @@ public class MBC2 extends MemoryBankController {
      * [0x2000, 0x3FFF] : Write the ROM Bank mapped to [0x4000, 0x7FFF]
      * [0x4000, 0x5FFF] : Write the ROM Bank mapped to [0xA000, 0xBFFF] or the ROM Bank high bits
      * [0x6000, 0x7FFF] : Write the banking mode
-     * @param addr the address to write as 16bit unsigned int
-     * @param data the data to write as 8bit unsigned int
+     * @param addr the address to write as 16-bit unsigned int
+     * @param data the data to write as 8-bit unsigned int
      */
     @Override
     public void write(int addr, int data) {
@@ -54,12 +54,12 @@ public class MBC2 extends MemoryBankController {
     }
 
     @Override
-    public int getROMBank() {
+    public int getRomBank() {
         return selected_rom_bank;
     }
 
     @Override
-    public int getRAMBank() {
+    public int getRamBank() {
         return 0;
     }
 }

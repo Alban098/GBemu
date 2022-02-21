@@ -27,25 +27,25 @@ public class Debugger {
 
     private final GameBoy gameboy;
 
-    private gbemu.core.cpu.State cpuState;
-    private gbemu.core.ppu.State ppuState;
-    private Queue<Sample> sampleQueue;
+    private gbemu.core.cpu.State cpu_state;
+    private gbemu.core.ppu.State ppu_state;
+    private Queue<Sample> sample_queue;
 
-    private final Map<DebuggerMode, Boolean> hookedModes;
+    private final Map<DebuggerMode, Boolean> hooked_modes;
     private final Map<Integer, BreakPoint> breakpoints;
-    private final Queue<Instruction> instructionQueue;
+    private final Queue<Instruction> instruction_queue;
 
-    private final Point hoveredTileMap;
-    private final Point hoveredTileTables;
-    private final Point hoveredSprite;
-    private final Tile tileMapHoveredTile;
-    private final Tile tileTableHoveredTile;
+    private final Point hovered_tile_map;
+    private final Point hovered_tile_tables;
+    private final Point hovered_sprite;
+    private final Tile tile_map_hovered_tile;
+    private final Tile tile_table_hovered_tile;
 
     private boolean enabled = false;
-    private int selectedTileMap = 0;
-    private boolean tileMapGrid = false;
-    private boolean tileTablesGrid = false;
-    private boolean showViewport = true;
+    private int selected_tile_map = 0;
+    private boolean tile_map_grid = false;
+    private boolean tile_tables_grid = false;
+    private boolean show_viewport = true;
 
     /**
      * Create a new Debugger linked to a Game Boy
@@ -53,18 +53,18 @@ public class Debugger {
      */
     public Debugger(GameBoy gb) {
         breakpoints = new ConcurrentHashMap<>();
-        instructionQueue = new ConcurrentLinkedQueue<>();
+        instruction_queue = new ConcurrentLinkedQueue<>();
         this.gameboy = gb;
 
-        hoveredTileMap = new Point(-1, -1);
-        hoveredTileTables = new Point(-1, -1);
-        hoveredSprite = new Point(-1, -1);
-        tileMapHoveredTile = new Tile();
-        tileTableHoveredTile = new Tile();
+        hovered_tile_map = new Point(-1, -1);
+        hovered_tile_tables = new Point(-1, -1);
+        hovered_sprite = new Point(-1, -1);
+        tile_map_hovered_tile = new Tile();
+        tile_table_hovered_tile = new Tile();
 
-        hookedModes = new ConcurrentHashMap<>();
+        hooked_modes = new ConcurrentHashMap<>();
         for (DebuggerMode mode : DebuggerMode.values())
-            hookedModes.put(mode, false);
+            hooked_modes.put(mode, false);
     }
 
     /**
@@ -82,7 +82,7 @@ public class Debugger {
      * @param state the state to link
      */
     public void link(gbemu.core.cpu.State state) {
-        this.cpuState = state;
+        this.cpu_state = state;
     }
 
     /**
@@ -91,7 +91,7 @@ public class Debugger {
      * @param state the state to link
      */
     public void link(gbemu.core.ppu.State state) {
-        this.ppuState = state;
+        this.ppu_state = state;
     }
 
     /**
@@ -100,26 +100,17 @@ public class Debugger {
      * @param queue the sample queue to link
      */
     public void link(Queue<Sample> queue) {
-        this.sampleQueue = queue;
-    }
-
-    /**
-     * Link a MMU to the debugger
-     * therefore enabling the debugger to observe the MMU at any time
-     * @param memory the MMU to link
-     */
-    public void link(MMU memory) {
-        memory.linkDebugger(this);
+        this.sample_queue = queue;
     }
 
     /**
      * Decompile code starting at the current CPU Program Counter value
      */
     private void decompile() {
-        int addr = cpuState.getPc().read();
+        int addr = cpu_state.getPc().read();
 
         //For each of the placeholder instruction we populate it with the decompiled instruction informations
-        for (Instruction instr : instructionQueue) {
+        for (Instruction instr : instruction_queue) {
             //If the sector is marked as Data
             if (addr >= 0x8000 && addr <= 0x9FFF || addr >= 0xFE00 && addr <= 0xFF7F || addr == 0xFFFF || addr >= 0x0104 && addr <= 0x014F) {
                 instr.setAddr(addr);
@@ -171,34 +162,34 @@ public class Debugger {
      * pausing emulation and entering gbemu.extension.debug mode if any has been reached
      */
     public void breakpointCheck() {
-        int addr = cpuState.getInstruction().getAddr();
+        int addr = cpu_state.getInstruction().getAddr();
 
         //Test for EXEC breakpoints
         if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.EXEC  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
             synchronized (gameboy) {
                 gameboy.setState(GameBoyState.DEBUG);
             }
-            Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (breakpoint reached (EXEC))");
+            Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpu_state.getInstruction().getAddr()) + " (breakpoint reached (EXEC))");
         }
 
-        addr = cpuState.getInstruction().getParamAddress();
+        addr = cpu_state.getInstruction().getParamAddress();
         //Test for READ breakpoints
-        if (cpuState.getInstruction().getType() == Instruction.Type.R || cpuState.getInstruction().getType() == Instruction.Type.RW) {
+        if (cpu_state.getInstruction().getType() == Instruction.Type.R || cpu_state.getInstruction().getType() == Instruction.Type.RW) {
             if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.READ || breakpoints.get(addr).type() == BreakPoint.Type.RW  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
                 synchronized (gameboy) {
                     gameboy.setState(GameBoyState.DEBUG);
                 }
-                Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (read from " + String.format("%04X", addr) + ")");
+                Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpu_state.getInstruction().getAddr()) + " (read from " + String.format("%04X", addr) + ")");
             }
         }
 
         //Test for WRITE breakpoints
-        if (cpuState.getInstruction().getType() == Instruction.Type.W || cpuState.getInstruction().getType() == Instruction.Type.RW) {
+        if (cpu_state.getInstruction().getType() == Instruction.Type.W || cpu_state.getInstruction().getType() == Instruction.Type.RW) {
             if (breakpoints.containsKey(addr) && (breakpoints.get(addr).type() == BreakPoint.Type.WRITE || breakpoints.get(addr).type() == BreakPoint.Type.RW  || breakpoints.get(addr).type() == BreakPoint.Type.ALL)) {
                 synchronized (gameboy) {
                     gameboy.setState(GameBoyState.DEBUG);
                 }
-                Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpuState.getInstruction().getAddr()) + " (write to " + String.format("%04X", addr) + ")");
+                Console.getInstance().log(LogLevel.WARNING, "Execution stopped at $" + String.format("%04X", cpu_state.getInstruction().getAddr()) + " (write to " + String.format("%04X", addr) + ")");
             }
         }
     }
@@ -214,14 +205,14 @@ public class Debugger {
         if (isHooked(DebuggerMode.PPU)) {
             //Render OAMs if the debugger is observing the OAMs
             if (isHooked(DebuggerMode.OAMS)) {
-                gameboy.getPpu().computeOAM(hoveredSprite.x, hoveredSprite.y);
+                gameboy.getPpu().computeOAM(hovered_sprite.x, hovered_sprite.y);
             //Render the tile tables if the debugger is observing them, also compute the tile hovered by the mouse
             } else if (isHooked(DebuggerMode.TILES)) {
-                gameboy.getPpu().computeTileTables(hoveredTileTables.x, hoveredTileTables.y, tileTablesGrid);
+                gameboy.getPpu().computeTileTables(hovered_tile_tables.x, hovered_tile_tables.y, tile_tables_grid);
                 computeHoveredTileTables();
             //Render the tile maps if the debugger is observing them, also compute the tile hovered by the mouse
             } else if (isHooked(DebuggerMode.TILEMAPS)) {
-                gameboy.getPpu().computeTileMaps(showViewport, selectedTileMap, hoveredTileMap.x, hoveredTileMap.y, tileMapGrid);
+                gameboy.getPpu().computeTileMaps(show_viewport, selected_tile_map, hovered_tile_map.x, hovered_tile_map.y, tile_map_grid);
                 computeHoveredTileMap();
             }
         }
@@ -232,15 +223,15 @@ public class Debugger {
      */
     private void computeHoveredTileTables() {
         //Selecting addressing mode, depending on the tile bank (Mode 1 : bank 0/1, Mode 0 : bank 2)
-        boolean mode1 = hoveredTileTables.y <= 0xF;
+        boolean mode_1 = hovered_tile_tables.y <= 0xF;
         //Compute the tile ID and address
-        int tileId = ((hoveredTileTables.y << 4) & 0xF0) | hoveredTileTables.x & 0x0F;
-        int tileAddr = MMU.TILE_BLOCK_START | (tileId << 4) + (mode1 ? 0x1000 : 0x0000);
+        int tile_id = ((hovered_tile_tables.y << 4) & 0xF0) | hovered_tile_tables.x & 0x0F;
+        int tile_addr = MMU.TILE_BLOCK_START | (tile_id << 4) + (mode_1 ? 0x1000 : 0x0000);
         //Calculating the VRAM Bank (only relevant in CGB Mode)
-        int bank = hoveredTileTables.x > 0x0F ? 1 : 0;
+        int bank = hovered_tile_tables.x > 0x0F ? 1 : 0;
         //Filling the tile temp variable, tile tables are rendered in null mode, because tile are not palette dependant
-        gameboy.getPpu().renderTile(tileId, 0, tileTableHoveredTile.renderTarget, bank, mode1, null);
-        tileTableHoveredTile.fill(0, 0, 0, tileAddr, tileId, 0, bank);
+        gameboy.getPpu().renderTile(tile_id, 0, tile_table_hovered_tile.render_target, bank, mode_1, null);
+        tile_table_hovered_tile.fill(0, 0, 0, tile_addr, tile_id, 0, bank);
     }
 
     /**
@@ -248,17 +239,17 @@ public class Debugger {
      */
     private void computeHoveredTileMap() {
         //Fetching the tile addressing mode, it is fetched from the Game Boy to reflect current rendering behaviour
-        boolean mode1 = gameboy.getMemory().readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
+        boolean mode_1 = gameboy.getMemory().readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
         //Computing the address of the tile map entry
-        int mapAddr = (selectedTileMap == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | hoveredTileMap.x | (hoveredTileMap.y << 5);
+        int map_addr = (selected_tile_map == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | hovered_tile_map.x | (hovered_tile_map.y << 5);
         //Fetching the tileID and computing its address in the tile tables
-        int tileId = gameboy.getMemory().readVRAM(mapAddr, 0);
-        int tileAddr = MMU.TILE_BLOCK_START + 0x800 * (mode1 ? 0 : 2) + tileId * 16;
+        int tile_id = gameboy.getMemory().readVRAM(map_addr, 0);
+        int tile_addr = MMU.TILE_BLOCK_START + 0x800 * (mode_1 ? 0 : 2) + tile_id * 16;
         //Fetching the attributes of the tile (0 if in DMG mode, because DMG does not have tile map tile attributes)
-        int attrib = gameboy.mode == GameBoy.Mode.CGB ? gameboy.getMemory().readVRAM(mapAddr, 1) : 0;
+        int attrib = gameboy.mode == GameBoy.Mode.CGB ? gameboy.getMemory().readVRAM(map_addr, 1) : 0;
         //Filling the temp tile variable
-        gameboy.getPpu().renderTile(tileId, attrib, tileMapHoveredTile.renderTarget,0 , mode1, gameboy.mode);
-        tileMapHoveredTile.fill(hoveredTileMap.x, hoveredTileMap.y, mapAddr, tileAddr, tileId, attrib, (attrib & Flags.CGB_TILE_VRAM_BANK) != 0 ? 1 : 0);
+        gameboy.getPpu().renderTile(tile_id, attrib, tile_map_hovered_tile.render_target,0 , mode_1, gameboy.mode);
+        tile_map_hovered_tile.fill(hovered_tile_map.x, hovered_tile_map.y, map_addr, tile_addr, tile_id, attrib, (attrib & Flags.CGB_TILE_VRAM_BANK) != 0 ? 1 : 0);
     }
 
     /**
@@ -266,7 +257,7 @@ public class Debugger {
      * @return the linked CPU state
      */
     public synchronized State getCpuState() {
-        return cpuState;
+        return cpu_state;
     }
 
     /**
@@ -274,7 +265,7 @@ public class Debugger {
      * @return the decompiled Instruction Queue
      */
     public Queue<Instruction> getInstructionQueue() {
-        return instructionQueue;
+        return instruction_queue;
     }
 
     /**
@@ -286,7 +277,7 @@ public class Debugger {
         //If the debugger is not enabled, it is not hooked to anything
         if (!enabled)
             return false;
-        return hookedModes.get(mode);
+        return hooked_modes.get(mode);
     }
 
     /**
@@ -305,7 +296,7 @@ public class Debugger {
      * @param hooked hook or unhook
      */
     public void setHooked(DebuggerMode mode, boolean hooked) {
-        hookedModes.put(mode, hooked);
+        hooked_modes.put(mode, hooked);
     }
 
     /**
@@ -323,7 +314,7 @@ public class Debugger {
      * @return the linked Sample Queue
      */
     public Queue<Sample> getSampleQueue() {
-        return sampleQueue;
+        return sample_queue;
     }
 
     /**
@@ -371,9 +362,9 @@ public class Debugger {
      * (create the instruction queue)
      */
     public void init() {
-        instructionQueue.clear();
+        instruction_queue.clear();
         for (int i = 0; i < DECOMPILE_SIZE; i++)
-            instructionQueue.add(new Instruction(0, Instruction.Type.MISC,"NOP", 1, null, cpuState));
+            instruction_queue.add(new Instruction(0, Instruction.Type.MISC,"NOP", 1, null, cpu_state));
     }
 
     /**
@@ -389,7 +380,7 @@ public class Debugger {
      * @return the rendered tile table Buffer
      */
     public synchronized SwappingByteBuffer getTileTableBuffer() {
-        return ppuState.getTileTableBuffer();
+        return ppu_state.getTileTableBuffer();
     }
 
     /**
@@ -398,7 +389,7 @@ public class Debugger {
      * @return the rendered tile map Buffer
      */
     public synchronized SwappingByteBuffer getTileMapBuffer(int index) {
-        return ppuState.getTileMapBuffers()[index];
+        return ppu_state.getTileMapBuffers()[index];
     }
 
     /**
@@ -406,7 +397,7 @@ public class Debugger {
      * @return the rendered OAM Buffer
      */
     public synchronized SwappingByteBuffer getOAMBuffer() {
-        return ppuState.getOAMBuffer();
+        return ppu_state.getOAMBuffer();
     }
 
     /**
@@ -500,7 +491,7 @@ public class Debugger {
      * @return the hovered tile map tile
      */
     public synchronized Tile getTileMapHoveredTile() {
-        return tileMapHoveredTile;
+        return tile_map_hovered_tile;
     }
 
     /**
@@ -508,7 +499,7 @@ public class Debugger {
      * @return the hovered tile tables tile
      */
     public synchronized Tile getTileTableHoveredTile() {
-        return tileTableHoveredTile;
+        return tile_table_hovered_tile;
     }
 
     /**
@@ -519,11 +510,11 @@ public class Debugger {
     public synchronized void setHoveredTileOnMap(int x, int y) {
         //Set to -1 if out of bounds
         if (x < 0 || x > 0x1F || y < 0 || y > 0x1F) {
-            hoveredTileMap.x = -1;
-            hoveredTileMap.y = -1;
+            hovered_tile_map.x = -1;
+            hovered_tile_map.y = -1;
         } else {
-            hoveredTileMap.x = x;
-            hoveredTileMap.y = y;
+            hovered_tile_map.x = x;
+            hovered_tile_map.y = y;
         }
     }
 
@@ -532,7 +523,7 @@ public class Debugger {
      * @param id the tile map id
      */
     public synchronized void selectTileMap(int id) {
-        selectedTileMap = id & 0x1;
+        selected_tile_map = id & 0x1;
     }
 
     /**
@@ -540,7 +531,7 @@ public class Debugger {
      * @param enabled enable/disable viewport
      */
     public synchronized void enableViewport(boolean enabled) {
-        showViewport = enabled;
+        show_viewport = enabled;
     }
 
     /**
@@ -548,7 +539,7 @@ public class Debugger {
      * @param enabled enable/disable grid
      */
     public synchronized void enableTileTablesGrid(boolean enabled) {
-        tileTablesGrid = enabled;
+        tile_tables_grid = enabled;
     }
 
     /**
@@ -556,7 +547,7 @@ public class Debugger {
      * @param enabled enable/disable grid
      */
     public synchronized void enableTileMapGrid(boolean enabled) {
-        tileMapGrid = enabled;
+        tile_map_grid = enabled;
     }
 
     /**
@@ -567,11 +558,11 @@ public class Debugger {
     public synchronized void setHoveredTileOnTables(int x, int y) {
         //Set to -1 if out of bounds
         if ((x < 0 || x > 0x1F || y < 0 || y > 0x18)) {
-            hoveredTileTables.x = -1;
-            hoveredTileTables.y = -1;
+            hovered_tile_tables.x = -1;
+            hovered_tile_tables.y = -1;
         } else {
-            hoveredTileTables.x = x;
-            hoveredTileTables.y = y;
+            hovered_tile_tables.x = x;
+            hovered_tile_tables.y = y;
         }
     }
 
@@ -581,7 +572,7 @@ public class Debugger {
      * @param y hovered sprite Y
      */
     public synchronized void setHoveredSprite(int x, int y) {
-        hoveredSprite.x = x;
-        hoveredSprite.y = y;
+        hovered_sprite.x = x;
+        hovered_sprite.y = y;
     }
 }

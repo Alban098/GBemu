@@ -15,6 +15,9 @@ import java.util.*;
 
 import static gbemu.core.BitUtils.signedByte;
 
+/**
+ * This class represents the PPU, it handles everything relative to screen rendering
+ */
 public class PPU {
 
     public static final int SCREEN_WIDTH = 160;
@@ -35,6 +38,10 @@ public class PPU {
 
     private final State state;
 
+    /**
+     * Create a new PPU instance
+     * @param gameboy the Game Boy to link to
+     */
     public PPU(GameBoy gameboy) {
         this.gameboy = gameboy;
         this.memory = gameboy.getMemory();
@@ -45,16 +52,23 @@ public class PPU {
         gameboy.getDebugger().link(state);
     }
 
+    /**
+     * Return the screen buffer that can be displayed to the screen
+     * @return the screen buffer
+     */
     public synchronized ByteBuffer getScreenBuffer() {
         return screen_buffer.getBuffer();
     }
 
+    /**
+     * Execute a cycle of the PPU and compute everything that happen during that cycle
+     */
     public void clock() {
         if (!memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_LCD_ON)) {
             memory.writeLcdMode(LCDMode.H_BLANK);
             //prevent rendering routine from getting stuck when LCD is off
             off_cycles++;
-            if (off_cycles >= gameboy.mode.cpu_cycles_per_frame) {
+            if (off_cycles >= gameboy.mode.CYCLES_PER_FRAME) {
                 screen_buffer.swap();
                 isFrameComplete = true;
                 off_cycles = 0;
@@ -71,8 +85,11 @@ public class PPU {
         }
     }
 
+    /**
+     * Execute a cycle when in LCDMode V_BLANK
+     */
     private void processVBlank() {
-        if (cycles >= gameboy.mode.cpu_cycles_per_vblank_scanline) {
+        if (cycles >= gameboy.mode.CYCLES_PER_VBLANK_SCANLINE) {
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT) {
                 memory.writeIORegisterBit(MMU.IF, Flags.IF_VBLANK_IRQ, true);
                 isFrameComplete = true;
@@ -91,7 +108,7 @@ public class PPU {
 
     private void processHBlank() {
         //This may be reworked if LCDC.tileTable can be change mid scanline, but I don't think so ??
-        if (cycles >= gameboy.mode.cpu_cycles_per_hblank) {
+        if (cycles >= gameboy.mode.CYCLES_PER_HBLANK) {
 
             //Register reads
             int y = memory.readByte(MMU.LY, true);
@@ -103,91 +120,91 @@ public class PPU {
             boolean mode1 = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
 
             //Rendering banks base addresses
-            int tileBGMapAddr = (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_MAP) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START) | ((((y + scy) & 0xFF) & 0xF8) << 2);
-            int tileWINMapAddr = (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_MAP) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START) | (((y - wy) & 0xF8) << 2);
+            int tile_bg_map_addr = (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_MAP) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START) | ((((y + scy) & 0xFF) & 0xF8) << 2);
+            int tile_win_map_addr = (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_MAP) ? MMU.BG_MAP1_START : MMU.BG_MAP0_START) | (((y - wy) & 0xF8) << 2);
 
-            ColorShade bgColor, winColor, spriteColor, finalColor;
+            ColorShade bg_color, win_color, sprite_color, final_color;
 
             //Temporary variables, declared here to increase reusability
-            int tileIdAddr, tileId, winColorIndex, bgColorIndex, spriteColorIndex;
-            boolean spritePriorityFlag = false;
+            int tile_id_addr, tile_id, win_color_index, bg_color_index, sprite_color_index;
+            boolean sprite_priority_flag = false;
             int cgb_tile_attr = 0, cgb_vram_bank, cgb_palette_nb;
             int priority; //0 = BG, 1 = Win, 2 = Sprite
 
             for (int x = 0; x < 160; x++) {
-                bgColor = ColorShade.TRANSPARENT;
-                winColor = ColorShade.TRANSPARENT;
-                spriteColor = ColorShade.TRANSPARENT;
-                winColorIndex = 0;
-                bgColorIndex = 0;
+                bg_color = ColorShade.TRANSPARENT;
+                win_color = ColorShade.TRANSPARENT;
+                sprite_color = ColorShade.TRANSPARENT;
+                win_color_index = 0;
+                bg_color_index = 0;
                 priority = 0;
 
                 //Background
-                tileIdAddr = tileBGMapAddr | (((x + scx) & 0xFF) >> 3);
+                tile_id_addr = tile_bg_map_addr | (((x + scx) & 0xFF) >> 3);
                 if (gameboy.mode != GameBoy.Mode.CGB) {
                     if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_ON)) {
-                        tileId = memory.readVRAM(tileIdAddr, 0);
+                        tile_id = memory.readVRAM(tile_id_addr, 0);
                         if (!mode1)
-                            tileId = signedByte(tileId);
-                        bgColorIndex = getTileColorIndex(
+                            tile_id = signedByte(tile_id);
+                        bg_color_index = getTileColorIndex(
                                 0,
                                 mode1 ? 0 : 2,
-                                tileId,
+                                tile_id,
                                 ((x + scx) & 0xFF) & 0x7,
                                 ((y + scy) & 0xFF) & 0x7
                         );
-                        bgColor = palettes.getBgPalette().colors[bgColorIndex];
+                        bg_color = palettes.getBgPalette().colors[bg_color_index];
                     }
                 } else {
-                    cgb_tile_attr = memory.readVRAM(tileIdAddr, 1);
+                    cgb_tile_attr = memory.readVRAM(tile_id_addr, 1);
                     cgb_vram_bank = (cgb_tile_attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
                     cgb_palette_nb = (cgb_tile_attr & Flags.CGB_TILE_PALETTE);
-                    tileId = memory.readVRAM(tileIdAddr, 0);
+                    tile_id = memory.readVRAM(tile_id_addr, 0);
                     if (!mode1)
-                        tileId = signedByte(tileId);
-                    bgColorIndex = getTileColorIndex(
+                        tile_id = signedByte(tile_id);
+                    bg_color_index = getTileColorIndex(
                             cgb_vram_bank,
                             mode1 ? 0 : 2,
-                            tileId,
+                            tile_id,
                             (cgb_tile_attr & Flags.CGB_TILE_HFLIP) == 0 ? ((x + scx) & 0xFF) & 0x7 : (((7 - x) + scx) & 0xFF) & 0x7,
                             (cgb_tile_attr & Flags.CGB_TILE_VFLIP) == 0 ? ((y + scy) & 0xFF) & 0x7 : (((7 - y) + scy) & 0xFF) & 0x7
                     );
-                    bgColor = palettes.getCGBBgPalette(cgb_palette_nb).colors[bgColorIndex];
+                    bg_color = palettes.getCGBBgPalette(cgb_palette_nb).colors[bg_color_index];
                 }
 
                 //Window
-                tileIdAddr = tileWINMapAddr | ((x - (wx - 7)) >> 3);
+                tile_id_addr = tile_win_map_addr | ((x - (wx - 7)) >> 3);
                 if (gameboy.mode != GameBoy.Mode.CGB) {
                     if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_ON) && (x - (wx - 7) >= 0) && (y - wy >= 0) && (x - wx <= 160) && (y - wy <= 144) && wx < 166 && wy < 143) {
-                        tileId = memory.readVRAM(tileIdAddr, 0);
+                        tile_id = memory.readVRAM(tile_id_addr, 0);
                         if (!mode1)
-                            tileId = signedByte(tileId);
-                        winColorIndex = getTileColorIndex(
+                            tile_id = signedByte(tile_id);
+                        win_color_index = getTileColorIndex(
                                 0,
                                 mode1 ? 0 : 2,
-                                tileId,
+                                tile_id,
                                 (x - (wx - 7)) & 0x7,
                                 (y - wy) & 0x7
                         );
-                        winColor = palettes.getBgPalette().colors[winColorIndex];
+                        win_color = palettes.getBgPalette().colors[win_color_index];
                         priority = 1;
                     }
                 } else {
                     if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_WINDOW_ON) && (x - (wx - 7) >= 0) && (y - wy >= 0) && (x - wx <= 160) && (y - wy <= 144) && wx < 166 && wy < 143) {
-                        cgb_tile_attr = memory.readVRAM(tileWINMapAddr, 1);
+                        cgb_tile_attr = memory.readVRAM(tile_win_map_addr, 1);
                         cgb_vram_bank = (cgb_tile_attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
                         cgb_palette_nb = (cgb_tile_attr & Flags.CGB_TILE_PALETTE);
-                        tileId = memory.readByte(tileIdAddr, true);
+                        tile_id = memory.readByte(tile_id_addr, true);
                         if (!mode1)
-                            tileId = signedByte(tileId);
-                        winColorIndex = getTileColorIndex(
+                            tile_id = signedByte(tile_id);
+                        win_color_index = getTileColorIndex(
                                 cgb_vram_bank,
                                 mode1 ? 0 : 2,
-                                tileId,
+                                tile_id,
                                 (cgb_tile_attr & Flags.CGB_TILE_HFLIP) == 0 ? (x - (wx - 7)) & 0x7 : ((7 - x) - (wx - 7)) & 0x7,
                                 (cgb_tile_attr & Flags.CGB_TILE_VFLIP) == 0 ? (y - wy) & 0x7 : ((7 - y) - wy) & 0x7
                         );
-                        winColor = palettes.getCGBBgPalette(cgb_palette_nb).colors[winColorIndex];
+                        win_color = palettes.getCGBBgPalette(cgb_palette_nb).colors[win_color_index];
                         priority = 1;
                     }
                 }
@@ -196,14 +213,14 @@ public class PPU {
                 if (memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_ON)) {
                     for (Sprite sprite : sprites) {
                         if (sprite.x() - 8 <= x && sprite.x() > x) {
-                            spritePriorityFlag = (sprite.attributes() & Flags.SPRITE_ATTRIB_UNDER_BG)!= 0x00;
-                            spriteColorIndex = fetchSpriteColorIndex(x, y, spriteSize, sprite);
+                            sprite_priority_flag = (sprite.attributes() & Flags.SPRITE_ATTRIB_UNDER_BG)!= 0x00;
+                            sprite_color_index = fetchSpriteColorIndex(x, y, spriteSize, sprite);
 
                             if (gameboy.mode == GameBoy.Mode.DMG)
-                                spriteColor = ((sprite.attributes() & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[spriteColorIndex];
+                                sprite_color = ((sprite.attributes() & Flags.SPRITE_ATTRIB_PAL) == 0x00 ? palettes.getObjPalette0() : palettes.getObjPalette1()).colors[sprite_color_index];
                             else
-                                spriteColor = palettes.getCGBObjPalette(sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_PAL).colors[spriteColorIndex];
-                            if (spriteColorIndex != 0) {
+                                sprite_color = palettes.getCGBObjPalette(sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_PAL).colors[sprite_color_index];
+                            if (sprite_color_index != 0) {
                                 priority = 2;
                                 break;
                             }
@@ -213,20 +230,20 @@ public class PPU {
 
                 if (gameboy.mode == GameBoy.Mode.CGB && (cgb_tile_attr & Flags.CGB_TILE_PRIORITY) != 0 && priority != 1)
                     priority = 0;
-                else if (spritePriorityFlag && priority == 2)
-                    if (winColor != ColorShade.TRANSPARENT && winColorIndex != 0)
+                else if (sprite_priority_flag && priority == 2)
+                    if (win_color != ColorShade.TRANSPARENT && win_color_index != 0)
                         priority = 1;
-                    else if (bgColor != ColorShade.TRANSPARENT && bgColorIndex != 0)
+                    else if (bg_color != ColorShade.TRANSPARENT && bg_color_index != 0)
                         priority = 0;
 
                 if (priority == 0)
-                    finalColor = bgColor;
+                    final_color = bg_color;
                 else if (priority == 1)
-                    finalColor = winColor;
+                    final_color = win_color;
                 else
-                    finalColor = spriteColor;
+                    final_color = sprite_color;
                 
-                screen_buffer.put(finalColor.getColor());
+                screen_buffer.put(final_color.getColor());
             }
 
             if (memory.readByte(MMU.LY, true) == SCREEN_HEIGHT - 1)
@@ -239,31 +256,42 @@ public class PPU {
         }
     }
 
-    private int fetchSpriteColorIndex(int x, int y, int spriteSize, Sprite sprite) {
-        int spriteSubX = ((sprite.attributes() & Flags.SPRITE_ATTRIB_X_FLIP) != 0x00) ? 7 - (x - sprite.x() + 8) : (x - sprite.x() + 8);
-        if (spriteSize == 8) { //8x8 mode
+    /**
+     * Return the color index of a Sprite at a sampled coordinate
+     * @param x the x coordinate inside the sprite (from left to right, 0 to 8)
+     * @param y the y coordinate inside the sprite (from top to bottom, 0 to 8 or 16 depending on sprite_size)
+     * @param sprite_size the sprite height (8 or 16)
+     * @param sprite the sprite to load from
+     * @return the color index at the sampled coordinate
+     */
+    private int fetchSpriteColorIndex(int x, int y, int sprite_size, Sprite sprite) {
+        int sprite_sub_X = ((sprite.attributes() & Flags.SPRITE_ATTRIB_X_FLIP) != 0x00) ? 7 - (x - sprite.x() + 8) : (x - sprite.x() + 8);
+        if (sprite_size == 8) { //8x8 mode
             int spriteSubY = ((sprite.attributes() & Flags.SPRITE_ATTRIB_Y_FLIP) != 0x00) ? 7 - (y - sprite.y() + 16) : (y - sprite.y() + 16);
             return getTileColorIndex(
                     gameboy.mode == GameBoy.Mode.CGB ? (sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_VRAM_BANK) >> 3 : 0,
                     0,
                     sprite.tileId(),
-                    spriteSubX,
+                    sprite_sub_X,
                     spriteSubY
             );
         } else { //8x16 mode
-            int spriteSubY = ((sprite.attributes() & Flags.SPRITE_ATTRIB_Y_FLIP) != 0x00) ? 15 - (y - sprite.y() + 16) : (y - sprite.y() + 16);
+            int sprite_sub_Y = ((sprite.attributes() & Flags.SPRITE_ATTRIB_Y_FLIP) != 0x00) ? 15 - (y - sprite.y() + 16) : (y - sprite.y() + 16);
             return getTileColorIndex(
                     gameboy.mode == GameBoy.Mode.CGB ? (sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_VRAM_BANK) >> 3 : 0,
                     0,
-                    spriteSubY < 8 ? sprite.tileId() & 0xFE : sprite.tileId() | 1,
-                    spriteSubX,
-                    spriteSubY
+                    sprite_sub_Y < 8 ? sprite.tileId() & 0xFE : sprite.tileId() | 1,
+                    sprite_sub_X,
+                    sprite_sub_Y
             );
         }
     }
 
+    /**
+     * Execute a cycle when in LCDMode TRANSFER
+     */
     private void processTransfer() {
-        if (cycles >= gameboy.mode.cpu_cycles_per_transfer) {
+        if (cycles >= gameboy.mode.CYCLES_PER_TRANSFER) {
             switchToLCDMode(LCDMode.H_BLANK);
             cycles = 0;
 
@@ -271,8 +299,11 @@ public class PPU {
         }
     }
 
+    /**
+     * Execute a cycle when in LCDMode OAM
+     */
     private void processOam() {
-        if (cycles >= gameboy.mode.cpu_cycles_per_oam) {
+        if (cycles >= gameboy.mode.CYCLES_PER_OAM) {
             switchToLCDMode(LCDMode.TRANSFER);
             cycles = 0;
 
@@ -284,23 +315,32 @@ public class PPU {
         }
     }
 
+    /**
+     * Retrieve every sprite present on a scanline to a Collection
+     * @param sprites the Collection to populate
+     * @param y the y coordinate of the current scanline
+     */
     private void fetchSprites(Collection<Sprite> sprites, int y) {
-        int spriteSize = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_SIZE) ? 16 : 8;
+        int sprite_size = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_SIZE) ? 16 : 8;
         int addr = MMU.OAM_START;
-        int foundSprites = 0, spriteY;
+        int found_sprites = 0, sprite_Y;
         sprites.clear();
 
-        while(foundSprites < MAX_SPRITES_PER_SCANLINE && addr < MMU.OAM_END) {
-            spriteY = memory.readByte(addr++, true);
-            if (spriteY - 16 <= y && spriteY - 16 + spriteSize > y) {
-                sprites.add(new Sprite(spriteY, memory.readByte(addr++, true), memory.readByte(addr++, true), memory.readByte(addr++, true)));
-                foundSprites++;
+        while(found_sprites < MAX_SPRITES_PER_SCANLINE && addr < MMU.OAM_END) {
+            sprite_Y = memory.readByte(addr++, true);
+            if (sprite_Y - 16 <= y && sprite_Y - 16 + sprite_size > y) {
+                sprites.add(new Sprite(sprite_Y, memory.readByte(addr++, true), memory.readByte(addr++, true), memory.readByte(addr++, true)));
+                found_sprites++;
             } else {
                 addr += 3;
             }
         }
     }
 
+    /**
+     * Switch between LCDMode and write the right values to Status and Interrupts Registers
+     * @param mode the LCDMode to switch to
+     */
     private void switchToLCDMode(LCDMode mode) {
         if (mode == LCDMode.V_BLANK) {
             memory.writeLcdMode(LCDMode.V_BLANK);
@@ -326,7 +366,12 @@ public class PPU {
         }
     }
 
-    public synchronized void computeOAM(int hoveredSpriteX, int hoveredSpriteY) {
+    /**
+     * Compute the OAM for the Debugger View
+     * @param hovered_sprite_X the x coordinate of the sprite currently hoovered by the mouse
+     * @param hovered_sprite_Y the y coordinate of the sprite currently hoovered by the mouse
+     */
+    public synchronized void computeOAM(int hovered_sprite_X, int hovered_sprite_Y) {
         state.getOAMBuffer().clear();
         int spriteSize = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_OBJ_SIZE) ? 16 : 8;
         ColorShade color;
@@ -335,7 +380,7 @@ public class PPU {
             fetchSprites(sprites, y);
             for (int x = 0; x < 160; x++) {
                 color = ColorShade.EMPTY;
-                if (hoveredSpriteX >= 0 && hoveredSpriteY >= 0 && ((BitUtils.inRange(x, hoveredSpriteX, hoveredSpriteX + 8) && (y == hoveredSpriteY || y == hoveredSpriteY + spriteSize)) || ((BitUtils.inRange(y, hoveredSpriteY, hoveredSpriteY + spriteSize) && (x == hoveredSpriteX || x == hoveredSpriteX + 8))))) {
+                if (hovered_sprite_X >= 0 && hovered_sprite_Y >= 0 && ((BitUtils.inRange(x, hovered_sprite_X, hovered_sprite_X + 8) && (y == hovered_sprite_Y || y == hovered_sprite_Y + spriteSize)) || ((BitUtils.inRange(y, hovered_sprite_Y, hovered_sprite_Y + spriteSize) && (x == hovered_sprite_X || x == hovered_sprite_X + 8))))) {
                     state.getOAMBuffer().put(Color.GREEN);
                 } else {
                     for (Sprite sprite : sprites) {
@@ -360,58 +405,73 @@ public class PPU {
         state.getOAMBuffer().swap();
     }
 
-    public synchronized void computeTileMaps(boolean showViewport, int selectedTileMap, int hoveredTileX, int hoveredTileY, boolean grid) {
-        int i = 0, tileIdAddr, tileId, cgb_tile_attr, cgb_vram_bank, cgb_palette_nb;
-        boolean mode1 = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
+    /**
+     * Compute the TileMaps for the Debugger View
+     * @param show_viewport do we need to render the current viewport rectangle
+     * @param selected_tile_map the currently selected TileMap (Map0 or Map1)
+     * @param hovered_tile_X the x coordinate of the tile currently hoovered by the mouse
+     * @param hovered_tile_Y the y coordinate of the tile currently hoovered by the mouse
+     * @param show_grid do we need to render the grid
+     */
+    public synchronized void computeTileMaps(boolean show_viewport, int selected_tile_map, int hovered_tile_X, int hovered_tile_Y, boolean show_grid) {
+        int i = 0, tile_id_addr, tile_id, cgb_tile_attr, cgb_vram_bank, cgb_palette_nb;
+        boolean mode_1 = memory.readIORegisterBit(MMU.LCDC, Flags.LCDC_BG_TILE_DATA);
         int scx = memory.readByte(MMU.SCX, true);
         int scy = memory.readByte(MMU.SCY, true);
         ColorShade color;
-        SwappingByteBuffer tileMap = state.getTileMapBuffers()[selectedTileMap];
-        tileMap.clear();
+        SwappingByteBuffer tile_map = state.getTileMapBuffers()[selected_tile_map];
+        tile_map.clear();
         for (int y = 0; y < 256; y++) {
             for (int x = 0; x < 256; x++) {
-                int cornerX = hoveredTileX * 8;
-                int cornerY = hoveredTileY * 8;
-                if (hoveredTileX >= 0 && hoveredTileY >= 0 && ((BitUtils.inRange(x, cornerX, cornerX + 8) && (y == cornerY || y == cornerY + 8)) || ((BitUtils.inRange(y, cornerY, cornerY + 8) && (x == cornerX || x == cornerX + 8))))) {
-                    tileMap.put(Color.GREEN);
-                } else if (showViewport && (((memory.readByte(MMU.LCDC) & Flags.LCDC_BG_TILE_MAP) >> 3) == i && ((y == scy && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
+                int cornerX = hovered_tile_X * 8;
+                int cornerY = hovered_tile_Y * 8;
+                if (hovered_tile_X >= 0 && hovered_tile_Y >= 0 && ((BitUtils.inRange(x, cornerX, cornerX + 8) && (y == cornerY || y == cornerY + 8)) || ((BitUtils.inRange(y, cornerY, cornerY + 8) && (x == cornerX || x == cornerX + 8))))) {
+                    tile_map.put(Color.GREEN);
+                } else if (show_viewport && (((memory.readByte(MMU.LCDC) & Flags.LCDC_BG_TILE_MAP) >> 3) == i && ((y == scy && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
                     (y == ((scy + 144) & 0xFF) && (BitUtils.inRange(x, scx, scx + 160) || ((scx + 160) > 0xFF) & BitUtils.inRange(x, 0, (scx + 160) & 0xFF))) ||
                     (x == scx && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF))) ||
                     (x == ((scx + 160) & 0xFF) && (BitUtils.inRange(y, scy, scy + 144) || ((scy + 144) > 0xFF) & BitUtils.inRange(y, 0, (scy + 144) & 0xFF)))))) {
-                    tileMap.put(Color.RED);
-                } else if (grid && ((x & 0x7) == 0 || (y & 0x7) == 0)) {
-                    tileMap.put(Color.LIGHT_GRAY);
+                    tile_map.put(Color.RED);
+                } else if (show_grid && ((x & 0x7) == 0 || (y & 0x7) == 0)) {
+                    tile_map.put(Color.LIGHT_GRAY);
                 } else {
-                    tileIdAddr = (selectedTileMap == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | (x >> 3) | ((y & 0xF8) << 2);
+                    tile_id_addr = (selected_tile_map == 0 ? MMU.BG_MAP0_START : MMU.BG_MAP1_START) | (x >> 3) | ((y & 0xF8) << 2);
                     if (gameboy.mode == GameBoy.Mode.CGB) {
-                        cgb_tile_attr = memory.readVRAM(tileIdAddr, 1);
+                        cgb_tile_attr = memory.readVRAM(tile_id_addr, 1);
                         cgb_vram_bank = (cgb_tile_attr & Flags.CGB_TILE_VRAM_BANK) >> 3;
                         cgb_palette_nb = (cgb_tile_attr & Flags.CGB_TILE_PALETTE);
-                        tileId = memory.readVRAM(tileIdAddr, 0);
-                        if (!mode1)
-                            tileId = signedByte(tileId);
-                        int colorIndex = getTileColorIndex(
+                        tile_id = memory.readVRAM(tile_id_addr, 0);
+                        if (!mode_1)
+                            tile_id = signedByte(tile_id);
+                        int color_index = getTileColorIndex(
                                 cgb_vram_bank,
-                                mode1 ? 0 : 2,
-                                tileId,
+                                mode_1 ? 0 : 2,
+                                tile_id,
                                 (cgb_tile_attr & Flags.CGB_TILE_HFLIP) == 0 ? x & 0x7 : (7 - x) & 0x7,
                                 (cgb_tile_attr & Flags.CGB_TILE_VFLIP) == 0 ? y & 0x7 : (7 - y) & 0x7
                         );
-                        color = palettes.getCGBBgPalette(cgb_palette_nb).colors[colorIndex];
+                        color = palettes.getCGBBgPalette(cgb_palette_nb).colors[color_index];
                     } else {
-                        tileId = memory.readByte(tileIdAddr, true);
-                        if (!mode1)
-                            tileId = signedByte(tileId);
-                        color = palettes.getBgPalette().colors[getTileColorIndex(0, mode1 ? 0 : 2, tileId, x & 0x7, y & 0x7)];
+                        tile_id = memory.readByte(tile_id_addr, true);
+                        if (!mode_1)
+                            tile_id = signedByte(tile_id);
+                        color = palettes.getBgPalette().colors[getTileColorIndex(0, mode_1 ? 0 : 2, tile_id, x & 0x7, y & 0x7)];
                     }
 
-                    tileMap.put(color.getColor());
+                    tile_map.put(color.getColor());
                 }
             }
         }
-        tileMap.swap();    }
+        tile_map.swap();
+    }
 
-    public synchronized void computeTileTables(int hoveredTileX, int hoveredTileY, boolean grid) {
+    /**
+     * Compute the TileTables for the Debugger View
+     * @param hovered_tile_X the x coordinate of the tile currently hoovered by the mouse
+     * @param hovered_tile_Y the y coordinate of the tile currently hoovered by the mouse
+     * @param show_grid do we need to render the grid
+     */
+    public synchronized void computeTileTables(int hovered_tile_X, int hovered_tile_Y, boolean show_grid) {
         /*
             We iterate over rows of tiles
             for each row we iterate over each tile
@@ -425,11 +485,11 @@ public class PPU {
                 for (int bank = 0; bank < 2; bank++) {
                     for (int tileId = 16 * (tileRow & 0x7); tileId < 16 * (tileRow & 0x7) + 16; tileId++) {
                         for (int pixelX = 0; pixelX < 8; pixelX++) {
-                            int cornerX = hoveredTileX * 8;
-                            int cornerY = hoveredTileY * 8;
-                            if (hoveredTileX >= 0 && hoveredTileY >= 0 && ((BitUtils.inRange(x, cornerX, cornerX + 8) && (y == cornerY || y == cornerY + 8)) || ((BitUtils.inRange(y, cornerY, cornerY + 8) && (x == cornerX || x == cornerX + 8))))) {
+                            int cornerX = hovered_tile_X * 8;
+                            int cornerY = hovered_tile_Y * 8;
+                            if (hovered_tile_X >= 0 && hovered_tile_Y >= 0 && ((BitUtils.inRange(x, cornerX, cornerX + 8) && (y == cornerY || y == cornerY + 8)) || ((BitUtils.inRange(y, cornerY, cornerY + 8) && (x == cornerX || x == cornerX + 8))))) {
                                 table.put(Color.GREEN);
-                            } else if (grid && ((x & 0x7) == 0 || (y & 0x7) == 0)) {
+                            } else if (show_grid && ((x & 0x7) == 0 || (y & 0x7) == 0)) {
                                 table.put(Color.LIGHT_GRAY);
                             } else {
                                 Color color;
@@ -458,6 +518,15 @@ public class PPU {
         table.swap();
     }
 
+    /**
+     * Get the color index of a tile at specified 
+     * @param vram_brank
+     * @param tileBank
+     * @param tileId
+     * @param x
+     * @param y
+     * @return
+     */
     private int getTileColorIndex(int vram_brank, int tileBank, int tileId, int x, int y) {
         int tileAddr = MMU.TILE_BLOCK_START + 0x800 * tileBank + tileId * 16;
         int low = memory.readVRAM(tileAddr | (y << 1), vram_brank);

@@ -8,51 +8,51 @@ public class ColorPalettes implements IMMUListener {
 
     private final MMU memory;
 
-    private final ColorPalette bgPalette;
-    private final ColorPalette objPalette0;
-    private final ColorPalette objPalette1;
-    private final ColorPalette[] cgbPaletteBuffer;
+    private final ColorPalette bg_palette;
+    private final ColorPalette obj_palette_0;
+    private final ColorPalette obj_palette_1;
+    private final ColorPalette[] cgb_palette_buffer;
     private float gamma = 1;
 
     public ColorPalettes(MMU memory) {
         this.memory = memory;
         memory.addListener(this);
-        bgPalette = new ColorPalette();
-        objPalette0 = new ColorPalette();
-        objPalette1 = new ColorPalette();
-        cgbPaletteBuffer = new ColorPalette[16];
+        bg_palette = new ColorPalette();
+        obj_palette_0 = new ColorPalette();
+        obj_palette_1 = new ColorPalette();
+        cgb_palette_buffer = new ColorPalette[16];
         for (int i = 0; i < 16; i++)
-            cgbPaletteBuffer[i] = new ColorPalette();
-        updatePalette(bgPalette, memory.readByte(MMU.BGP), false);
-        updatePalette(objPalette0, memory.readByte(MMU.OBP0), false);
-        updatePalette(objPalette1, memory.readByte(MMU.OBP1), false);
+            cgb_palette_buffer[i] = new ColorPalette();
+        updatePalette(bg_palette, memory.readByte(MMU.BGP), false);
+        updatePalette(obj_palette_0, memory.readByte(MMU.OBP0), false);
+        updatePalette(obj_palette_1, memory.readByte(MMU.OBP1), false);
     }
 
     public ColorPalette getBgPalette() {
-        return bgPalette;
+        return bg_palette;
     }
 
     public ColorPalette getObjPalette0() {
-        return objPalette0;
+        return obj_palette_0;
     }
 
     public ColorPalette getObjPalette1() {
-        return objPalette1;
+        return obj_palette_1;
     }
 
-    public ColorPalette getCGBBgPalette(int paletteId) {
-        return cgbPaletteBuffer[paletteId];
+    public ColorPalette getCGBBgPalette(int palette_id) {
+        return cgb_palette_buffer[palette_id];
     }
 
-    public ColorPalette getCGBObjPalette(int paletteId) {
-        return cgbPaletteBuffer[paletteId + 8];
+    public ColorPalette getCGBObjPalette(int palette_id) {
+        return cgb_palette_buffer[palette_id + 8];
     }
 
     public void onWriteToMMU(int addr, int data) {
         switch (addr) {
-            case MMU.BGP -> updatePalette(bgPalette, data, false);
-            case MMU.OBP0 -> updatePalette(objPalette0, data, true);
-            case MMU.OBP1 -> updatePalette(objPalette1, data, true);
+            case MMU.BGP -> updatePalette(bg_palette, data, false);
+            case MMU.OBP0 -> updatePalette(obj_palette_0, data, true);
+            case MMU.OBP1 -> updatePalette(obj_palette_1, data, true);
             case MMU.CGB_BCPD_BGPD -> calculateCGBPalettes(false);
             case MMU.CGB_OCPD_OBPD -> calculateCGBPalettes(true);
         }
@@ -68,15 +68,15 @@ public class ColorPalettes implements IMMUListener {
                 b = Math.pow(((rgb555 & 0b111110000000000) >> 10) / 32f, 1 / gamma);
                 ColorShade colorShade = new ColorShade(new Color((int)(r * 255) & 0xFF, (int)(g * 255) & 0xFF, (int)(b * 255) & 0xFF));
                 if (obj_pal)
-                    cgbPaletteBuffer[8 + pal].colors[i] = colorShade;
+                    cgb_palette_buffer[8 + pal].colors[i] = colorShade;
                 else
-                    cgbPaletteBuffer[pal].colors[i] = colorShade;
+                    cgb_palette_buffer[pal].colors[i] = colorShade;
             }
         }
     }
 
-    public void updatePalette(ColorPalette palette, int data, boolean hasTransparent) {
-        palette.colors[0] = hasTransparent ? ColorShade.TRANSPARENT : ColorShade.get(data & 0x3);
+    public void updatePalette(ColorPalette palette, int data, boolean has_transparent) {
+        palette.colors[0] = has_transparent ? ColorShade.TRANSPARENT : ColorShade.get(data & 0x3);
         palette.colors[1] = ColorShade.get((data & 0xC) >> 2);
         palette.colors[2] = ColorShade.get((data & 0x30) >> 4);
         palette.colors[3] = ColorShade.get((data & 0xC0) >> 6);

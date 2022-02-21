@@ -11,7 +11,7 @@ import java.nio.file.*;
 public class Cartridge {
 
     private final String file;
-    private String gameId;
+    private String game_id;
     private final MemoryBankController mbc;
 
     private final int[] rom;
@@ -30,9 +30,9 @@ public class Cartridge {
         }
 
         this.file = file;
-        this.gameId = "";
+        this.game_id = "";
         for (int i = 0x134; i < 0x143; i++)
-            gameId += String.valueOf(bytes[i]);
+            game_id += String.valueOf(bytes[i]);
 
         int level = bytes[0x147];
 
@@ -77,7 +77,7 @@ public class Cartridge {
     }
 
     public String getGameId() {
-        return gameId;
+        return game_id;
     }
 
     public void write(int addr, int data) {
@@ -154,10 +154,10 @@ public class Cartridge {
     }
 
     public int getROMBank() {
-        return mbc.getROMBank();
+        return mbc.getRomBank();
     }
 
     public int getRAMBank() {
-        return mbc.getRAMBank();
+        return mbc.getRamBank();
     }
 }

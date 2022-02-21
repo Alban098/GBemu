@@ -19,8 +19,8 @@ public class Instruction {
     private int addr;
     private final State cpu;
 
-    private String addrStr;
-    private String memoryStr;
+    private String addr_str;
+    private String memory_str;
     private String disassembled;
     private String comment;
 
@@ -88,30 +88,30 @@ public class Instruction {
     public void updateStrings() {
         this.comment = "";
         boolean db = name.equals("db   ");
-        boolean param8 = (name.contains("d8") || name.contains("a8") || (name.contains("r8") && !name.contains("jr"))) && parameters != null;
-        boolean rel8 = name.contains("r8") && name.contains("jr") && parameters != null;
-        boolean param16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
+        boolean param_8 = (name.contains("d8") || name.contains("a8") || (name.contains("r8") && !name.contains("jr"))) && parameters != null;
+        boolean rel_8 = name.contains("r8") && name.contains("jr") && parameters != null;
+        boolean param_16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
 
-        this.addrStr = String.format("%04X", addr);
-        this.memoryStr = "";
+        this.addr_str = String.format("%04X", addr);
+        this.memory_str = "";
 
         if (db && parameters != null) {
             for (int i = 0; i < 2; i++)
-                this.memoryStr += String.format("%02X ", parameters[i]);
-            this.memoryStr += "...";
+                this.memory_str += String.format("%02X ", parameters[i]);
+            this.memory_str += "...";
             this.disassembled = "db   ";
             for (int parameter : parameters)
                 this.disassembled += String.format("%02X ", parameter);
         } else {
-            this.memoryStr = String.format("%02X ", opcode);
-            if (param8) {
-                this.memoryStr += String.format("%02X  ", parameters[0]);
+            this.memory_str = String.format("%02X ", opcode);
+            if (param_8) {
+                this.memory_str += String.format("%02X  ", parameters[0]);
                 this.disassembled = name.replaceAll(".8", String.format("%02X", parameters[0]));
-            } else if (param16) {
-                this.memoryStr += String.format("%02X %02X", parameters[0], parameters[1]);
+            } else if (param_16) {
+                this.memory_str += String.format("%02X %02X", parameters[0], parameters[1]);
                 this.disassembled = name.replaceAll(".16", String.format("%04X", parameters[0] | (parameters[1] << 8)));
-            } else if (rel8) {
-                this.memoryStr += String.format("%02X", parameters[0]);
+            } else if (rel_8) {
+                this.memory_str += String.format("%02X", parameters[0]);
                 this.disassembled = name.replaceAll("r8", String.format("%04X", addr + length + signedByte(parameters[0])));
             } else {
                 this.disassembled = name;
@@ -153,9 +153,9 @@ public class Instruction {
     @Override
     public String toString() {
         boolean db = name.equals("db   ");
-        boolean param8 = (name.contains("d8") || name.contains("a8") || (name.contains("r8") && !name.contains("jr"))) && parameters != null;
-        boolean rel8 = name.contains("r8") && name.contains("jr") && parameters != null;
-        boolean param16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
+        boolean param_8 = (name.contains("d8") || name.contains("a8") || (name.contains("r8") && !name.contains("jr"))) && parameters != null;
+        boolean rel_8 = name.contains("r8") && name.contains("jr") && parameters != null;
+        boolean param_16 = (name.contains("d16") || name.contains("a16")) && parameters != null;
         StringBuilder op;
         if (db && parameters != null) {
             op = new StringBuilder(String.format("%04X", addr) + ": ");
@@ -166,11 +166,11 @@ public class Instruction {
                 op.append(String.format("%02X ", parameter));
         } else {
             op = new StringBuilder(String.format("$%04X", addr) + " : " + String.format("%02X ", opcode));
-            if (param8 && parameters != null)
+            if (param_8 && parameters != null)
                 op.append(String.format("%02X   ", parameters[0])).append("   | ").append(name.replaceAll(".8", String.format("%02X", parameters[0])));
-            else if (param16 && parameters != null)
+            else if (param_16 && parameters != null)
                 op.append(String.format("%02X ", parameters[0])).append(String.format("%02X", parameters[1])).append("   | ").append(name.replaceAll(".16", String.format("%04X", parameters[0] | (parameters[1] << 8))));
-            else if (rel8 && parameters != null)
+            else if (rel_8 && parameters != null)
                 op.append(String.format("%02X   ", parameters[0])).append("   | ").append(name.replaceAll("r8", String.format("%04X", addr + length + signedByte(parameters[0]))));
             else
                 op.append("        | ").append(name);
@@ -252,11 +252,11 @@ public class Instruction {
     }
 
     public String getAddrStr() {
-        return addrStr;
+        return addr_str;
     }
 
     public String getMemoryStr() {
-        return memoryStr;
+        return memory_str;
     }
 
     public String getDisassembled() {

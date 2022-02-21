@@ -2,7 +2,6 @@ package audio;
 
 import gbemu.core.GameBoy;
 import gbemu.core.GameBoyState;
-import gbemu.settings.SettingIdentifiers;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.UGen;
 import net.beadsproject.beads.core.io.JavaSoundAudioIO;
@@ -11,7 +10,6 @@ import net.beadsproject.beads.ugens.WaveShaper;
 
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Mixer;
-import java.awt.desktop.SystemEventListener;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -24,10 +22,10 @@ import java.util.List;
 public class AudioEngine {
 
     private final AudioContext ac;
-    private final JavaSoundAudioIO jsaIO;
+    private final JavaSoundAudioIO jsa_io;
     private final GameBoy gameboy;
     private boolean started;
-    private final List<AudioOutput> validOutputs;
+    private final List<AudioOutput> valid_outputs;
     private float master_volume;
 
     /**
@@ -37,15 +35,15 @@ public class AudioEngine {
     public AudioEngine(GameBoy gameboy) {
         this.gameboy = gameboy;
         gameboy.setAudioEngine(this);
-        jsaIO = new JavaSoundAudioIO();
-        validOutputs = new ArrayList<>();
+        jsa_io = new JavaSoundAudioIO();
+        valid_outputs = new ArrayList<>();
         //populating the valid audio output list
         verifyValidOutputs();
 
         //linking the current audio output
-        if (validOutputs.size() > 0) {
-            jsaIO.selectMixer(validOutputs.get(0).id());
-            ac = new AudioContext(jsaIO);
+        if (valid_outputs.size() > 0) {
+            jsa_io.selectMixer(valid_outputs.get(0).id());
+            ac = new AudioContext(jsa_io);
             started = true;
             return;
         }
@@ -58,13 +56,13 @@ public class AudioEngine {
      */
     private void verifyValidOutputs() {
         int index = 0;
-        PrintStream errBck = System.err;
+        PrintStream err_bck = System.err;
         System.setErr(new PrintStream(new OutputStream() {public void write(int b) {}}));
         //For each Mixer, we check if the defined function is ran, if so it's a valid output, and it's added to the list of valid outputs
         for (Mixer.Info info : AudioSystem.getMixerInfo()) {
             try {
-                jsaIO.selectMixer(index);
-                AudioContext checker = new AudioContext(jsaIO);
+                jsa_io.selectMixer(index);
+                AudioContext checker = new AudioContext(jsa_io);
                 final boolean[] valid = {false};
                 //If this Function run, it will change the state of the valid array
                 Function check = new Function(new WaveShaper(checker)) {
@@ -77,12 +75,12 @@ public class AudioEngine {
                 checker.start();
                 Thread.sleep(100);
                 if (valid[0])
-                    validOutputs.add(new AudioOutput(info, index));
+                    valid_outputs.add(new AudioOutput(info, index));
                 checker.stop();
             } catch (InterruptedException ignored) {}
             index++;
         }
-        System.setErr(errBck);
+        System.setErr(err_bck);
     }
 
     /**

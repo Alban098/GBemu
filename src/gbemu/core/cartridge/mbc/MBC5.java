@@ -8,8 +8,8 @@ public class MBC5 extends MemoryBankController {
     private int selected_rom_bank = 1;
     private int selected_ram_bank = 0;
 
-    public MBC5(GameBoy gameboy, int nb_ROM_bank, int nb_RAM_bank, boolean battery) {
-        super(gameboy, nb_ROM_bank, nb_RAM_bank);
+    public MBC5(GameBoy gameboy, int nb_rom_bank, int nb_ram_bank, boolean battery) {
+        super(gameboy, nb_rom_bank, nb_ram_bank);
         this.battery = battery;
     }
 
@@ -40,7 +40,7 @@ public class MBC5 extends MemoryBankController {
 
     @Override
     public int mapRAMAddr(int addr) {
-        if (!ram_enabled || nb_RAM_bank == 0)
+        if (!ram_enabled || nb_ram_bank == 0)
             return -1;
         else return addr & 0x1FFF + (0x2000 * selected_ram_bank);
     }
@@ -55,12 +55,12 @@ public class MBC5 extends MemoryBankController {
     }
 
     @Override
-    public int getROMBank() {
+    public int getRomBank() {
         return selected_rom_bank;
     }
 
     @Override
-    public int getRAMBank() {
+    public int getRamBank() {
         return selected_ram_bank;
     }
 }

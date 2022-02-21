@@ -6,7 +6,6 @@ import gbemu.extension.debug.Debugger;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
-import utils.Utils;
 
 /**
  * This class represent the DebugLayer in charge of displaying the current state of the MMU
@@ -17,9 +16,9 @@ public class MemoryLayer extends DebugLayer {
     private static final int HIGHLIGH_DURATION = 64;
     private int highlight = -1;
     private int highlight_cooldown = 0;
-    private final ImString goTo = new ImString();
+    private final ImString go_to = new ImString();
     private final ImBoolean gradient = new ImBoolean();
-    private final int[] currentPage = new int[1];
+    private final int[] current_page = new int[1];
 
     /**
      * Create a new instance of MemoryLayer
@@ -38,12 +37,12 @@ public class MemoryLayer extends DebugLayer {
             if (ImGui.beginTabItem("Memory")) {
                 ImGui.setWindowSize(595, 415);
                 ImGui.pushItemWidth(100);
-                if (ImGui.inputText(": Search Address", goTo)) {
-                    goTo.set(goTo.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
-                    if (goTo.get().equals(""))
-                        goTo.set("0");
-                    highlight = Integer.decode("0x" + goTo.get());
-                    currentPage[0] = (highlight & 0xFF00) >> 4;
+                if (ImGui.inputText(": Search Address", go_to)) {
+                    go_to.set(go_to.get().replaceAll("[^A-Fa-f0-9]*[ ]*", ""));
+                    if (go_to.get().equals(""))
+                        go_to.set("0");
+                    highlight = Integer.decode("0x" + go_to.get());
+                    current_page[0] = (highlight & 0xFF00) >> 4;
                     highlight_cooldown = HIGHLIGH_DURATION;
                 }
                 ImGui.sameLine(500);
@@ -71,13 +70,13 @@ public class MemoryLayer extends DebugLayer {
                     ImGui.textColored(255, 255, 0, 255, String.format("%02X", i));
                 }
                 for (int i = 0x0; i <= 0xF; i++) {
-                    int addr = (currentPage[0] << 4) + (i << 4);
+                    int addr = (current_page[0] << 4) + (i << 4);
                     ImGui.textColored(255, 0, 155, 255, debugger.getSector(addr) + ":");
                     ImGui.sameLine();
                     ImGui.textColored(255, 255, 0, 255, String.format("%04X ", addr));
                     for (int data = 0x0; data <= 0xF; data++) {
                         ImGui.sameLine();
-                        addr = (currentPage[0] << 4) + (i << 4) | data;
+                        addr = (current_page[0] << 4) + (i << 4) | data;
                         int read = debugger.readMemory(addr);
                         if (addr == highlight) {
                             if (read == 0x00)
@@ -98,14 +97,14 @@ public class MemoryLayer extends DebugLayer {
                     ImGui.text(" | ");
                     StringBuilder dataString = new StringBuilder();
                     for (int data = 0x0; data <= 0xF; data++) {
-                        char read = (char) debugger.readMemory((currentPage[0] << 4) + (i << 4) | data);
+                        char read = (char) debugger.readMemory((current_page[0] << 4) + (i << 4) | data);
                         dataString.append(read < 0x20 ? "." : read);
                     }
                     ImGui.sameLine();
                     ImGui.text(dataString.toString());
                 }
                 ImGui.pushItemWidth(450);
-                ImGui.sliderInt(" ", currentPage, 0, 0xFF0, String.format("%03X0", currentPage[0]));
+                ImGui.sliderInt(" ", current_page, 0, 0xFF0, String.format("%03X0", current_page[0]));
                 ImGui.endTabItem();
             }
             if (ImGui.beginTabItem("I/O Map")) {

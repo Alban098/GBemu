@@ -29,39 +29,39 @@ public class APU implements IMMUListener {
     private final GameBoy gameboy;
     private final Debugger debugger;
 
-    private final Queue<Sample> sampleQueue;
-    private final Queue<Sample> debugSampleQueue;
+    private final Queue<Sample> sample_queue;
+    private final Queue<Sample> debug_sample_queue;
 
-    private final SweepingSquareChannel square1;
-    private final SquareChannel square2;
+    private final SweepingSquareChannel square_1;
+    private final SquareChannel square_2;
     private final WaveChannel wave;
     private final NoiseChannel noise;
 
     private double cycle = 0;
-    private int cycleLength = 0;
-    private int cycleEnvelope = 0;
-    private int cycleSweep = 0;
+    private int cycle_length = 0;
+    private int cycle_envelope = 0;
+    private int cycle_sweep = 0;
 
-    private long sampleIndex = 0;
-    private boolean adaptiveSampleRateStarted = false;
+    private long sample_index = 0;
+    private boolean adaptive_sample_rate_started = false;
 
-    private float lastSample = 0;
-    private boolean square1Rendered = true;
-    private boolean square2Rendered = true;
-    private boolean waveRendered = true;
-    private boolean noiseRendered = true;
+    private float last_sample = 0;
+    private boolean square_1_rendered = true;
+    private boolean square_2_rendered = true;
+    private boolean wave_rendered = true;
+    private boolean noise_rendered = true;
 
     public APU(GameBoy gameboy) {
         this.gameboy = gameboy;
         gameboy.getMemory().addListener(this);
-        sampleQueue = new ConcurrentLinkedQueue<>();
-        debugSampleQueue = new ConcurrentLinkedQueue<>();
-        square1 = new SweepingSquareChannel(gameboy.getMemory(), MMU.NR11, MMU.NR12, MMU.NR13, MMU.NR14, Flags.NR52_CHANNEL_1_ON, Flags.NR11_PATTERN_DUTY, Flags.NR11_SOUND_LENGTH, Flags.NR12_ENVELOPE_SWEEP_NB, Flags.NR12_ENVELOPE_VOLUME, Flags.NR12_ENVELOPE_DIR, Flags.NR14_LOOP_CHANNEL, Flags.NR14_FREQ_HIGH);
-        square2 = new SquareChannel(gameboy.getMemory(), MMU.NR21, MMU.NR22, MMU.NR23, MMU.NR24, Flags.NR52_CHANNEL_2_ON, Flags.NR21_PATTERN_DUTY, Flags.NR21_SOUND_LENGTH, Flags.NR22_ENVELOPE_SWEEP_NB, Flags.NR22_ENVELOPE_VOLUME, Flags.NR22_ENVELOPE_DIR, Flags.NR24_LOOP_CHANNEL, Flags.NR24_FREQ_HIGH);
+        sample_queue = new ConcurrentLinkedQueue<>();
+        debug_sample_queue = new ConcurrentLinkedQueue<>();
+        square_1 = new SweepingSquareChannel(gameboy.getMemory(), MMU.NR11, MMU.NR12, MMU.NR13, MMU.NR14, Flags.NR52_CHANNEL_1_ON, Flags.NR11_PATTERN_DUTY, Flags.NR11_SOUND_LENGTH, Flags.NR12_ENVELOPE_SWEEP_NB, Flags.NR12_ENVELOPE_VOLUME, Flags.NR12_ENVELOPE_DIR, Flags.NR14_LOOP_CHANNEL, Flags.NR14_FREQ_HIGH);
+        square_2 = new SquareChannel(gameboy.getMemory(), MMU.NR21, MMU.NR22, MMU.NR23, MMU.NR24, Flags.NR52_CHANNEL_2_ON, Flags.NR21_PATTERN_DUTY, Flags.NR21_SOUND_LENGTH, Flags.NR22_ENVELOPE_SWEEP_NB, Flags.NR22_ENVELOPE_VOLUME, Flags.NR22_ENVELOPE_DIR, Flags.NR24_LOOP_CHANNEL, Flags.NR24_FREQ_HIGH);
         wave = new WaveChannel(gameboy.getMemory());
         noise = new NoiseChannel(gameboy.getMemory());
         debugger = gameboy.getDebugger();
-        debugger.link(debugSampleQueue);
+        debugger.link(debug_sample_queue);
     }
 
     public void clock() {
@@ -76,11 +76,11 @@ public class APU implements IMMUListener {
         switch(addr) {
             case MMU.NR14 -> {
                 if ((data & Flags.NR14_RESTART) != 0)
-                    square1.restart();
+                    square_1.restart();
             }
             case MMU.NR24 -> {
                 if ((data & Flags.NR24_RESTART) != 0)
-                    square2.restart();
+                    square_2.restart();
             }
             case MMU.NR34 -> {
                 if ((data & Flags.NR34_RESTART) != 0)
@@ -94,118 +94,118 @@ public class APU implements IMMUListener {
     }
 
     private void clockLength() {
-        cycleLength++;
-        while (cycleLength >= gameboy.mode.cpu_cycles_256HZ) {
-            square1.tickLength();
-            square2.tickLength();
+        cycle_length++;
+        while (cycle_length >= gameboy.mode.CYCLES_256HZ) {
+            square_1.tickLength();
+            square_2.tickLength();
             wave.tickLength();
             noise.tickLength();
-            cycleLength -= gameboy.mode.cpu_cycles_256HZ;
+            cycle_length -= gameboy.mode.CYCLES_256HZ;
         }
     }
 
     private void clockEnvelope() {
-        cycleEnvelope++;
-        while (cycleEnvelope >= gameboy.mode.cpu_cycles_64HZ) {
-            square1.tickEnvelope();
-            square2.tickEnvelope();
+        cycle_envelope++;
+        while (cycle_envelope >= gameboy.mode.CYCLES_64HZ) {
+            square_1.tickEnvelope();
+            square_2.tickEnvelope();
             noise.tickEnvelope();
-            cycleEnvelope -= gameboy.mode.cpu_cycles_64HZ;
+            cycle_envelope -= gameboy.mode.CYCLES_64HZ;
         }
     }
 
     private void clockSweep() {
-        cycleSweep++;
-        while (cycleSweep >= gameboy.mode.cpu_cycles_128HZ) {
-            square1.tickSweep();
-            cycleSweep -= gameboy.mode.cpu_cycles_128HZ;
+        cycle_sweep++;
+        while (cycle_sweep >= gameboy.mode.CYCLES_128HZ) {
+            square_1.tickSweep();
+            cycle_sweep -= gameboy.mode.CYCLES_128HZ;
         }
     }
 
     private void clockChannels() {
-        square1.clock();
-        square2.clock();
+        square_1.clock();
+        square_2.clock();
         wave.clock();
         noise.clock();
     }
 
     private void clockSamples() {
         cycle++;
-        while (cycle >= gameboy.mode.cpu_cycles_per_sample) {
+        while (cycle >= gameboy.mode.CYCLES_PER_SAMPLE) {
             if (gameboy.getAudioEngine().isStarted()) {
                 Sample sample;
                 if (gameboy.getMemory().readIORegisterBit(MMU.NR52, Flags.NR52_SOUND_ENABLED)) {
                     sample = new Sample(
-                            (square1Rendered ? square1.sample : 0),
-                            (square2Rendered ? square2.sample : 0),
-                            (waveRendered ? wave.sample : 0),
-                            (noiseRendered ? noise.sample : 0)
+                            (square_1_rendered ? square_1.sample : 0),
+                            (square_2_rendered ? square_2.sample : 0),
+                            (wave_rendered ? wave.sample : 0),
+                            (noise_rendered ? noise.sample : 0)
                     );
                 } else {
                     sample = new Sample(0, 0, 0, 0);
                 }
-                sampleQueue.offer(sample);
-                sampleIndex++;
+                sample_queue.offer(sample);
+                sample_index++;
                 if (debugger.isHooked(DebuggerMode.APU)) {
-                    debugSampleQueue.offer(sample);
-                    if (debugSampleQueue.size() > APULayer.DEBUG_SAMPLE_NUMBER)
-                        debugSampleQueue.poll();
+                    debug_sample_queue.offer(sample);
+                    if (debug_sample_queue.size() > APULayer.DEBUG_SAMPLE_NUMBER)
+                        debug_sample_queue.poll();
                 }
             }
-            if (sampleIndex % (APU.SAMPLE_RATE/10) == 0) {
-                if (sampleQueue.size() > 5000) {
-                    gameboy.mode.cpu_cycles_per_sample += .5;
-                    adaptiveSampleRateStarted = true;
-                } else if (sampleQueue.size() < 100 && adaptiveSampleRateStarted) {
-                    gameboy.mode.cpu_cycles_per_sample -= .5;
+            if (sample_index % (APU.SAMPLE_RATE/10) == 0) {
+                if (sample_queue.size() > 5000) {
+                    gameboy.mode.CYCLES_PER_SAMPLE += .5;
+                    adaptive_sample_rate_started = true;
+                } else if (sample_queue.size() < 100 && adaptive_sample_rate_started) {
+                    gameboy.mode.CYCLES_PER_SAMPLE -= .5;
                 }
             }
-            cycle -= gameboy.mode.cpu_cycles_per_sample;
+            cycle -= gameboy.mode.CYCLES_PER_SAMPLE;
         }
     }
 
 
     public float getNextSample() {
-        Sample s = sampleQueue.poll();
+        Sample s = sample_queue.poll();
         if (s != null) {
-            lastSample = (s.getNormalizedValue() + lastSample) / 2;
-            return lastSample;
+            last_sample = (s.getNormalizedValue() + last_sample) / 2;
+            return last_sample;
         }
-        lastSample /= 2;
+        last_sample /= 2;
 
-        return lastSample;
+        return last_sample;
     }
 
     public void reset() {
-        lastSample = 0;
-        sampleQueue.clear();
-        debugSampleQueue.clear();
-        adaptiveSampleRateStarted = false;
-        sampleIndex = 0;
+        last_sample = 0;
+        sample_queue.clear();
+        debug_sample_queue.clear();
+        adaptive_sample_rate_started = false;
+        sample_index = 0;
         cycle = 0;
-        cycleEnvelope = 0;
-        cycleLength = 0;
-        cycleSweep = 0;
-        square1.reset();
-        square2.reset();
+        cycle_envelope = 0;
+        cycle_length = 0;
+        cycle_sweep = 0;
+        square_1.reset();
+        square_2.reset();
         wave.reset();
         noise.reset();
     }
 
     public void enableSquare1(boolean enabled) {
-        square1Rendered = enabled;
+        square_1_rendered = enabled;
     }
 
     public void enableSquare2(boolean enabled) {
-        square2Rendered = enabled;
+        square_2_rendered = enabled;
     }
 
     public void enableWave(boolean enabled) {
-        waveRendered = enabled;
+        wave_rendered = enabled;
     }
 
     public void enableNoise(boolean enabled) {
-        noiseRendered = enabled;
+        noise_rendered = enabled;
     }
 
 }

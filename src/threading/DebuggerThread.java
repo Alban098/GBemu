@@ -27,7 +27,7 @@ public class DebuggerThread extends GBemuThread {
     public void run() {
         try {
             //While the debugger is active
-            while(!shouldExit.get()) {
+            while(!should_exit.get()) {
                 //Update the debugger
                 debugger.clock();
                 //Wait for the next debugger frame to be requested

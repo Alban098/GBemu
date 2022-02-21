@@ -16,7 +16,7 @@ public class SwappingByteBuffer {
     //The 2 Buffers used for flip flop
     private final ByteBuffer[] buffers;
     //Index of the buffer being filled
-    private int currentBuffer;
+    private int current_buffer;
 
     /**
      * Create a new SwappingByteBuffer of specified capacity
@@ -24,7 +24,7 @@ public class SwappingByteBuffer {
      */
     public SwappingByteBuffer(int capacity) {
         buffers = new ByteBuffer[]{BufferUtils.createByteBuffer(capacity), BufferUtils.createByteBuffer(capacity)};
-        currentBuffer = 0;
+        current_buffer = 0;
     }
 
     /**
@@ -32,7 +32,7 @@ public class SwappingByteBuffer {
      * @return the full buffer
      */
     public synchronized ByteBuffer getBuffer() {
-        return buffers[(currentBuffer + 1) & 0x1];
+        return buffers[(current_buffer + 1) & 0x1];
     }
 
     /**
@@ -40,9 +40,9 @@ public class SwappingByteBuffer {
      * and setting the other buffer as the current one, ready to be filled
      */
     public synchronized void swap() {
-        buffers[currentBuffer].flip();
-        currentBuffer = (currentBuffer + 1) & 0x1;
-        buffers[currentBuffer].clear();
+        buffers[current_buffer].flip();
+        current_buffer = (current_buffer + 1) & 0x1;
+        buffers[current_buffer].clear();
     }
 
     /**
@@ -51,11 +51,11 @@ public class SwappingByteBuffer {
      * @param color the color to be pushed to the buffer
      */
     public void put(Color color) {
-        if (buffers[currentBuffer].position() < buffers[currentBuffer].limit()) {
-            buffers[currentBuffer].put((byte) color.getRed());
-            buffers[currentBuffer].put((byte) color.getGreen());
-            buffers[currentBuffer].put((byte) color.getBlue());
-            buffers[currentBuffer].put((byte) color.getAlpha());
+        if (buffers[current_buffer].position() < buffers[current_buffer].limit()) {
+            buffers[current_buffer].put((byte) color.getRed());
+            buffers[current_buffer].put((byte) color.getGreen());
+            buffers[current_buffer].put((byte) color.getBlue());
+            buffers[current_buffer].put((byte) color.getAlpha());
         }
     }
 

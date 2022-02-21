@@ -1,30 +1,40 @@
 package gbemu.core;
 
 import audio.AudioEngine;
-import gbemu.settings.SettingsContainer;
 import threading.GameBoyThread;
 import threading.WindowThread;
 
+/**
+ * This class is the entry point of the emulator
+ * to run an instance of the emulator, just instantiate it and call run
+ */
 public class GBemu {
 
-    private final WindowThread windowThread;
-    private final GameBoyThread gameboyThread;
-    private final AudioEngine audioEngine;
+    private final WindowThread window_thread;
+    private final GameBoyThread gameboy_thread;
+    private final AudioEngine audio_engine;
 
-    public GBemu(String configFile) {
-        GameBoy gameboy = new GameBoy(configFile);
-        audioEngine = new AudioEngine(gameboy);
-        gameboyThread = new GameBoyThread(gameboy);
-        windowThread = new WindowThread(gameboy, gameboyThread);
+    /**
+     * Create a new Instance of the Emulator with a specified config file
+     * @param config_file the config file to load settings from
+     */
+    public GBemu(String config_file) {
+        GameBoy gameboy = new GameBoy(config_file);
+        audio_engine = new AudioEngine(gameboy);
+        gameboy_thread = new GameBoyThread(gameboy);
+        window_thread = new WindowThread(gameboy, gameboy_thread);
         gameboy.loadSettings();
     }
 
+    /**
+     * Run the emulator by launching every Thread alongside the Audio Engine
+     */
     public void run() {
-        audioEngine.start();
-        gameboyThread.start();
-        windowThread.run();
-        windowThread.destroy();
-        gameboyThread.kill();
-        audioEngine.stop();
+        audio_engine.start();
+        gameboy_thread.start();
+        window_thread.run();
+        window_thread.destroy();
+        gameboy_thread.kill();
+        audio_engine.stop();
     }
 }

@@ -21,17 +21,17 @@ import java.awt.*;
  */
 public class PPULayer extends DebugLayer {
 
-    private Texture tileMap;
-    private Texture tileTables;
+    private Texture tile_map;
+    private Texture tile_tables;
     private Texture oam;
-    private Texture tileTexture;
-    private boolean cgbMode = false;
+    private Texture tile_texture;
+    private boolean cgb_mode = false;
     private final Tile tile;
 
-    private final ImInt selectedMap = new ImInt();
-    private final ImBoolean showViewport = new ImBoolean();
-    private final ImBoolean tileMapGrid = new ImBoolean();
-    private final ImBoolean tileTablesGrid = new ImBoolean();
+    private final ImInt selected_map = new ImInt();
+    private final ImBoolean show_viewport = new ImBoolean();
+    private final ImBoolean tile_map_grid = new ImBoolean();
+    private final ImBoolean tile_tables_grid = new ImBoolean();
 
     /**
      * Create a new instance of PPULayer
@@ -40,16 +40,16 @@ public class PPULayer extends DebugLayer {
     public PPULayer(Debugger debugger) {
         super(debugger);
         tile = new Tile();
-        showViewport.set(true);
+        show_viewport.set(true);
     }
 
     /**
      * Create the needed Textures
      */
     public void initTextures() {
-        tileMap = new Texture(256,256);
-        tileTables = new Texture(256, 192);
-        tileTexture = new Texture(8, 8);
+        tile_map = new Texture(256,256);
+        tile_tables = new Texture(256, 192);
+        tile_texture = new Texture(8, 8);
         oam = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
     }
 
@@ -69,32 +69,32 @@ public class PPULayer extends DebugLayer {
                 tileCoords.y >>= 1;
                 synchronized (debugger) {
                     debugger.setHoveredTileOnTables(tileCoords.x, tileCoords.y);
-                    tileTables.load(debugger.getTileTableBuffer().getBuffer());
+                    tile_tables.load(debugger.getTileTableBuffer().getBuffer());
                 }
                 ImGui.setWindowSize(670, 445);
-                ImGui.image(tileTables.getID(), 256 * 2, 192 * 2);
+                ImGui.image(tile_tables.getID(), 256 * 2, 192 * 2);
                 ImGui.sameLine();
                 ImGui.beginChild("Tile", 140, 260);
                 if (tileCoords.x <= 0x20 && tileCoords.x >= 0x0 && tileCoords.y <= 0x17 && tileCoords.y >= 0x0) {
                     tile.fill(debugger.getTileTableHoveredTile());
                 } else {
                     tile.fill(0, 0, 0, 0, 0, 0, 0);
-                    tile.renderTarget.clear();
+                    tile.render_target.clear();
                     for (int i = 0; i < 256; i++)
-                        tile.renderTarget.put((byte) 255);
-                    tile.renderTarget.flip();
+                        tile.render_target.put((byte) 255);
+                    tile.render_target.flip();
                 }
-                tileTexture.load(tile.renderTarget);
-                ImGui.image(tileTexture.getID(), 128, 128);
+                tile_texture.load(tile.render_target);
+                ImGui.image(tile_texture.getID(), 128, 128);
                 ImGui.textColored(0, 255, 255, 255, "Tile Address:");
                 ImGui.sameLine();
-                ImGui.text(String.format("$%04X", tile.tileAddr));
+                ImGui.text(String.format("$%04X", tile.tile_addr));
                 ImGui.textColored(0, 255, 255, 255, "Tile Index:  ");
                 ImGui.sameLine();
                 ImGui.text(String.format("$%02X", tile.id));
                 ImGui.separator();
-                if (ImGui.checkbox("Grid", tileTablesGrid)) {
-                    debugger.enableTileTablesGrid(tileTablesGrid.get());
+                if (ImGui.checkbox("Grid", tile_tables_grid)) {
+                    debugger.enableTileTablesGrid(tile_tables_grid.get());
                 }
                 ImGui.endChild();
                 ImGui.endTabItem();
@@ -104,7 +104,7 @@ public class PPULayer extends DebugLayer {
                 debugger.setHooked(DebuggerMode.PALETTES, true);
                 debugger.setHooked(DebuggerMode.TILEMAPS, false);
                 debugger.setHooked(DebuggerMode.OAMS, false);
-                if (cgbMode) {
+                if (cgb_mode) {
                     ImGui.setWindowSize(370, 240);
                     for (int pal = 0; pal < 8; pal++) {
                         ImGui.newLine();
@@ -135,29 +135,29 @@ public class PPULayer extends DebugLayer {
                 debugger.setHooked(DebuggerMode.PALETTES, false);
                 debugger.setHooked(DebuggerMode.TILEMAPS, true);
                 debugger.setHooked(DebuggerMode.OAMS, false);
-                Point tileCoords = getHoveredTile();
-                tileCoords.x >>= 1;
-                tileCoords.y >>= 1;
+                Point tile_coords = getHoveredTile();
+                tile_coords.x >>= 1;
+                tile_coords.y >>= 1;
                 synchronized (debugger) {
-                    debugger.setHoveredTileOnMap(tileCoords.x, tileCoords.y);
-                    debugger.selectTileMap(selectedMap.get());
-                    tileMap.load(debugger.getTileMapBuffer(selectedMap.get()).getBuffer());
+                    debugger.setHoveredTileOnMap(tile_coords.x, tile_coords.y);
+                    debugger.selectTileMap(selected_map.get());
+                    tile_map.load(debugger.getTileMapBuffer(selected_map.get()).getBuffer());
                 }
                 ImGui.setWindowSize(670, 571);
-                ImGui.image(tileMap.getID(), 512, 512);
+                ImGui.image(tile_map.getID(), 512, 512);
                 ImGui.sameLine();
                 ImGui.beginChild("Tile", 140, 400);
-                if (tileCoords.x <= 0x1F && tileCoords.x >= 0x0 && tileCoords.y <= 0x1F && tileCoords.y >= 0x0) {
+                if (tile_coords.x <= 0x1F && tile_coords.x >= 0x0 && tile_coords.y <= 0x1F && tile_coords.y >= 0x0) {
                     tile.fill(debugger.getTileMapHoveredTile());
                 } else {
                     tile.fill(0, 0, 0, 0, 0, 0, 0);
-                    tile.renderTarget.clear();
+                    tile.render_target.clear();
                     for (int i = 0; i < 256; i++)
-                        tile.renderTarget.put((byte) 255);
-                    tile.renderTarget.flip();
+                        tile.render_target.put((byte) 255);
+                    tile.render_target.flip();
                 }
-                tileTexture.load(tile.renderTarget);
-                ImGui.image(tileTexture.getID(), 128, 128);
+                tile_texture.load(tile.render_target);
+                ImGui.image(tile_texture.getID(), 128, 128);
                 ImGui.textColored(0, 255, 255, 255, "X:");
                 ImGui.sameLine();
                 ImGui.text(String.format("$%02X",tile.x));
@@ -172,15 +172,15 @@ public class PPULayer extends DebugLayer {
                 ImGui.sameLine(50);
                 ImGui.textColored(0, 255, 255, 255, " Attrib:");
                 ImGui.sameLine();
-                ImGui.text(cgbMode ? String.format("$%02X", tile.attrib) : "---");
+                ImGui.text(cgb_mode ? String.format("$%02X", tile.attrib) : "---");
 
                 ImGui.textColored(0, 255, 255, 255, "Map Address: ");
                 ImGui.sameLine();
-                ImGui.text(String.format("$%04X", tile.mapAddr));
+                ImGui.text(String.format("$%04X", tile.map_addr));
                 ImGui.textColored(0, 255, 255, 255, "Tile Address:");
                 ImGui.sameLine();
-                ImGui.text(String.format("$%04X", tile.tileAddr));
-                if (cgbMode) {
+                ImGui.text(String.format("$%04X", tile.tile_addr));
+                if (cgb_mode) {
                     ImGui.separator();
                     boolean xflip = (tile.attrib & Flags.CGB_TILE_HFLIP) != 0;
                     boolean yflip = (tile.attrib & Flags.CGB_TILE_HFLIP) != 0;
@@ -206,14 +206,14 @@ public class PPULayer extends DebugLayer {
                 }
                 ImGui.separator();
                 ImGui.separator();
-                if (ImGui.checkbox("Show Viewport", showViewport)) {
-                    debugger.enableViewport(showViewport.get());
+                if (ImGui.checkbox("Show Viewport", show_viewport)) {
+                    debugger.enableViewport(show_viewport.get());
                 }
-                if (ImGui.checkbox("Grid", tileMapGrid)) {
-                    debugger.enableTileMapGrid(tileMapGrid.get());
+                if (ImGui.checkbox("Grid", tile_map_grid)) {
+                    debugger.enableTileMapGrid(tile_map_grid.get());
                 }
-                ImGui.combo("Map", selectedMap, new String[]{"9800", "9C00"});
-                debugger.selectTileMap(selectedMap.get());
+                ImGui.combo("Map", selected_map, new String[]{"9800", "9C00"});
+                debugger.selectTileMap(selected_map.get());
                 ImGui.endChild();
                 ImGui.endTabItem();
             }
@@ -260,15 +260,15 @@ public class PPULayer extends DebugLayer {
                         if (sprite.attributes() != 0) ImGui.text(String.format("%02X", sprite.attributes()));
                         else ImGui.textColored(128, 128, 128, 255, String.format("%02X", sprite.attributes()));
                         boolean priority = (sprite.attributes() & Flags.SPRITE_ATTRIB_UNDER_BG) != 0;
-                        boolean xflip = (sprite.attributes() & Flags.SPRITE_ATTRIB_X_FLIP) != 0;
-                        boolean yflip = (sprite.attributes() & Flags.SPRITE_ATTRIB_X_FLIP) != 0;
-                        int dmgPal = (sprite.attributes() & Flags.SPRITE_ATTRIB_PAL) != 0 ? 1 : 0;
+                        boolean x_flip = (sprite.attributes() & Flags.SPRITE_ATTRIB_X_FLIP) != 0;
+                        boolean y_flip = (sprite.attributes() & Flags.SPRITE_ATTRIB_X_FLIP) != 0;
+                        int dmg_pal = (sprite.attributes() & Flags.SPRITE_ATTRIB_PAL) != 0 ? 1 : 0;
                         int bank = (sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_VRAM_BANK) != 0 ? 1 : 0;
                         int pal = (sprite.attributes() & Flags.SPRITE_ATTRIB_CGB_PAL);
                         ImGui.textColored(255, 0, 255, 255, "     Palette:");
                         ImGui.sameLine();
-                        if (!cgbMode)
-                            ImGui.text(dmgPal == 1 ? "OBP1 " : "OBP0 ");
+                        if (!cgb_mode)
+                            ImGui.text(dmg_pal == 1 ? "OBP1 " : "OBP0 ");
                         else
                             ImGui.text("OBJ " + pal);
                         ImGui.sameLine();
@@ -277,9 +277,9 @@ public class PPULayer extends DebugLayer {
                         ImGui.text(String.valueOf(bank));
                         ImGui.textColored(priority ? 0 : 255, priority ? 255 : 0, 0, 255, "     Priority");
                         ImGui.sameLine();
-                        ImGui.textColored(xflip ? 0 : 255, xflip ? 255 : 0, 0, 255, "     X-Flip");
+                        ImGui.textColored(x_flip ? 0 : 255, x_flip ? 255 : 0, 0, 255, "     X-Flip");
                         ImGui.sameLine();
-                        ImGui.textColored(yflip ? 0 : 255, yflip ? 255 : 0, 0, 255, "     Y-Flip");
+                        ImGui.textColored(y_flip ? 0 : 255, y_flip ? 255 : 0, 0, 255, "     Y-Flip");
                         ImGui.separator();
                         ImGui.endGroup();
                         if (ImGui.isItemHovered()) {
@@ -300,6 +300,10 @@ public class PPULayer extends DebugLayer {
         ImGui.end();
     }
 
+    /**
+     * Draw a palette to the screen
+     * @param pal the palette id to render
+     */
     private void drawPalette(int pal) {
         float[] color = {0f, 0f, 0f, 1f};
         for (int col = 0; col < 4; col++) {
@@ -313,6 +317,12 @@ public class PPULayer extends DebugLayer {
         }
     }
 
+    /**
+     * Draw a CGB palette to the screen
+     * @param name the name of the palette
+     * @param pal the id of the palette
+     * @param obj_pal is it an object palette
+     */
     private void drawColorPalette(String name, int pal, boolean obj_pal) {
         float[] color = {0f, 0f, 0f, 1f};
         synchronized (debugger) {
@@ -328,14 +338,18 @@ public class PPULayer extends DebugLayer {
         }
     }
 
-    public void setCgbMode(boolean cgbMode) {
-        this.cgbMode = cgbMode;
+    /**
+     * Activate / deactivate CGB Mode
+     * @param cgb_mode activate CGB
+     */
+    public void setCgbMode(boolean cgb_mode) {
+        this.cgb_mode = cgb_mode;
     }
 
     public void cleanUp() {
         oam.cleanUp();
-        tileMap.cleanUp();
-        tileTables.cleanUp();
+        tile_map.cleanUp();
+        tile_tables.cleanUp();
     }
 
     public Point getHoveredTile() {

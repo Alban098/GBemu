@@ -12,19 +12,19 @@ import imgui.type.ImInt;
  */
 public class SettingsLayer extends Layer {
 
-    private final String[] paletteCombo = new String[Palette.palettes.length];
+    private final String[] palette_combo = new String[Palette.palettes.length];
     private final ImInt palette = new ImInt(0);
-    private final SettingsContainer settingsContainer;
+    private final SettingsContainer settings_container;
 
     /**
      * Create a new instance of the Layer
-     * @param settingsContainer the container linked to the layer
+     * @param settings_container the container linked to the layer
      */
-    public SettingsLayer(SettingsContainer settingsContainer) {
+    public SettingsLayer(SettingsContainer settings_container) {
         super();
-        this.settingsContainer = settingsContainer;
+        this.settings_container = settings_container;
         for (int i = 0; i < Palette.palettes.length; i++)
-            paletteCombo[i] = Palette.palettes[i].getName();
+            palette_combo[i] = Palette.palettes[i].getName();
     }
 
     /**
@@ -35,7 +35,7 @@ public class SettingsLayer extends Layer {
         ImGui.begin("Settings");
         ImGui.setWindowSize(350, 310);
         if (ImGui.button("Save Settings"))
-            settingsContainer.saveFile();
+            settings_container.saveFile();
         ImGui.sameLine(305);
         if (ImGui.button("Exit"))
             setVisible(false);
@@ -44,22 +44,22 @@ public class SettingsLayer extends Layer {
             if (ImGui.beginTabItem("System")) {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Misc Options")) {
-                    settingsContainer.getSetting(SettingIdentifiers.SPEED).process();
-                    settingsContainer.getSetting(SettingIdentifiers.RTC).process();
-                    settingsContainer.getSetting(SettingIdentifiers.BOOTSTRAP).process();
+                    settings_container.getSetting(SettingIdentifiers.SPEED).process();
+                    settings_container.getSetting(SettingIdentifiers.RTC).process();
+                    settings_container.getSetting(SettingIdentifiers.BOOTSTRAP).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Cheats")) {
-                    settingsContainer.getSetting(SettingIdentifiers.CHEAT_DATABASE).process();
+                    settings_container.getSetting(SettingIdentifiers.CHEAT_DATABASE).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Bootstrap Files")) {
-                    settingsContainer.getSetting(SettingIdentifiers.DMG_BOOTROM).process();
-                    settingsContainer.getSetting(SettingIdentifiers.CGB_BOOTROM).process();
+                    settings_container.getSetting(SettingIdentifiers.DMG_BOOTROM).process();
+                    settings_container.getSetting(SettingIdentifiers.CGB_BOOTROM).process();
                     ImGui.treePop();
                 }
                 ImGui.endTabItem();
@@ -67,23 +67,23 @@ public class SettingsLayer extends Layer {
             if (ImGui.beginTabItem("Graphics")) {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Color Settings")) {
-                    settingsContainer.getSetting(SettingIdentifiers.GAMMA).process();
+                    settings_container.getSetting(SettingIdentifiers.GAMMA).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("DMG Palette")) {
-                    ImGui.combo(" ", palette, paletteCombo);
+                    ImGui.combo(" ", palette, palette_combo);
                     ImGui.sameLine();
                     if (ImGui.button("Apply"))
-                        settingsContainer.applyPalette(Palette.palettes[palette.get()].getColors());
-                    settingsContainer.getSetting(SettingIdentifiers.DMG_PALETTE_0).process();
+                        settings_container.applyPalette(Palette.palettes[palette.get()].getColors());
+                    settings_container.getSetting(SettingIdentifiers.DMG_PALETTE_0).process();
                     ImGui.sameLine();
-                    settingsContainer.getSetting(SettingIdentifiers.DMG_PALETTE_1).process();
+                    settings_container.getSetting(SettingIdentifiers.DMG_PALETTE_1).process();
                     ImGui.sameLine();
-                    settingsContainer.getSetting(SettingIdentifiers.DMG_PALETTE_2).process();
+                    settings_container.getSetting(SettingIdentifiers.DMG_PALETTE_2).process();
                     ImGui.sameLine();
-                    settingsContainer.getSetting(SettingIdentifiers.DMG_PALETTE_3).process();
+                    settings_container.getSetting(SettingIdentifiers.DMG_PALETTE_3).process();
                     ImGui.treePop();
                 }
                 ImGui.endTabItem();
@@ -91,16 +91,16 @@ public class SettingsLayer extends Layer {
             if (ImGui.beginTabItem("Sounds")) {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Audio Output Settings")) {
-                    settingsContainer.getSetting(SettingIdentifiers.VOLUME).process();
+                    settings_container.getSetting(SettingIdentifiers.VOLUME).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Sound Channel Rendering")) {
-                    settingsContainer.getSetting(SettingIdentifiers.SQUARE_1_ENABLED).process();
-                    settingsContainer.getSetting(SettingIdentifiers.SQUARE_2_ENABLED).process();
-                    settingsContainer.getSetting(SettingIdentifiers.WAVE_ENABLED).process();
-                    settingsContainer.getSetting(SettingIdentifiers.NOISE_ENABLED).process();
+                    settings_container.getSetting(SettingIdentifiers.SQUARE_1_ENABLED).process();
+                    settings_container.getSetting(SettingIdentifiers.SQUARE_2_ENABLED).process();
+                    settings_container.getSetting(SettingIdentifiers.WAVE_ENABLED).process();
+                    settings_container.getSetting(SettingIdentifiers.NOISE_ENABLED).process();
                     ImGui.treePop();
                 }
                 ImGui.endTabItem();
@@ -108,14 +108,13 @@ public class SettingsLayer extends Layer {
             if (ImGui.beginTabItem("Controls")) {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Keyboard")) {
-                    settingsContainer.getSetting(SettingIdentifiers.KEYBOARD_CONTROL_MAP).process();
+                    settings_container.getSetting(SettingIdentifiers.KEYBOARD_CONTROL_MAP).process();
                     ImGui.treePop();
                 }
                 ImGui.endTabItem();
             }
         }
         ImGui.endTabBar();
-
         ImGui.end();
     }
 }

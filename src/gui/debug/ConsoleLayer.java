@@ -15,8 +15,8 @@ import utils.Utils;
  */
 public class ConsoleLayer extends DebugLayer {
 
-    private final ImString consoleInput = new ImString();
-    private ConsoleThread consoleThread;
+    private final ImString console_input = new ImString();
+    private ConsoleThread console_thread;
 
     /**
      * Create a new instance of ConsoleLayer
@@ -27,7 +27,7 @@ public class ConsoleLayer extends DebugLayer {
     }
 
     public void hookThread(ConsoleThread consoleThread) {
-        this.consoleThread = consoleThread;
+        this.console_thread = consoleThread;
     }
 
     /**
@@ -42,17 +42,17 @@ public class ConsoleLayer extends DebugLayer {
             ImGui.textColored(line.getColor().getRed(), line.getColor().getGreen(), line.getColor().getBlue(), 255, Utils.getPrettifiedOutput(line.getContent(), (int) (ImGui.getWindowWidth() - 15 / ImGui.getFontSize())));
         ImGui.endChild();
         ImGui.pushItemWidth(ImGui.getWindowWidth() - 66);
-        ImGui.inputText("##", consoleInput);
+        ImGui.inputText("##", console_input);
         ImGui.sameLine();
         if (ImGui.button("Enter")) {
-            Console.getInstance().log(LogLevel.INPUT, "> " + consoleInput.get());
+            Console.getInstance().log(LogLevel.INPUT, "> " + console_input.get());
 
-            consoleThread.offerCommand(Command.build(consoleInput.toString()));
-            synchronized (consoleThread) {
-                consoleThread.notify();
+            console_thread.offerCommand(Command.build(console_input.toString()));
+            synchronized (console_thread) {
+                console_thread.notify();
             }
 
-            consoleInput.set("");
+            console_input.set("");
         }
         ImGui.end();
     }

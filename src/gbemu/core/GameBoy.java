@@ -20,9 +20,13 @@ import gbemu.settings.SettingsContainer;
 
 import java.awt.*;
 
+/**
+ * This class represent a Game Boy to be emulated by the Emulator
+ * it contains every needed components
+ */
 public class GameBoy {
 
-    private boolean hasCartridge = false;
+    private boolean has_cartridge = false;
     public Mode mode = Mode.DMG;
     private long mcycles = 0;
 
@@ -31,16 +35,20 @@ public class GameBoy {
     private final PPU ppu;
     private final APU apu;
     private final Timer timer;
-    private final InputManager inputManager;
+    private final InputManager input_manager;
     private final Debugger debugger;
-    private final CheatManager cheatManager;
-    private final SettingsContainer settingsContainer;
+    private final CheatManager cheat_manager;
+    private final SettingsContainer settings_container;
 
-    private GameBoyState currentState;
-    private AudioEngine audioEngine;
+    private GameBoyState current_state;
+    private AudioEngine audio_engine;
     private boolean half_exec_step = false;
     private int speed_factor = 1;
 
+    /**
+     * Create a new Game Boy alongside initializing every component
+     * @param configFile the config file to load settings from
+     */
     public GameBoy(String configFile) {
         debugger = new Debugger(this);
         memory = new MMU(this);
@@ -48,31 +56,51 @@ public class GameBoy {
         ppu = new PPU(this);
         apu = new APU(this);
         timer = new Timer(this);
-        inputManager = new InputManager(this);
-        currentState = GameBoyState.RUNNING;
-        cheatManager = new CheatManager(this);
-        settingsContainer = new SettingsContainer(this, configFile);
+        input_manager = new InputManager(this);
+        current_state = GameBoyState.RUNNING;
+        cheat_manager = new CheatManager(this);
+        settings_container = new SettingsContainer(this, configFile);
     }
 
+    /**
+     * Load settings from the config file
+     */
     public void loadSettings() {
-        settingsContainer.loadFile();
+        settings_container.loadFile();
     }
 
-    public void setAudioEngine(AudioEngine audioEngine) {
-        this.audioEngine = audioEngine;
+    /**
+     * Link the Audio Engine to the Game Boy
+     * @param audio_engine the Audio Engine to link
+     */
+    public void setAudioEngine(AudioEngine audio_engine) {
+        this.audio_engine = audio_engine;
     }
 
+    /**
+     * Return the linked debugger
+     * @return the linked debugger
+     */
     public Debugger getDebugger() {
         return debugger;
     }
 
+    /**
+     * Load a Cartridge (ROM) to the Game Boy
+     * load its .sav if it exists and the ROM is compatible
+     * @param file the path of the ROM to load
+     * @throws Exception thrown when unable to load the file
+     */
     public void insertCartridge(String file) throws Exception {
         memory.loadCart(file);
-        hasCartridge = true;
+        has_cartridge = true;
         reset();
         debugger.init();
     }
 
+    /**
+     * Reset the Game Boy to its default state
+     */
     public void reset() {
         memory.reset();
         cpu.reset();
@@ -137,22 +165,43 @@ public class GameBoy {
         cpu.init();
     }
 
+    /**
+     * Return the current MMU
+     * @return the current MMU
+     */
     public MMU getMemory() {
         return memory;
     }
 
+    /**
+     * Return the current CPU
+     * @return the current CPU
+     */
     public LR35902 getCpu() {
         return cpu;
     }
 
+    /**
+     * Return the current PPU
+     * @return the current PPU
+     */
     public PPU getPpu() {
         return ppu;
     }
 
+    /**
+     * Return the current APU
+     * @return the current APU
+     */
     public APU getApu() {
         return apu;
     }
 
+    /**
+     * Execute one instruction be executing the right amount of CPU cycles
+     * this will also clock every component such as APU, PPU, InputManager, CheatManager, MMU and Timers
+     * also save the cartridge if necessary
+     */
     public void executeInstruction() {
         int opcode_mcycles = Integer.MAX_VALUE;
         while (opcode_mcycles > 0) {
@@ -164,8 +213,8 @@ public class GameBoy {
                         if (half_exec_step) {
                             ppu.clock();
                             apu.clock();
-                            inputManager.clock();
-                            cheatManager.clock();
+                            input_manager.clock();
+                            cheat_manager.clock();
                         }
                         half_exec_step = !half_exec_step;
                     }
@@ -176,78 +225,129 @@ public class GameBoy {
                         timer.clock();
                         ppu.clock();
                         apu.clock();
-                        inputManager.clock();
-                        cheatManager.clock();
+                        input_manager.clock();
+                        cheat_manager.clock();
                     }
                 }
             }
             mcycles++;
-            if (mcycles >= mode.cpu_cycles_per_second * 10L) {
+            if (mcycles >= mode.CYCLES_PER_SEC * 10L) {
                 memory.saveCartridge();
-                mcycles -= mode.cpu_cycles_per_second * 10L;
+                mcycles -= mode.CYCLES_PER_SEC * 10L;
             }
         }
     }
 
+    /**
+     * Execute a set number of instructions
+     * mainly used by the Debugger
+     * @param nb_instr the number of instruction to execute
+     * @param force bypass the current state of the Game Boy (executing even if not running)
+     */
     public void executeInstructions(int nb_instr, boolean force) {
-        for (int i = 0; i < nb_instr && (currentState == GameBoyState.RUNNING || force); i++)
+        for (int i = 0; i < nb_instr && (current_state == GameBoyState.RUNNING || force); i++)
             executeInstruction();
     }
 
+    /**
+     * Return the Serial Output as a String
+     * @return the Serial output as a String
+     */
     public String getSerialOutput() {
         return memory.getSerialOutput();
     }
 
+    /**
+     * Clear the Serial Output
+     */
     public void flushSerialOutput() {
         memory.flushSerialOutput();
     }
 
+    /**
+     * Execute an entire frame
+     * if the speed factor is different from 1, it executes speed_factor frames
+     * effectively speeding up the emulation
+     */
     public void executeFrames() {
         for (int i = 0; i < speed_factor; i++)
-            while(ppu.isFrameIncomplete() && currentState == GameBoyState.RUNNING)
+            while(ppu.isFrameIncomplete() && current_state == GameBoyState.RUNNING)
                 executeInstruction();
     }
 
-    public void forceFrame() {
-        while(ppu.isFrameIncomplete() && currentState == GameBoyState.DEBUG)
+    /**
+     * Execute a frame in debug mode
+     */
+    public void debugFrame() {
+        while(ppu.isFrameIncomplete() && current_state == GameBoyState.DEBUG)
             executeInstruction();
     }
 
+    /**
+     * Get the current state of the Game Boy
+     * @return the Game Boy's current state
+     */
     public GameBoyState getState() {
-        return currentState;
+        return current_state;
     }
 
+    /**
+     * Set the current state of the Game Boy
+     * @param state the new game Boy's state
+     */
     public void setState(GameBoyState state) {
-        this.currentState = state;
+        this.current_state = state;
     }
 
+    /**
+     * Return the next Audio Sample
+     * @return the next Audio Sample
+     */
     public float getNextSample() {
         return apu.getNextSample();
     }
 
+    /**
+     * Set the state of a Button
+     * @param button the Button to change the state of
+     * @param state the new Button's state
+     */
     public synchronized void setButtonState(Button button, InputState state) {
-        inputManager.setButtonState(button, state);
+        input_manager.setButtonState(button, state);
     }
 
+    /**
+     * Return whether the Game Biy has a Cartridge or not
+     * @return Does the Game Boy contains a Cartridge
+     */
     public boolean hasCartridge() {
-        return hasCartridge;
+        return has_cartridge;
     }
 
+    /**
+     * Return whether a specific debugging mode is enabled
+     * @param mode the debugging mode to check
+     * @return is the debugging mode enabled
+     */
     public boolean isDebuggerHooked(DebuggerMode mode) {
         return debugger.isHooked(mode);
     }
 
+    /**
+     * Propagate the value of a Setting to the right component of the Game Boy
+     * @param setting the setting to propagate
+     */
     public synchronized void propagateSetting(Setting<?> setting) {
         switch (setting.getIdentifier()) {
             case RTC -> MBC3.enableRTC((boolean) setting.getValue());
             case SPEED -> {
                 speed_factor = (int) setting.getValue();
-                mode.cpu_cycles_per_sample = 4194304f / APU.SAMPLE_RATE * speed_factor;
+                mode.CYCLES_PER_SAMPLE = 4194304f / APU.SAMPLE_RATE * speed_factor;
             }
             case BOOTSTRAP -> cpu.enableBootstrap((boolean) setting.getValue());
             case DMG_BOOTROM -> memory.loadBootstrap(Mode.DMG, (String)setting.getValue());
             case CGB_BOOTROM -> memory.loadBootstrap(Mode.CGB, (String)setting.getValue());
-            case CHEAT_DATABASE -> cheatManager.loadCheats((String)setting.getValue());
+            case CHEAT_DATABASE -> cheat_manager.loadCheats((String)setting.getValue());
             case DMG_PALETTE_0 -> ColorShade.WHITE.setColor((Color)setting.getValue());
             case DMG_PALETTE_1 -> ColorShade.LIGHT_GRAY.setColor((Color)setting.getValue());
             case DMG_PALETTE_2 -> ColorShade.DARK_GRAY.setColor((Color)setting.getValue());
@@ -257,48 +357,74 @@ public class GameBoy {
             case SQUARE_2_ENABLED -> apu.enableSquare2((boolean) setting.getValue());
             case WAVE_ENABLED -> apu.enableWave((boolean) setting.getValue());
             case NOISE_ENABLED -> apu.enableNoise((boolean) setting.getValue());
-            case VOLUME -> audioEngine.setVolume((float) setting.getValue());
+            case VOLUME -> audio_engine.setVolume((float) setting.getValue());
         }
     }
 
+    /**
+     * Return the current Game ID
+     * @return the current Game ID
+     */
     public String getGameId() {
         return memory.readGameId();
     }
 
+    /**
+     * Return the current CheatManager
+     * @return the current CheatManager
+     */
     public CheatManager getCheatManager() {
-        return cheatManager;
+        return cheat_manager;
     }
 
+    /**
+     * Return the current SettingsContainer
+     * @return the current SettingsContainer
+     */
     public SettingsContainer getSettingsContainer() {
-        return settingsContainer;
+        return settings_container;
     }
 
+    /**
+     * Return the current AudioEngine
+     * @return the current AudioEngine
+     */
     public AudioEngine getAudioEngine() {
-        return audioEngine;
+        return audio_engine;
     }
 
+    /**
+     * This enum contains the 2 possible Mode of the Game Boy
+     * DMG for standard Game Boy
+     * CGB for Game Boy Color
+     * it also contains all Mode specific timing (cpu cycles per events)
+     */
     public enum Mode {
-        DMG(4194304),
-        CGB(8388608);
+        DMG(4_194_304),
+        CGB(8_388_608);
 
-        public final int cpu_cycles_per_second;
-        public final int cpu_cycles_per_frame;
-        public final int cpu_cycles_per_hblank;
-        public final int cpu_cycles_per_vblank_scanline; //divide because VBlank is 10 scanline long
-        public final int cpu_cycles_per_oam;
-        public final int cpu_cycles_per_transfer;
-        public final int cpu_cycles_256HZ = 4194304 / 256;
-        public final int cpu_cycles_128HZ = 4194304 / 128;
-        public final int cpu_cycles_64HZ = 4194304 / 64;
-        public float cpu_cycles_per_sample = 4194304f / APU.SAMPLE_RATE;
+        public final int CYCLES_PER_SEC;
+        public final int CYCLES_PER_FRAME;
+        public final int CYCLES_PER_HBLANK;
+        public final int CYCLES_PER_VBLANK_SCANLINE; //divide because VBlank is 10 scanline long
+        public final int CYCLES_PER_OAM;
+        public final int CYCLES_PER_TRANSFER;
+        public final int CYCLES_256HZ = 4_194_304 / 256;
+        public final int CYCLES_128HZ = 4_194_304 / 128;
+        public final int CYCLES_64HZ = 4_194_304 / 64;
+        public float CYCLES_PER_SAMPLE = 4_194_304f / APU.SAMPLE_RATE;
 
+        /**
+         * Create a new Game Boy Mode
+         * @param cpu_cycles_per_second the frequency of the CPU in cycles per seconds
+         */
         Mode(int cpu_cycles_per_second) {
-            this.cpu_cycles_per_second = cpu_cycles_per_second;
-            this.cpu_cycles_per_frame = 70224;
-            this.cpu_cycles_per_hblank = 208;
-            this.cpu_cycles_per_vblank_scanline = 456;
-            this.cpu_cycles_per_oam = 80;
-            this.cpu_cycles_per_transfer = 168;
+            this.CYCLES_PER_SEC = cpu_cycles_per_second;
+            this.CYCLES_PER_FRAME = 70224;
+            this.CYCLES_PER_HBLANK = 208;
+            this.CYCLES_PER_VBLANK_SCANLINE = 456;
+            this.CYCLES_PER_OAM = 80;
+            this.CYCLES_PER_TRANSFER = 168;
         }
     }
 }
