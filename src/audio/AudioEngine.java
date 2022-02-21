@@ -11,6 +11,9 @@ import net.beadsproject.beads.ugens.WaveShaper;
 
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Mixer;
+import java.awt.desktop.SystemEventListener;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +32,7 @@ public class AudioEngine {
 
     /**
      * Create a new Audio Engine
-     * linking ot to the currently selected Output if valid
+     * linking it to the currently selected Output if valid
      */
     public AudioEngine(GameBoy gameboy) {
         this.gameboy = gameboy;
@@ -55,6 +58,8 @@ public class AudioEngine {
      */
     private void verifyValidOutputs() {
         int index = 0;
+        PrintStream errBck = System.err;
+        System.setErr(new PrintStream(new OutputStream() {public void write(int b) {}}));
         //For each Mixer, we check if the defined function is ran, if so it's a valid output, and it's added to the list of valid outputs
         for (Mixer.Info info : AudioSystem.getMixerInfo()) {
             try {
@@ -70,15 +75,14 @@ public class AudioEngine {
                 };
                 checker.out.addInput(check);
                 checker.start();
-
                 Thread.sleep(100);
-
                 if (valid[0])
                     validOutputs.add(new AudioOutput(info, index));
                 checker.stop();
             } catch (InterruptedException ignored) {}
             index++;
         }
+        System.setErr(errBck);
     }
 
     /**

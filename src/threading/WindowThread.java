@@ -94,6 +94,8 @@ public class WindowThread {
 
         this.gameboy = gameboy;
         this.gameboyThread = gameBoyThread;
+
+        init();
     }
 
     /**
@@ -125,12 +127,14 @@ public class WindowThread {
         Callbacks.glfwFreeCallbacks(windowPtr);
         glfwDestroyWindow(windowPtr);
         glfwTerminate();
+        Platform.exit();
     }
 
     /**
      * Initialize OpenGl and GLFW
      */
     private void initWindow() {
+        Platform.startup(() -> System.out.println("Initializing JFX"));
         // Setup an error callback. The default implementation
         // will print the error message in System.err.
         GLFWErrorCallback.createPrint(System.err).set();

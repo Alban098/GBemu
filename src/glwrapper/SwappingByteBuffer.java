@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
 
 /**
  * This class represent a Dual Buffer, Buffer can be swapped
- * Doing so allow one buffer to be filled will another one is accessed by the graphical API
+ * doing so allow one buffer to be filled while another one is accessed by the graphical API
  * thus eliminating flickering if trying to display a buffer that is currently being filled
  * it eliminates synchronisation problems in the Display loop
  */

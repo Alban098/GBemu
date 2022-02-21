@@ -53,7 +53,7 @@ public class Instruction {
     public int getParamWord() {
         if (length > 2 && parameters != null)
             return (parameters[1] << 8) | parameters[0];
-        return 0x00;
+        return 0x0000;
     }
 
     public int getParamAddress() {
@@ -118,31 +118,32 @@ public class Instruction {
             }
         }
         if (disassembled.contains("(BC)")) comment = cpu.getBc().toString();
-        if (disassembled.contains("(DE)")) comment = cpu.getDe().toString();
-        if (disassembled.contains("(HL)")) comment = cpu.getHl().toString();
-        if (disassembled.contains("(HL+)")) comment = cpu.getHl().toString();
-        if (disassembled.contains("(HL-)")) comment = cpu.getHl().toString();
+        else if (disassembled.contains("(DE)")) comment = cpu.getDe().toString();
+        else if (disassembled.contains("(HL)")) comment = cpu.getHl().toString();
+        else if (disassembled.contains("(HL+)")) comment = cpu.getHl().toString();
+        else  if (disassembled.contains("(HL-)")) comment = cpu.getHl().toString();
+
         if (disassembled.contains("FF00")) comment = "controller";
-        if (disassembled.contains("FF01")) comment = "serial bus";
-        if (disassembled.contains("FF02")) comment = "serial control";
-        if (disassembled.contains("FF04")) comment = "div";
-        if (disassembled.contains("FF05")) comment = "tima";
-        if (disassembled.contains("FF06")) comment = "tma";
-        if (disassembled.contains("FF07")) comment = "tac";
-        if (disassembled.contains("FF0F")) comment = "interrupt flags";
-        if (disassembled.contains("FF40")) comment = "lcdc";
-        if (disassembled.contains("FF41")) comment = "stat";
-        if (disassembled.contains("FF42")) comment = "scroll y";
-        if (disassembled.contains("FF43")) comment = "scroll x";
-        if (disassembled.contains("FF44")) comment = "ly";
-        if (disassembled.contains("FF45")) comment = "lyc";
-        if (disassembled.contains("FF46")) comment = "dma";
-        if (disassembled.contains("FF47")) comment = "bgp";
-        if (disassembled.contains("FF48")) comment = "obp0";
-        if (disassembled.contains("FF49")) comment = "obp1";
-        if (disassembled.contains("FF4A")) comment = "win x";
-        if (disassembled.contains("FF4B")) comment = "win y";
-        if (disassembled.contains("FFFF")) comment = "interrupt enable";
+        else if (disassembled.contains("FF01")) comment = "serial bus";
+        else if (disassembled.contains("FF02")) comment = "serial control";
+        else if (disassembled.contains("FF04")) comment = "div";
+        else if (disassembled.contains("FF05")) comment = "tima";
+        else if (disassembled.contains("FF06")) comment = "tma";
+        else if (disassembled.contains("FF07")) comment = "tac";
+        else if (disassembled.contains("FF0F")) comment = "interrupt flags";
+        else if (disassembled.contains("FF40")) comment = "lcdc";
+        else if (disassembled.contains("FF41")) comment = "stat";
+        else if (disassembled.contains("FF42")) comment = "scroll y";
+        else if (disassembled.contains("FF43")) comment = "scroll x";
+        else if (disassembled.contains("FF44")) comment = "ly";
+        else if (disassembled.contains("FF45")) comment = "lyc";
+        else if (disassembled.contains("FF46")) comment = "dma";
+        else if (disassembled.contains("FF47")) comment = "bgp";
+        else if (disassembled.contains("FF48")) comment = "obp0";
+        else if (disassembled.contains("FF49")) comment = "obp1";
+        else if (disassembled.contains("FF4A")) comment = "win x";
+        else if (disassembled.contains("FF4B")) comment = "win y";
+        else if (disassembled.contains("FFFF")) comment = "interrupt enable";
     }
 
     public void setAddr(int addr) {
@@ -177,31 +178,32 @@ public class Instruction {
         while(op.length() <= 35)
             op.append(" ");
         if (op.toString().contains("(BC)")) op.append(cpu.getBc().toString());
-        if (op.toString().contains("(DE)")) op.append(cpu.getDe().toString());
-        if (op.toString().contains("(HL)")) op.append(cpu.getHl().toString());
-        if (op.toString().contains("(HL+)")) op.append(cpu.getHl().toString());
-        if (op.toString().contains("(HL-)")) op.append(cpu.getHl().toString());
+        else if (op.toString().contains("(DE)")) op.append(cpu.getDe().toString());
+        else if (op.toString().contains("(HL)")) op.append(cpu.getHl().toString());
+        else if (op.toString().contains("(HL+)")) op.append(cpu.getHl().toString());
+        else if (op.toString().contains("(HL-)")) op.append(cpu.getHl().toString());
+
         if (op.toString().contains("FF00")) op.append(" controller");
-        if (op.toString().contains("FF01")) op.append(" serial bus");
-        if (op.toString().contains("FF02")) op.append(" serial control");
-        if (op.toString().contains("FF04")) op.append(" div");
-        if (op.toString().contains("FF05")) op.append(" tima");
-        if (op.toString().contains("FF06")) op.append(" tma");
-        if (op.toString().contains("FF07")) op.append(" tac");
-        if (op.toString().contains("FF0F")) op.append(" interrupt flags");
-        if (op.toString().contains("FF40")) op.append(" lcdc");
-        if (op.toString().contains("FF41")) op.append(" stat");
-        if (op.toString().contains("FF42")) op.append(" scroll y");
-        if (op.toString().contains("FF43")) op.append(" scroll x");
-        if (op.toString().contains("FF44")) op.append(" ly");
-        if (op.toString().contains("FF45")) op.append(" lyc");
-        if (op.toString().contains("FF46")) op.append(" dma");
-        if (op.toString().contains("FF47")) op.append(" bgp");
-        if (op.toString().contains("FF48")) op.append(" obp0");
-        if (op.toString().contains("FF49")) op.append(" obp1");
-        if (op.toString().contains("FF4A")) op.append(" win x");
-        if (op.toString().contains("FF4B")) op.append(" win y");
-        if (op.toString().contains("FFFF")) op.append(" interrupt enable");
+        else if (op.toString().contains("FF01")) op.append(" serial bus");
+        else if (op.toString().contains("FF02")) op.append(" serial control");
+        else if (op.toString().contains("FF04")) op.append(" div");
+        else if (op.toString().contains("FF05")) op.append(" tima");
+        else if (op.toString().contains("FF06")) op.append(" tma");
+        else if (op.toString().contains("FF07")) op.append(" tac");
+        else if (op.toString().contains("FF0F")) op.append(" interrupt flags");
+        else if (op.toString().contains("FF40")) op.append(" lcdc");
+        else if (op.toString().contains("FF41")) op.append(" stat");
+        else if (op.toString().contains("FF42")) op.append(" scroll y");
+        else if (op.toString().contains("FF43")) op.append(" scroll x");
+        else if (op.toString().contains("FF44")) op.append(" ly");
+        else if (op.toString().contains("FF45")) op.append(" lyc");
+        else if (op.toString().contains("FF46")) op.append(" dma");
+        else if (op.toString().contains("FF47")) op.append(" bgp");
+        else if (op.toString().contains("FF48")) op.append(" obp0");
+        else if (op.toString().contains("FF49")) op.append(" obp1");
+        else if (op.toString().contains("FF4A")) op.append(" win x");
+        else if (op.toString().contains("FF4B")) op.append(" win y");
+        else if (op.toString().contains("FFFF")) op.append(" interrupt enable");
         return op.toString().toUpperCase();
     }
 

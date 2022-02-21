@@ -14,10 +14,9 @@ public class GBemu {
     public GBemu(String configFile) {
         GameBoy gameboy = new GameBoy(configFile);
         audioEngine = new AudioEngine(gameboy);
-        gameboy.loadSettings();
         gameboyThread = new GameBoyThread(gameboy);
         windowThread = new WindowThread(gameboy, gameboyThread);
-        windowThread.init();
+        gameboy.loadSettings();
     }
 
     public void run() {

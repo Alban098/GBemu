@@ -36,7 +36,7 @@ public class BreakCommand extends Command {
                 case "-m" -> {
                     if ("-r".equals(args.get(1))) {
                         try {
-                            int decode = Integer.decode("0x" + args.get(0));
+                            Integer.decode("0x" + args.get(0));
                             return true;
                         } catch (Exception e) {
                             return false;
