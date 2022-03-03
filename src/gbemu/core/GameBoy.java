@@ -25,8 +25,11 @@ import gbemu.settings.wrapper.*;
  */
 public class GameBoy {
 
-    private boolean has_cartridge = false;
+    public static final double FRAMERATE = 59.727500569606;
+
     public Mode mode = Mode.DMG;
+
+    private boolean has_cartridge = false;
     private long mcycles = 0;
 
     private final MMU memory;

@@ -17,6 +17,7 @@ public class SwappingByteBuffer {
     private final ByteBuffer[] buffers;
     //Index of the buffer being filled
     private int current_buffer;
+    private boolean swapped_flag = true;
 
     /**
      * Create a new SwappingByteBuffer of specified capacity
@@ -40,6 +41,7 @@ public class SwappingByteBuffer {
      * and setting the other buffer as the current one, ready to be filled
      */
     public synchronized void swap() {
+        swapped_flag = true;
         buffers[current_buffer].flip();
         current_buffer = (current_buffer + 1) & 0x1;
         buffers[current_buffer].clear();
@@ -65,5 +67,13 @@ public class SwappingByteBuffer {
     public synchronized void clear() {
         buffers[0].clear();
         buffers[1].clear();
+    }
+
+    public boolean hasSwapped() {
+        if (swapped_flag) {
+            swapped_flag = false;
+            return true;
+        }
+        return false;
     }
 }

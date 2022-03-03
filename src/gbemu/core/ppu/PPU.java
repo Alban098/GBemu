@@ -61,6 +61,14 @@ public class PPU {
     }
 
     /**
+     * Return the screen buffer that can be displayed to the screen
+     * @return the screen buffer
+     */
+    public synchronized boolean isScreenUpdated() {
+        return screen_buffer.hasSwapped();
+    }
+
+    /**
      * Execute a cycle of the PPU and compute everything that happen during that cycle
      */
     public void clock() {

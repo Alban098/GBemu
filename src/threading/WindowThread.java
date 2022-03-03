@@ -225,7 +225,7 @@ public class WindowThread {
             }
             GLFW.glfwSwapBuffers(window_ptr);
             GLFW.glfwPollEvents();
-            timer.sync(60);
+            timer.sync(GameBoy.FRAMERATE);
         }
     }
 
@@ -265,7 +265,8 @@ public class WindowThread {
      */
     private void renderGameScreen() {
         //Load the buffer to the texture
-        screen_texture.load(gameboy.getPpu().getScreenBuffer());
+        if (gameboy.getPpu().isScreenUpdated())
+            screen_texture.load(gameboy.getPpu().getScreenBuffer());
 
         //Bind the texture
         glEnable(GL_TEXTURE_2D);
