@@ -1,7 +1,8 @@
 package gbemu.settings;
 
-import java.util.HashMap;
-import java.util.Map;
+import gbemu.settings.wrapper.ButtonWrapper;
+import gbemu.settings.wrapper.HashMapWrapper;
+import gbemu.settings.wrapper.IntegerWrapper;
 
 import static org.lwjgl.glfw.GLFW.*;
 
@@ -19,7 +20,7 @@ public enum Button {
     RIGHT(0x10);
 
     private final int mask;
-    private static final Map<Button, Integer> keyboard_map = new HashMap<>();
+    private static final HashMapWrapper<ButtonWrapper, IntegerWrapper> keyboard_map = new HashMapWrapper<>(ButtonWrapper.class, IntegerWrapper.class);
 
     /**
      * Create a new instance of Button
@@ -53,16 +54,16 @@ public enum Button {
      * Return a map of all the mapped inputs
      * @return the map of all inputs
      */
-    public static Map<Button, Integer> getKeyboardMap() {
+    public static HashMapWrapper<ButtonWrapper, IntegerWrapper> getKeyboardMap() {
         if (keyboard_map.isEmpty()) {
-            keyboard_map.put(START, GLFW_KEY_K);
-            keyboard_map.put(SELECT, GLFW_KEY_L);
-            keyboard_map.put(A, GLFW_KEY_I);
-            keyboard_map.put(B, GLFW_KEY_O);
-            keyboard_map.put(UP, GLFW_KEY_W);
-            keyboard_map.put(DOWN, GLFW_KEY_S);
-            keyboard_map.put(LEFT, GLFW_KEY_A);
-            keyboard_map.put(RIGHT, GLFW_KEY_D);
+            keyboard_map.put(new ButtonWrapper(START), new IntegerWrapper(GLFW_KEY_K));
+            keyboard_map.put(new ButtonWrapper(SELECT), new IntegerWrapper(GLFW_KEY_L));
+            keyboard_map.put(new ButtonWrapper(A), new IntegerWrapper(GLFW_KEY_I));
+            keyboard_map.put(new ButtonWrapper(B), new IntegerWrapper(GLFW_KEY_O));
+            keyboard_map.put(new ButtonWrapper(UP), new IntegerWrapper(GLFW_KEY_W));
+            keyboard_map.put(new ButtonWrapper(DOWN), new IntegerWrapper(GLFW_KEY_S));
+            keyboard_map.put(new ButtonWrapper(LEFT), new IntegerWrapper(GLFW_KEY_A));
+            keyboard_map.put(new ButtonWrapper(RIGHT), new IntegerWrapper(GLFW_KEY_D));
         }
         return keyboard_map;
     }

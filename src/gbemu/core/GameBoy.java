@@ -17,8 +17,7 @@ import gbemu.settings.Setting;
 import gbemu.extension.debug.Debugger;
 import gbemu.extension.debug.DebuggerMode;
 import gbemu.settings.SettingsContainer;
-
-import java.awt.*;
+import gbemu.settings.wrapper.*;
 
 /**
  * This class represent a Game Boy to be emulated by the Emulator
@@ -339,25 +338,25 @@ public class GameBoy {
      */
     public synchronized void propagateSetting(Setting<?> setting) {
         switch (setting.getIdentifier()) {
-            case RTC -> MBC3.enableRTC((boolean) setting.getValue());
+            case RTC -> MBC3.enableRTC(((BooleanWrapper) setting.getValue()).unwrap());
             case SPEED -> {
-                speed_factor = (int) setting.getValue();
+                speed_factor = ((IntegerWrapper) setting.getValue()).unwrap();
                 mode.CYCLES_PER_SAMPLE = 4194304f / APU.SAMPLE_RATE * speed_factor;
             }
-            case BOOTSTRAP -> cpu.enableBootstrap((boolean) setting.getValue());
-            case DMG_BOOTROM -> memory.loadBootstrap(Mode.DMG, (String)setting.getValue());
-            case CGB_BOOTROM -> memory.loadBootstrap(Mode.CGB, (String)setting.getValue());
-            case CHEAT_DATABASE -> cheat_manager.loadCheats((String)setting.getValue());
-            case DMG_PALETTE_0 -> ColorShade.WHITE.setColor((Color)setting.getValue());
-            case DMG_PALETTE_1 -> ColorShade.LIGHT_GRAY.setColor((Color)setting.getValue());
-            case DMG_PALETTE_2 -> ColorShade.DARK_GRAY.setColor((Color)setting.getValue());
-            case DMG_PALETTE_3 -> ColorShade.BLACK.setColor((Color)setting.getValue());
-            case GAMMA -> ppu.setGamma((float) setting.getValue());
-            case SQUARE_1_ENABLED -> apu.enableSquare1((boolean) setting.getValue());
-            case SQUARE_2_ENABLED -> apu.enableSquare2((boolean) setting.getValue());
-            case WAVE_ENABLED -> apu.enableWave((boolean) setting.getValue());
-            case NOISE_ENABLED -> apu.enableNoise((boolean) setting.getValue());
-            case VOLUME -> audio_engine.setVolume((float) setting.getValue());
+            case BOOTSTRAP -> cpu.enableBootstrap(((BooleanWrapper) setting.getValue()).unwrap());
+            case DMG_BOOTROM -> memory.loadBootstrap(Mode.DMG, ((StringWrapper)setting.getValue()).unwrap());
+            case CGB_BOOTROM -> memory.loadBootstrap(Mode.CGB, ((StringWrapper)setting.getValue()).unwrap());
+            case CHEAT_DATABASE -> cheat_manager.loadCheats(((StringWrapper)setting.getValue()).unwrap());
+            case DMG_PALETTE_0 -> ColorShade.WHITE.setColor(((ColorWrapper)setting.getValue()).unwrap());
+            case DMG_PALETTE_1 -> ColorShade.LIGHT_GRAY.setColor(((ColorWrapper)setting.getValue()).unwrap());
+            case DMG_PALETTE_2 -> ColorShade.DARK_GRAY.setColor(((ColorWrapper) setting.getValue()).unwrap());
+            case DMG_PALETTE_3 -> ColorShade.BLACK.setColor(((ColorWrapper)setting.getValue()).unwrap());
+            case GAMMA -> ppu.setGamma(((FloatWrapper) setting.getValue()).unwrap());
+            case SQUARE_1_ENABLED -> apu.enableSquare1(((BooleanWrapper) setting.getValue()).unwrap());
+            case SQUARE_2_ENABLED -> apu.enableSquare2(((BooleanWrapper) setting.getValue()).unwrap());
+            case WAVE_ENABLED -> apu.enableWave(((BooleanWrapper) setting.getValue()).unwrap());
+            case NOISE_ENABLED -> apu.enableNoise(((BooleanWrapper) setting.getValue()).unwrap());
+            case VOLUME -> audio_engine.setVolume(((FloatWrapper) setting.getValue()).unwrap());
         }
     }
 

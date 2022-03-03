@@ -3,6 +3,7 @@ package gbemu.settings;
 import console.Console;
 import console.LogLevel;
 import gbemu.core.GameBoy;
+import gbemu.settings.wrapper.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiInputTextFlags;
@@ -43,29 +44,29 @@ public class SettingsContainer {
         this.file = file;
 
         //System
-        settings.put(SettingIdentifiers.RTC, new Setting<>(SettingIdentifiers.RTC, false, (Setting<Boolean> setting) -> {
-            ImBoolean tmp = new ImBoolean(setting.getValue());
+        settings.put(SettingIdentifiers.RTC, new Setting<>(SettingIdentifiers.RTC, new BooleanWrapper(false), (Setting<BooleanWrapper> setting) -> {
+            ImBoolean tmp = new ImBoolean(setting.getValue().unwrap());
             if (ImGui.checkbox(setting.getIdentifier().getDescription(), tmp)) {
-                setting.setValue(tmp.get());
+                setting.getValue().wrap(tmp.get());
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.SPEED, new Setting<>(SettingIdentifiers.SPEED, 1, (Setting<Integer> setting) -> {
-            int[] tmp = {setting.getValue()};
+        settings.put(SettingIdentifiers.SPEED, new Setting<>(SettingIdentifiers.SPEED, new IntegerWrapper(1), (Setting<IntegerWrapper> setting) -> {
+            int[] tmp = {setting.getValue().unwrap()};
             if (ImGui.sliderInt(setting.getIdentifier().getDescription(), tmp, 1, 5)) {
-                setting.setValue(tmp[0]);
+                setting.getValue().wrap(tmp[0]);
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.BOOTSTRAP, new Setting<>(SettingIdentifiers.BOOTSTRAP, false, (Setting<Boolean> setting) -> {
-            ImBoolean tmp = new ImBoolean(setting.getValue());
+        settings.put(SettingIdentifiers.BOOTSTRAP, new Setting<>(SettingIdentifiers.BOOTSTRAP, new BooleanWrapper(false), (Setting<BooleanWrapper> setting) -> {
+            ImBoolean tmp = new ImBoolean(setting.getValue().unwrap());
             if (ImGui.checkbox(setting.getIdentifier().getDescription(), tmp)) {
-                setting.setValue(tmp.get());
+                setting.getValue().wrap(tmp.get());
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.DMG_BOOTROM, new Setting<>(SettingIdentifiers.DMG_BOOTROM, "DMG.bin", (Setting<String> setting) -> {
-            ImString tmp = new ImString(setting.getValue());
+        settings.put(SettingIdentifiers.DMG_BOOTROM, new Setting<>(SettingIdentifiers.DMG_BOOTROM, new StringWrapper("DMG.bin"), (Setting<StringWrapper> setting) -> {
+            ImString tmp = new ImString(setting.getValue().unwrap());
             ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load DMG")) {
@@ -76,7 +77,7 @@ public class SettingsContainer {
                     File dmg = chooser.showOpenDialog(null);
                     if (dmg != null) {
                         try {
-                            setting.setValue(dmg.getAbsolutePath());
+                            setting.getValue().wrap(dmg.getAbsolutePath());
                             if (dmg.length() != 0x100)
                                 throw new Exception("Invalid DMG Size (must be 256 bytes");
                             gameboy.propagateSetting(setting);
@@ -87,8 +88,8 @@ public class SettingsContainer {
                 });
             }
         }));
-        settings.put(SettingIdentifiers.CHEAT_DATABASE, new Setting<>(SettingIdentifiers.CHEAT_DATABASE, "gameshark.cht", (Setting<String> setting) -> {
-            ImString tmp = new ImString(setting.getValue());
+        settings.put(SettingIdentifiers.CHEAT_DATABASE, new Setting<>(SettingIdentifiers.CHEAT_DATABASE, new StringWrapper("gameshark.cht"), (Setting<StringWrapper> setting) -> {
+            ImString tmp = new ImString(setting.getValue().unwrap());
             ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load")) {
@@ -99,7 +100,7 @@ public class SettingsContainer {
                     File cht = chooser.showOpenDialog(null);
                     if (cht != null) {
                         try {
-                            setting.setValue(cht.getAbsolutePath());
+                            setting.getValue().wrap(cht.getAbsolutePath());
                             gameboy.propagateSetting(setting);
                         } catch (Exception e) {
                             Console.getInstance().log(LogLevel.ERROR, "Invalid file : " + e.getMessage());
@@ -108,8 +109,8 @@ public class SettingsContainer {
                 });
             }
         }));
-        settings.put(SettingIdentifiers.CGB_BOOTROM, new Setting<>(SettingIdentifiers.CGB_BOOTROM, "CGB.bin", (Setting<String> setting) -> {
-            ImString tmp = new ImString(setting.getValue());
+        settings.put(SettingIdentifiers.CGB_BOOTROM, new Setting<>(SettingIdentifiers.CGB_BOOTROM, new StringWrapper("CGB.bin"), (Setting<StringWrapper> setting) -> {
+            ImString tmp = new ImString(setting.getValue().unwrap());
             ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load CGB")) {
@@ -120,7 +121,7 @@ public class SettingsContainer {
                     File cgb = chooser.showOpenDialog(null);
                     if (cgb != null) {
                         try {
-                            setting.setValue(cgb.getAbsolutePath());
+                            setting.getValue().wrap(cgb.getAbsolutePath());
                             if (cgb.length() != 0x900)
                                 throw new Exception("Invalid CGB Size (must be 2304 bytes");
                             gameboy.propagateSetting(setting);
@@ -132,94 +133,93 @@ public class SettingsContainer {
             }
         }));
         //Graphics
-        settings.put(SettingIdentifiers.DMG_PALETTE_0, new Setting<>( SettingIdentifiers.DMG_PALETTE_0, new Color(0xE0, 0xF8, 0xD0, 0xFF), (Setting<Color> setting) -> {
-            float[] tmp = {setting.getValue().getRed()/255f, setting.getValue().getGreen()/255f, setting.getValue().getBlue()/255f};
+        settings.put(SettingIdentifiers.DMG_PALETTE_0, new Setting<>( SettingIdentifiers.DMG_PALETTE_0, new ColorWrapper(0xE0, 0xF8, 0xD0, 0xFF), (Setting<ColorWrapper> setting) -> {
+            float[] tmp = {setting.getValue().unwrap().getRed()/255f, setting.getValue().unwrap().getGreen()/255f, setting.getValue().unwrap().getBlue()/255f};
             if (ImGui.colorEdit3(setting.getIdentifier().getDescription(), tmp, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.PickerHueBar | ImGuiColorEditFlags.NoLabel)) {
-                setting.setValue(new Color((int) (tmp[0] * 255), (int) (tmp[1] * 255), (int) (tmp[2] * 255)));
+                setting.getValue().wrap(new Color((int) (tmp[0] * 255), (int) (tmp[1] * 255), (int) (tmp[2] * 255)));
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.DMG_PALETTE_1, new Setting<>(SettingIdentifiers.DMG_PALETTE_1, new Color(0x88, 0xC0, 0x70, 0xFF), (Setting<Color> setting) -> {
-            float[] tmp = {setting.getValue().getRed()/255f, setting.getValue().getGreen()/255f, setting.getValue().getBlue()/255f};
+        settings.put(SettingIdentifiers.DMG_PALETTE_1, new Setting<>(SettingIdentifiers.DMG_PALETTE_1, new ColorWrapper(0x88, 0xC0, 0x70, 0xFF), (Setting<ColorWrapper> setting) -> {
+            float[] tmp = {setting.getValue().unwrap().getRed()/255f, setting.getValue().unwrap().getGreen()/255f, setting.getValue().unwrap().getBlue()/255f};
             if (ImGui.colorEdit3(setting.getIdentifier().getDescription(), tmp, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.PickerHueBar | ImGuiColorEditFlags.NoLabel)) {
-                setting.setValue(new Color((int) (tmp[0] * 255), (int) (tmp[1] * 255), (int) (tmp[2] * 255)));
+                setting.getValue().wrap(new Color((int) (tmp[0] * 255), (int) (tmp[1] * 255), (int) (tmp[2] * 255)));
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.DMG_PALETTE_2, new Setting<>( SettingIdentifiers.DMG_PALETTE_2, new Color(0x34, 0x58, 0x66, 0xFF), (Setting<Color> setting) -> {
-            float[] tmp = {setting.getValue().getRed()/255f, setting.getValue().getGreen()/255f, setting.getValue().getBlue()/255f};
+        settings.put(SettingIdentifiers.DMG_PALETTE_2, new Setting<>( SettingIdentifiers.DMG_PALETTE_2, new ColorWrapper(0x34, 0x58, 0x66, 0xFF), (Setting<ColorWrapper> setting) -> {
+            float[] tmp = {setting.getValue().unwrap().getRed()/255f, setting.getValue().unwrap().getGreen()/255f, setting.getValue().unwrap().getBlue()/255f};
             if (ImGui.colorEdit3(setting.getIdentifier().getDescription(), tmp, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.PickerHueBar | ImGuiColorEditFlags.NoLabel)) {
-                setting.setValue(new Color((int) (tmp[0] * 255), (int) (tmp[1] * 255), (int) (tmp[2] * 255)));
+                setting.getValue().wrap(new Color((int) (tmp[0] * 255), (int) (tmp[1] * 255), (int) (tmp[2] * 255)));
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.DMG_PALETTE_3, new Setting<>(SettingIdentifiers.DMG_PALETTE_3, new Color(0x08, 0x18, 0x20, 0xFF), (Setting<Color> setting) -> {
-            float[] tmp = {setting.getValue().getRed()/255f, setting.getValue().getGreen()/255f, setting.getValue().getBlue()/255f};
+        settings.put(SettingIdentifiers.DMG_PALETTE_3, new Setting<>(SettingIdentifiers.DMG_PALETTE_3, new ColorWrapper(0x08, 0x18, 0x20, 0xFF), (Setting<ColorWrapper> setting) -> {
+            float[] tmp = {setting.getValue().unwrap().getRed()/255f, setting.getValue().unwrap().getGreen()/255f, setting.getValue().unwrap().getBlue()/255f};
             if (ImGui.colorEdit3(setting.getIdentifier().getDescription(), tmp, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.PickerHueBar | ImGuiColorEditFlags.NoLabel)) {
-                setting.setValue(new Color((int) (tmp[0] * 255), (int) (tmp[1] * 255), (int) (tmp[2] * 255)));
+                setting.getValue().wrap(new Color((int) (tmp[0] * 255), (int) (tmp[1] * 255), (int) (tmp[2] * 255)));
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.GAMMA, new Setting<>(SettingIdentifiers.GAMMA, 2f, (Setting<Float> setting) -> {
-            float[] tmp = {setting.getValue()};
+        settings.put(SettingIdentifiers.GAMMA, new Setting<>(SettingIdentifiers.GAMMA, new FloatWrapper(2f), (Setting<FloatWrapper> setting) -> {
+            float[] tmp = {setting.getValue().unwrap()};
             if (ImGui.sliderFloat(setting.getIdentifier().getDescription(), tmp, 1f, 3f)) {
-                setting.setValue(tmp[0]);
+                setting.getValue().wrap(tmp[0]);
                 gameboy.propagateSetting(setting);
             }
         }));
         //Sound
-        settings.put(SettingIdentifiers.SQUARE_1_ENABLED, new Setting<>(SettingIdentifiers.SQUARE_1_ENABLED, true, (Setting<Boolean> setting) -> {
-            ImBoolean tmp = new ImBoolean(setting.getValue());
+        settings.put(SettingIdentifiers.SQUARE_1_ENABLED, new Setting<>(SettingIdentifiers.SQUARE_1_ENABLED, new BooleanWrapper(true), (Setting<BooleanWrapper> setting) -> {
+            ImBoolean tmp = new ImBoolean(setting.getValue().unwrap());
             if (ImGui.checkbox(setting.getIdentifier().getDescription(), tmp)) {
-                setting.setValue(tmp.get());
+                setting.getValue().wrap(tmp.get());
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.SQUARE_2_ENABLED, new Setting<>(SettingIdentifiers.SQUARE_2_ENABLED, true, (Setting<Boolean> setting) -> {
-            ImBoolean tmp = new ImBoolean(setting.getValue());
+        settings.put(SettingIdentifiers.SQUARE_2_ENABLED, new Setting<>(SettingIdentifiers.SQUARE_2_ENABLED, new BooleanWrapper(true), (Setting<BooleanWrapper> setting) -> {
+            ImBoolean tmp = new ImBoolean(setting.getValue().unwrap());
             if (ImGui.checkbox(setting.getIdentifier().getDescription(), tmp)) {
-                setting.setValue(tmp.get());
+                setting.getValue().wrap(tmp.get());
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.WAVE_ENABLED, new Setting<>(SettingIdentifiers.WAVE_ENABLED, true, (Setting<Boolean> setting) -> {
-            ImBoolean tmp = new ImBoolean(setting.getValue());
+        settings.put(SettingIdentifiers.WAVE_ENABLED, new Setting<>(SettingIdentifiers.WAVE_ENABLED, new BooleanWrapper(true), (Setting<BooleanWrapper> setting) -> {
+            ImBoolean tmp = new ImBoolean(setting.getValue().unwrap());
             if (ImGui.checkbox(setting.getIdentifier().getDescription(), tmp)) {
-                setting.setValue(tmp.get());
+                setting.getValue().wrap(tmp.get());
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.NOISE_ENABLED, new Setting<>(SettingIdentifiers.NOISE_ENABLED, true, (Setting<Boolean> setting) -> {
-            ImBoolean tmp = new ImBoolean(setting.getValue());
+        settings.put(SettingIdentifiers.NOISE_ENABLED, new Setting<>(SettingIdentifiers.NOISE_ENABLED, new BooleanWrapper(true), (Setting<BooleanWrapper> setting) -> {
+            ImBoolean tmp = new ImBoolean(setting.getValue().unwrap());
             if (ImGui.checkbox(setting.getIdentifier().getDescription(), tmp)) {
-                setting.setValue(tmp.get());
+                setting.getValue().wrap(tmp.get());
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.VOLUME, new Setting<>(SettingIdentifiers.VOLUME, 1f, (Setting<Float> setting) -> {
-            float[] tmp = {setting.getValue()};
+        settings.put(SettingIdentifiers.VOLUME, new Setting<>(SettingIdentifiers.VOLUME, new FloatWrapper(1f), (Setting<FloatWrapper> setting) -> {
+            float[] tmp = {setting.getValue().unwrap()};
             if (ImGui.sliderFloat(setting.getIdentifier().getDescription(), tmp, 0f, 1f)) {
-                setting.setValue(tmp[0]);
+                setting.getValue().wrap(tmp[0]);
                 gameboy.propagateSetting(setting);
             }
         }));
-        settings.put(SettingIdentifiers.KEYBOARD_CONTROL_MAP, new Setting<>(SettingIdentifiers.KEYBOARD_CONTROL_MAP, Button.getKeyboardMap(), (Setting<Map<Button, Integer>> setting) -> {
+        settings.put(SettingIdentifiers.KEYBOARD_CONTROL_MAP, new Setting<>(SettingIdentifiers.KEYBOARD_CONTROL_MAP, Button.getKeyboardMap(), (Setting<HashMapWrapper<ButtonWrapper, IntegerWrapper>> setting) -> {
             for (Button button : Button.values()) {
                 if (ImGui.button(button.name(), 80, 20)) {
                     while(true) {
                         if (ImGui.isKeyDown(GLFW.GLFW_KEY_ESCAPE))
                             break;
-                        int keycode = Utils.getPressedKey();
-                        if (keycode != -1 && !setting.getValue().containsValue(keycode)) {
-                            setting.getValue().put(button, keycode);
+                        IntegerWrapper keycode = new IntegerWrapper(Utils.getPressedKey());
+                        if (keycode.unwrap() != -1 && !setting.getValue().containsValue(keycode)) {
+                            setting.getValue().put(new ButtonWrapper(button), keycode);
                             break;
                         }
 
                     }
                 }
                 ImGui.sameLine(120);
-                ImGui.text(Utils.getKeyName(setting.getValue().get(button)));
-
+                ImGui.text(Utils.getKeyName(setting.getValue().get(new ButtonWrapper(button)).unwrap()));
             }
         }));
     }
@@ -232,7 +232,7 @@ public class SettingsContainer {
             Properties prop = new Properties();
             prop.load(new FileReader(file));
             for (Setting<?> setting : settings.values())
-                setting.setSerializedValue(prop.getProperty(setting.getIdentifier().toString()));
+                setting.deserialize(prop.getProperty(setting.getIdentifier().toString()));
         } catch (IOException e) {
             e.printStackTrace();
             Console.getInstance().log(LogLevel.ERROR, "Error when saving settings : " + e.getMessage());
@@ -247,7 +247,7 @@ public class SettingsContainer {
         try {
             Properties prop = new Properties();
             for (Setting<?> setting : settings.values())
-                prop.put(setting.getIdentifier().toString(), setting.serializedValue());
+                prop.put(setting.getIdentifier().toString(), setting.serialize());
             prop.store(new FileWriter(file), null);
         } catch (IOException e) {
             e.printStackTrace();
@@ -277,9 +277,14 @@ public class SettingsContainer {
      * @param colors the colors to apply
      */
     public void applyPalette(int[] colors) {
-        gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_0))).setValue(new Color(colors[0])));
-        gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_1))).setValue(new Color(colors[1])));
-        gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_2))).setValue(new Color(colors[2])));
-        gameboy.propagateSetting(((Setting<Color>)(settings.get(SettingIdentifiers.DMG_PALETTE_3))).setValue(new Color(colors[3])));
+        ((ColorWrapper)settings.get(SettingIdentifiers.DMG_PALETTE_0).getValue()).wrap(new Color(colors[0]));
+        ((ColorWrapper)settings.get(SettingIdentifiers.DMG_PALETTE_1).getValue()).wrap(new Color(colors[0]));
+        ((ColorWrapper)settings.get(SettingIdentifiers.DMG_PALETTE_2).getValue()).wrap(new Color(colors[0]));
+        ((ColorWrapper)settings.get(SettingIdentifiers.DMG_PALETTE_3).getValue()).wrap(new Color(colors[0]));
+
+        gameboy.propagateSetting(settings.get(SettingIdentifiers.DMG_PALETTE_0));
+        gameboy.propagateSetting(settings.get(SettingIdentifiers.DMG_PALETTE_1));
+        gameboy.propagateSetting(settings.get(SettingIdentifiers.DMG_PALETTE_2));
+        gameboy.propagateSetting(settings.get(SettingIdentifiers.DMG_PALETTE_3));
     }
 }

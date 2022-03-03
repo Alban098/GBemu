@@ -8,6 +8,7 @@ import gbemu.settings.Button;
 import gbemu.core.input.InputState;
 import gbemu.core.ppu.PPU;
 import gbemu.extension.debug.DebuggerMode;
+import gbemu.settings.wrapper.ButtonWrapper;
 import glwrapper.SyncTimer;
 import gui.debug.*;
 import gui.std.Layer;
@@ -395,7 +396,7 @@ public class WindowThread {
      */
     private void handleInput() {
         for (Button button : Button.values()) {
-            if (glfwGetKey(window_ptr, Button.getKeyboardMap().get(button)) == GLFW_PRESS)
+            if (glfwGetKey(window_ptr, Button.getKeyboardMap().get(new ButtonWrapper(button)).unwrap()) == GLFW_PRESS)
                 gameboy.setButtonState(button, InputState.PRESSED);
             else
                 gameboy.setButtonState(button, InputState.RELEASED);
