@@ -32,18 +32,17 @@ public class SweepingSquareChannel extends SquareChannel {
             elapsed_sweep_time++;
         if (elapsed_sweep_time == sweep_time) {
             int sweepCorrection = sweep_decreasing ? -1 : 1;
-            int sweepChange = (current_freq >> sweep_shift) * sweepCorrection;
+            int sweepChange = (current_freq_raw >> sweep_shift) * sweepCorrection;
 
-            if (sweep_decreasing && sweepChange > current_freq)
+            if (sweep_decreasing && sweepChange > current_freq_raw)
                 elapsed_sweep_time = 0;
-            else if (!sweep_decreasing && sweepChange + current_freq > 2047)
+            else if (!sweep_decreasing && sweepChange + current_freq_raw > 2047)
                 running = false;
             else {
-                current_freq += sweepChange;
-                cycle_sample_update = (2048 - current_freq) >> 2;
+                current_freq_raw += sweepChange;
                 cycle_count = 0;
                 elapsed_sweep_time = 0;
-                setFrequency(current_freq);
+                setFrequency(current_freq_raw);
             }
         }
     }
@@ -52,6 +51,8 @@ public class SweepingSquareChannel extends SquareChannel {
         int frequency_data = memory.readByte(nrX4_register);
         memory.writeByte(nrX4_register, (frequency_data & 0xF8) | ((freq & 0x700) >> 8));
         memory.writeByte(nrX3_register, freq & 0xFF);
+        cycle_sample_update = (2048 - current_freq_raw) >> 2;
+        oscillator.frequency = 131072f/(2048 - current_freq_raw);
     }
 
     @Override

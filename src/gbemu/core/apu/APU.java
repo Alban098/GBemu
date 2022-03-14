@@ -2,11 +2,8 @@ package gbemu.core.apu;
 
 import gbemu.core.Flags;
 import gbemu.core.GameBoy;
-import gbemu.core.apu.channels.NoiseChannel;
-import gbemu.core.apu.channels.SweepingSquareChannel;
-import gbemu.core.apu.channels.WaveChannel;
+import gbemu.core.apu.channels.*;
 import gbemu.core.memory.MMU;
-import gbemu.core.apu.channels.SquareChannel;
 import gbemu.core.memory.IMMUListener;
 import gbemu.extension.debug.Debugger;
 import gbemu.extension.debug.DebuggerMode;
@@ -64,11 +61,11 @@ public class APU implements IMMUListener {
         debugger.link(debug_sample_queue);
     }
 
-    public void clock() {
+    public void clock(double time) {
         clockLength();
         clockEnvelope();
         clockSweep();
-        clockChannels();
+        clockChannels(time);
         clockSamples();
     }
 
@@ -122,9 +119,9 @@ public class APU implements IMMUListener {
         }
     }
 
-    private void clockChannels() {
-        square_1.clock();
-        square_2.clock();
+    private void clockChannels(double time) {
+        square_1.clock(time);
+        square_2.clock(time);
         wave.clock();
         noise.clock();
     }
@@ -208,4 +205,8 @@ public class APU implements IMMUListener {
         noise_rendered = enabled;
     }
 
+    public void setFilteringMode(PulseMode pulse_mode) {
+        square_1.setPulseMode(pulse_mode);
+        square_2.setPulseMode(pulse_mode);
+    }
 }

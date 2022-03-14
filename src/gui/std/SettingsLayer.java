@@ -92,6 +92,8 @@ public class SettingsLayer extends Layer {
                 ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("Audio Output Settings")) {
                     settings_container.getSetting(SettingIdentifiers.VOLUME).process();
+                    settings_container.getSetting(SettingIdentifiers.PULSE_MODE).process();
+                    settings_container.getSetting(SettingIdentifiers.PULSE_HARMONICS).process();
                     ImGui.treePop();
                 }
                 ImGui.separator();

@@ -3,11 +3,13 @@ package gbemu.settings;
 import console.Console;
 import console.LogLevel;
 import gbemu.core.GameBoy;
+import gbemu.core.apu.channels.PulseMode;
 import gbemu.settings.wrapper.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImBoolean;
+import imgui.type.ImInt;
 import imgui.type.ImString;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
@@ -194,6 +196,20 @@ public class SettingsContainer {
             ImBoolean tmp = new ImBoolean(setting.getValue().unwrap());
             if (ImGui.checkbox(setting.getIdentifier().getDescription(), tmp)) {
                 setting.getValue().wrap(tmp.get());
+                gameboy.propagateSetting(setting);
+            }
+        }));
+        settings.put(SettingIdentifiers.PULSE_HARMONICS, new Setting<>(SettingIdentifiers.PULSE_HARMONICS, new IntegerWrapper(10), (Setting<IntegerWrapper> setting) -> {
+            int[] tmp = {setting.getValue().unwrap()};
+            if (ImGui.sliderInt(setting.getIdentifier().getDescription(), tmp, 2, 30)) {
+                setting.getValue().wrap(tmp[0]);
+                gameboy.propagateSetting(setting);
+            }
+        }));
+        settings.put(SettingIdentifiers.PULSE_MODE, new Setting<>(SettingIdentifiers.PULSE_MODE, new PulseModeWrapper(PulseMode.RAW), (Setting<PulseModeWrapper> setting) -> {
+            ImInt tmp = new ImInt(setting.getValue().unwrap().ordinal());
+            if (ImGui.combo(setting.getIdentifier().getDescription(), tmp, PulseMode.names)) {
+                setting.getValue().wrap(PulseMode.get(tmp.get()));
                 gameboy.propagateSetting(setting);
             }
         }));

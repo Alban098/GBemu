@@ -4,6 +4,7 @@ import audio.AudioEngine;
 import console.Console;
 import console.LogLevel;
 import gbemu.core.apu.APU;
+import gbemu.core.apu.components.Oscillator;
 import gbemu.core.cartridge.mbc.MBC3;
 import gbemu.extension.cheats.CheatManager;
 import gbemu.core.cpu.LR35902;
@@ -214,7 +215,7 @@ public class GameBoy {
                         timer.clock();
                         if (half_exec_step) {
                             ppu.clock();
-                            apu.clock();
+                            apu.clock(1.0/mode.CYCLES_PER_SEC);
                             input_manager.clock();
                             cheat_manager.clock();
                         }
@@ -226,7 +227,7 @@ public class GameBoy {
                         opcode_mcycles = cpu.execute();
                         timer.clock();
                         ppu.clock();
-                        apu.clock();
+                        apu.clock(1.0/mode.CYCLES_PER_SEC);
                         input_manager.clock();
                         cheat_manager.clock();
                     }
@@ -359,6 +360,8 @@ public class GameBoy {
             case SQUARE_2_ENABLED -> apu.enableSquare2(((BooleanWrapper) setting.getValue()).unwrap());
             case WAVE_ENABLED -> apu.enableWave(((BooleanWrapper) setting.getValue()).unwrap());
             case NOISE_ENABLED -> apu.enableNoise(((BooleanWrapper) setting.getValue()).unwrap());
+            case PULSE_MODE -> apu.setFilteringMode(((PulseModeWrapper) setting.getValue()).unwrap());
+            case PULSE_HARMONICS -> Oscillator.setHarmonics(((IntegerWrapper)setting.getValue()).unwrap());
             case VOLUME -> audio_engine.setVolume(((FloatWrapper) setting.getValue()).unwrap());
         }
     }

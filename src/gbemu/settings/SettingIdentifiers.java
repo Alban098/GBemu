@@ -17,6 +17,8 @@ public enum SettingIdentifiers {
     SQUARE_2_ENABLED("Square Channel 2"),
     WAVE_ENABLED("Wave Channel"),
     NOISE_ENABLED("Noise Channel"),
+    PULSE_MODE("Square Channel Filtering"),
+    PULSE_HARMONICS("Filtering harmonics"),
     VOLUME("Volume"),
     BOOTSTRAP("Enable Bootstrap"),
     CHEAT_DATABASE("Cheats Database"),
