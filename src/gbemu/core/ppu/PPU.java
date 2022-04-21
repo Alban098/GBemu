@@ -114,6 +114,9 @@ public class PPU {
         }
     }
 
+    /**
+     * Execute a cycle when in LCDMode H_BLANK
+     */
     private void processHBlank() {
         //This may be reworked if LCDC.tileTable can be change mid scanline, but I don't think so ??
         if (cycles >= gameboy.mode.CYCLES_PER_HBLANK) {

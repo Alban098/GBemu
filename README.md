@@ -160,6 +160,7 @@ To launch the Emulator set the Main Class to ```Main.java```
   * [x] Keyboard support
   * [ ] Extended key range
   * [ ] Gamepad support
+* [ ] Add modular post-processing pipeline
 * [ ] Javadoc
 
 ---
