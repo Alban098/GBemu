@@ -599,6 +599,8 @@ public class LR35902 {
     }
 
     public int execute() {
+        if (next_instr == null)
+            return 1;
         if (!halted) {
             //Wait until opcode has finished execution
             if (opcode_mcycle-- < 1) {

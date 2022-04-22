@@ -9,10 +9,14 @@ import gbemu.core.input.InputState;
 import gbemu.core.ppu.PPU;
 import gbemu.extension.debug.DebuggerMode;
 import gbemu.settings.wrapper.ButtonWrapper;
+import glwrapper.Framebuffer;
+import glwrapper.Quad;
 import glwrapper.SyncTimer;
+import glwrapper.shader.ShaderProgram;
 import gui.debug.*;
 import gui.std.Layer;
 import gui.std.CheatsLayer;
+import gui.std.PostProcessingLayer;
 import gui.std.SettingsLayer;
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -29,6 +33,8 @@ import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
+import rendering.Renderer;
+import rendering.postprocessing.Filter;
 
 import java.io.File;
 import java.util.Objects;
@@ -43,6 +49,9 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  */
 public class WindowThread {
 
+    private static final int WINDOW_WIDTH = 480;
+    private static final int WINDOW_HEIGHT = 442;
+
     private final ImGuiImplGlfw imgui_glfw = new ImGuiImplGlfw();
     private final ImGuiImplGl3 imgui_gl3 = new ImGuiImplGl3();
 
@@ -55,10 +64,11 @@ public class WindowThread {
     private final DebugLayer ppu_layer;
     private final DebugLayer apu_layer;
     private final Layer settings_layer;
+    private final Layer postprocessingLayer;
     private final Layer cheats_layer;
 
-    private Texture screen_texture;
-
+    private Texture ppu_raw_output;
+    private final Renderer renderer;
     private final GameBoy gameboy;
     private ImPlotContext plot_ctx;
 
@@ -82,7 +92,7 @@ public class WindowThread {
      * @param gameboy the Game Boy to render
      * @param gameBoyThread the Thread running the Game Boy
      */
-    public WindowThread(GameBoy gameboy, GameBoyThread gameBoyThread) {
+    public WindowThread(GameBoy gameboy, GameBoyThread gameBoyThread) throws Exception {
         cpu_layer = new CPULayer(gameboy.getDebugger(), gameBoyThread);
         memory_layer = new MemoryLayer(gameboy.getDebugger());
         serial_output_layer = new SerialOutputLayer(gameboy.getDebugger());
@@ -97,6 +107,8 @@ public class WindowThread {
         this.gameboy_thread = gameBoyThread;
 
         init();
+        renderer = new Renderer(WINDOW_WIDTH, WINDOW_HEIGHT);
+        postprocessingLayer = new PostProcessingLayer(gameboy.getSettingsContainer(), renderer);
     }
 
     /**
@@ -107,8 +119,9 @@ public class WindowThread {
         initImGui();
         imgui_glfw.init(window_ptr, true);
         imgui_gl3.init(glsl_version);
-        screen_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
+        ppu_raw_output = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
         ((PPULayer) ppu_layer).initTextures();
+        Filter.init();
     }
 
     /**
@@ -117,8 +130,9 @@ public class WindowThread {
     public void destroy() {
         imgui_gl3.dispose();
         imgui_glfw.dispose();
-        screen_texture.cleanUp();
+        ppu_raw_output.cleanUp();
         ((PPULayer) ppu_layer).cleanUp();
+        renderer.cleanup();
         if (console_thread != null)
             console_thread.kill();
         if (debugger_thread != null)
@@ -151,7 +165,7 @@ public class WindowThread {
 
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-        window_ptr = glfwCreateWindow(160*3, 144*3+10, "GBemu", NULL, NULL);
+        window_ptr = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "GBemu", NULL, NULL);
 
         if (window_ptr == NULL) {
             System.exit(-1);
@@ -237,55 +251,31 @@ public class WindowThread {
             ((PPULayer) ppu_layer).setCgbMode(gameboy.mode == GameBoy.Mode.CGB);
             ppu_layer.render();
         }
-
         if (apu_layer.isVisible())
             apu_layer.render();
-
         if (cpu_layer.isVisible())
             cpu_layer.render();
-
         if (memory_layer.isVisible())
             memory_layer.render();
-
         if (serial_output_layer.isVisible())
             serial_output_layer.render();
-
         if (console_layer.isVisible())
             console_layer.render();
-
         if (settings_layer.isVisible())
             settings_layer.render();
-
         if (cheats_layer.isVisible())
             cheats_layer.render();
+        if (postprocessingLayer.isVisible())
+            postprocessingLayer.render();
     }
 
     /**
      * Render the emulation screen
      */
     private void renderGameScreen() {
-        //Load the buffer to the texture
         if (gameboy.getPpu().isScreenUpdated())
-            screen_texture.load(gameboy.getPpu().getScreenBuffer());
-
-        //Bind the texture
-        glEnable(GL_TEXTURE_2D);
-        screen_texture.bind();
-
-        glLoadIdentity();
-
-        //Create the main QUAD
-        glBegin(GL_QUADS);
-        glTexCoord2f(0, 1); glVertex2f(-1,-1);
-        glTexCoord2f(0, 0); glVertex2f(-1,1);
-        glTexCoord2f(1, 0); glVertex2f(1,1);
-        glTexCoord2f(1, 1); glVertex2f(1,-1);
-
-        //Cleanup the texture
-        glDisable(GL_TEXTURE_2D);
-        screen_texture.unbind();
-
-        glEnd();
+            renderer.loadRawTextureInput(gameboy.getPpu().getScreenBuffer());
+        renderer.render();
     }
 
     /**
@@ -383,6 +373,10 @@ public class WindowThread {
 
         if (ImGui.beginMenu("Settings")) {
             settings_layer.setVisible(!settings_layer.isVisible());
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("Post-processing")) {
+            postprocessingLayer.setVisible(!postprocessingLayer.isVisible());
             ImGui.endMenu();
         }
         if (ImGui.beginMenu("Cheats")) {
