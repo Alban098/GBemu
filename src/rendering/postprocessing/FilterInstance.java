@@ -32,5 +32,7 @@ public class FilterInstance {
     public Parameter<?>[] getParameters() {
         return parameters;
     }
+
+
 }
 

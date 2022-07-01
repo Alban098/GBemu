@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<pipeline>
+    <filter fragmentFile="shaders/filters/myFragment.glsl" name="Demo Filter" vertexFile="shaders/myVertex.glsl">
+        <parameters>
+            <parameter name="demo_float" type="FLOAT">6.0</parameter>
+            <parameter name="demo_mat" type="MAT3">0.0;1.0;2.0;3.0;4.0;5.0;6.0;7.0;8.0</parameter>
+            <parameter name="demo_int" type="INTEGER">6</parameter>
+            <parameter name="demo_vec" type="VEC3">0.0;1.0;2.0</parameter>
+        </parameters>
+    </filter>
+</pipeline>

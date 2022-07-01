@@ -2,17 +2,25 @@ package gbemu.core.cpu;
 
 import gbemu.core.Flags;
 import gbemu.core.GameBoy;
+import gbemu.core.apu.APU;
+import gbemu.core.apu.components.Oscillator;
+import gbemu.core.cartridge.mbc.MBC3;
 import gbemu.core.memory.MMU;
 import gbemu.core.cpu.register.RegisterByte;
 import gbemu.core.cpu.register.RegisterWord;
+import gbemu.core.ppu.helper.ColorShade;
 import gbemu.extension.debug.Debugger;
 import gbemu.extension.debug.DebuggerMode;
+import gbemu.settings.Setting;
+import gbemu.settings.SettingIdentifiers;
+import gbemu.settings.SettingsContainerListener;
+import gbemu.settings.wrapper.*;
 
 import java.util.*;
 
 import static gbemu.core.BitUtils.*;
 
-public class LR35902 {
+public class LR35902 implements SettingsContainerListener {
 
     public final List<Instruction> opcodes;
     public final List<Instruction> cb_opcodes;
@@ -4132,7 +4140,10 @@ public class LR35902 {
         return 8;
     }
 
-    public void enableBootstrap(boolean enabled) {
-        this.bootstrap_enabled = enabled;
+    @Override
+    public synchronized void propagateSetting(Setting<?> setting) {
+        if (setting.getIdentifier() == SettingIdentifiers.BOOTSTRAP) {
+            this.bootstrap_enabled = ((BooleanWrapper) setting.getValue()).unwrap();
+        }
     }
 }

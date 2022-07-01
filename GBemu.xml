@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<settings>
+    <setting entry="dmg_palette_3">-16246752</setting>
+    <setting entry="gamma">2.0</setting>
+    <setting entry="volume">1.0</setting>
+    <setting entry="pulse_harmonics">10</setting>
+    <setting entry="bootstrap">false</setting>
+    <setting entry="dmg_palette_1">-7815056</setting>
+    <setting entry="noise_enabled">true</setting>
+    <setting entry="dmg_bootrom">DMG.bin</setting>
+    <setting entry="cgb_bootrom">CGB.bin</setting>
+    <setting entry="square_2_enabled">true</setting>
+    <setting entry="pulse_mode">RAW</setting>
+    <setting entry="keyboard_control_map">{RIGHT;68}{A;73}{START;75}{SELECT;76}{LEFT;65}{DOWN;83}{B;79}{UP;87}</setting>
+    <setting entry="rtc">false</setting>
+    <setting entry="dmg_palette_0">-2033456</setting>
+    <setting entry="speed">1</setting>
+    <setting entry="square_1_enabled">true</setting>
+    <setting entry="wave_enabled">true</setting>
+    <setting entry="cheat_database">gameshark.cht</setting>
+    <setting entry="dmg_palette_2">-13346714</setting>
+</settings>

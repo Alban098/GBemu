@@ -20,7 +20,7 @@ public class GBemu {
      */
     public GBemu(String config_file) throws Exception {
         GameBoy gameboy = new GameBoy(config_file);
-        audio_engine = new AudioEngine(gameboy);
+        audio_engine = new AudioEngine(gameboy, gameboy.getSettingsContainer());
         gameboy_thread = new GameBoyThread(gameboy);
         window_thread = new WindowThread(gameboy, gameboy_thread);
         gameboy.loadSettings();

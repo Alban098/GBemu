@@ -2,15 +2,22 @@ package gbemu.core.memory;
 
 import gbemu.core.Flags;
 import gbemu.core.GameBoy;
+import gbemu.core.apu.APU;
+import gbemu.core.apu.components.Oscillator;
 import gbemu.core.cartridge.Cartridge;
+import gbemu.core.cartridge.mbc.MBC3;
 import gbemu.core.ppu.LCDMode;
+import gbemu.core.ppu.helper.ColorShade;
 import gbemu.extension.debug.Debugger;
+import gbemu.settings.Setting;
+import gbemu.settings.SettingsContainerListener;
+import gbemu.settings.wrapper.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class MMU {
+public class MMU implements SettingsContainerListener {
     public static final int P1                  = 0xFF00;
     public static final int SB                  = 0xFF01;
     public static final int SC                  = 0xFF02;
@@ -411,7 +418,7 @@ public class MMU {
         return 0x00;
     }
 
-    public void loadBootstrap(GameBoy.Mode mode, String file) {
+    private void loadBootstrap(GameBoy.Mode mode, String file) {
         bootstrap.loadBootstrap(mode, file);
     }
 
@@ -471,5 +478,13 @@ public class MMU {
         if (cartridge != null)
             return cartridge.getGameId();
         return "";
+    }
+
+    @Override
+    public synchronized void propagateSetting(Setting<?> setting) {
+        switch (setting.getIdentifier()) {
+            case DMG_BOOTROM -> loadBootstrap(GameBoy.Mode.DMG, ((StringWrapper)setting.getValue()).unwrap());
+            case CGB_BOOTROM -> loadBootstrap(GameBoy.Mode.CGB, ((StringWrapper)setting.getValue()).unwrap());
+        }
     }
 }

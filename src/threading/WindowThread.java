@@ -107,8 +107,8 @@ public class WindowThread {
         this.gameboy_thread = gameBoyThread;
 
         init();
-        renderer = new Renderer(WINDOW_WIDTH, WINDOW_HEIGHT);
-        postprocessingLayer = new PostProcessingLayer(gameboy.getSettingsContainer(), renderer);
+        renderer = new Renderer(WINDOW_WIDTH, WINDOW_HEIGHT, gameboy.getSettingsContainer());
+        postprocessingLayer = new PostProcessingLayer(renderer);
     }
 
     /**

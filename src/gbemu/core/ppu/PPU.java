@@ -3,10 +3,16 @@ package gbemu.core.ppu;
 import gbemu.core.BitUtils;
 import gbemu.core.Flags;
 import gbemu.core.GameBoy;
+import gbemu.core.apu.APU;
+import gbemu.core.apu.components.Oscillator;
+import gbemu.core.cartridge.mbc.MBC3;
 import gbemu.core.memory.MMU;
 import gbemu.core.ppu.helper.ColorPalettes;
 import gbemu.core.ppu.helper.ColorShade;
 import gbemu.core.ppu.helper.Sprite;
+import gbemu.settings.Setting;
+import gbemu.settings.SettingsContainerListener;
+import gbemu.settings.wrapper.*;
 import glwrapper.SwappingByteBuffer;
 
 import java.awt.*;
@@ -18,7 +24,7 @@ import static gbemu.core.BitUtils.signedByte;
 /**
  * This class represents the PPU, it handles everything relative to screen rendering
  */
-public class PPU {
+public class PPU implements SettingsContainerListener {
 
     public static final int SCREEN_WIDTH = 160;
     public static final int SCREEN_HEIGHT = 144;
@@ -559,7 +565,7 @@ public class PPU {
         return !result;
     }
 
-    public void setGamma(float gamma) {
+    private void setGamma(float gamma) {
         palettes.setGamma(gamma);
     }
 
@@ -620,5 +626,16 @@ public class PPU {
             }
         }
         buffer.flip();
+    }
+
+    @Override
+    public synchronized void propagateSetting(Setting<?> setting) {
+        switch (setting.getIdentifier()) {
+            case DMG_PALETTE_0 -> ColorShade.WHITE.setColor(((ColorWrapper)setting.getValue()).unwrap());
+            case DMG_PALETTE_1 -> ColorShade.LIGHT_GRAY.setColor(((ColorWrapper)setting.getValue()).unwrap());
+            case DMG_PALETTE_2 -> ColorShade.DARK_GRAY.setColor(((ColorWrapper) setting.getValue()).unwrap());
+            case DMG_PALETTE_3 -> ColorShade.BLACK.setColor(((ColorWrapper)setting.getValue()).unwrap());
+            case GAMMA -> setGamma(((FloatWrapper) setting.getValue()).unwrap());
+        }
     }
 }

@@ -3,12 +3,18 @@ package rendering.postprocessing;
 import console.Console;
 import console.LogLevel;
 import gbemu.core.ppu.PPU;
+import gbemu.settings.Setting;
+import gbemu.settings.SettingIdentifiers;
+import gbemu.settings.SettingsContainer;
+import gbemu.settings.SettingsContainerListener;
+import gbemu.settings.wrapper.StringWrapper;
 import glwrapper.Framebuffer;
 import glwrapper.Quad;
 import glwrapper.Texture;
 import glwrapper.shader.ShaderProgram;
 import glwrapper.shader.uniform.*;
 import org.joml.*;
+import rendering.Direction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,29 +24,36 @@ import java.util.Map;
 /**
  * This class represents a post-processing pipeline that can process an input texture
  */
-public class Pipeline {
+public class Pipeline implements SettingsContainerListener {
 
     private final Map<Filter, ShaderProgram> shaders;
     private final List<FilterInstance> applied_filters;
+    private final List<FilterInstance> requested_filters;
     private final ShaderProgram default_shader;
-
     private boolean fbo_latch = false;
     private final Quad quad;
     private final Framebuffer fbo1;
     private final Framebuffer fbo2;
+    private final SettingsContainer settingsContainer;
+
+    private final PipelineSerializer serializer;
 
     private volatile boolean locked = false;
 
     /**
      * Create a new pipeline
      *
-     * @param quad the quad where we will render the textures
+     * @param quad              the quad where we will render the textures
+     * @param settingsContainer
      */
-    public Pipeline(Quad quad) throws Exception {
+    public Pipeline(Quad quad, SettingsContainer settingsContainer) throws Exception {
         this.quad = quad;
         this.fbo1 = new Framebuffer(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
         this.fbo2 = new Framebuffer(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
         applied_filters = new ArrayList<>();
+        requested_filters = new ArrayList<>();
+        this.settingsContainer = settingsContainer;
+        this.serializer = new PipelineSerializer();
         shaders = new HashMap<>();
         default_shader = new ShaderProgram("shaders/vertex.glsl", "shaders/filters/no_filter.glsl");
         try {
@@ -51,6 +64,7 @@ public class Pipeline {
             Console.getInstance().log(LogLevel.ERROR, e.getMessage());
             e.printStackTrace();
         }
+        this.settingsContainer.addListener(this);
     }
 
     /**
@@ -59,14 +73,16 @@ public class Pipeline {
      * @param texture the texture we want to apply the filters to
      */
     public void postProcess(Texture texture) {
-        //If the pipeline has been modified, we lock the buffer and recompile the pipeline
+        //If the pipeline has filters and is unlocked, we lock the buffer apply the pipeline
         //We apply each step of the pipeline
-        if (applied_filters.size() > 0) {
+        if (applied_filters.size() > 0 && !locked) {
+            locked = true;
             int pass = 0;
             for (FilterInstance filterInstance : applied_filters) {
                 applyFilter(filterInstance.getFilter(), filterInstance.getParameters(), pass == 0 ? texture : null);
                 pass++;
             }
+            locked = false;
         } else {
             Framebuffer dst;
             if (fbo_latch)
@@ -148,5 +164,68 @@ public class Pipeline {
         locked = true;
         applied_filters.add(filter);
         locked = false;
+    }
+
+    public void applyFilterOrder() {
+        while (locked) Thread.onSpinWait();
+        locked = true;
+        if (!requested_filters.isEmpty()) {
+            applied_filters.clear();
+            applied_filters.addAll(requested_filters);
+            requested_filters.clear();
+        }
+        locked = false;
+    }
+
+    public void moveFilter(FilterInstance filter, Direction direction) {
+        while (locked) Thread.onSpinWait();
+        locked = true;
+        if (requested_filters.isEmpty()) {
+            requested_filters.addAll(applied_filters);
+        }
+        int index = requested_filters.indexOf(filter);
+        switch (direction) {
+            case UP -> {
+                if (index < 1) {
+                    break;
+                }
+                FilterInstance other = requested_filters.get(index - 1);
+                requested_filters.set(index - 1, filter);
+                requested_filters.set(index, other);
+            }
+            case DOWN -> {
+                if (index >= requested_filters.size() - 1) {
+                    break;
+                }
+                FilterInstance other = requested_filters.get(index + 1);
+                requested_filters.set(index, other);
+                requested_filters.set(index + 1, filter);
+            }
+        }
+        locked = false;
+    }
+
+    public void clearFilters() {
+        while (locked) Thread.onSpinWait();
+        locked = true;
+        applied_filters.clear();
+        requested_filters.clear();
+        locked = false;
+    }
+
+    @Override
+    public void propagateSetting(Setting<?> setting) {
+        if (setting.getIdentifier() == SettingIdentifiers.FILTER_SETTINGS) {
+            serializer.deserializePipeline(this, ((StringWrapper)setting.getValue()).unwrap());
+        }
+    }
+
+    public void load() {
+        String path = ((StringWrapper)settingsContainer.getSetting(SettingIdentifiers.FILTER_SETTINGS).getValue()).unwrap();
+        serializer.deserializePipeline(this, path);
+    }
+    public void save() {
+        String path = ((StringWrapper)settingsContainer.getSetting(SettingIdentifiers.FILTER_SETTINGS).getValue()).unwrap();
+        serializer.serializePipeline(this, path);
     }
 }

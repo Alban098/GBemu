@@ -72,6 +72,12 @@ public class SettingsLayer extends Layer {
                 }
                 ImGui.separator();
                 ImGui.setNextItemOpen(true);
+                if (ImGui.treeNode("Filters")) {
+                    settings_container.getSetting(SettingIdentifiers.FILTER_SETTINGS).process();
+                    ImGui.treePop();
+                }
+                ImGui.separator();
+                ImGui.setNextItemOpen(true);
                 if (ImGui.treeNode("DMG Palette")) {
                     ImGui.combo(" ", palette, palette_combo);
                     ImGui.sameLine();

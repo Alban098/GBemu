@@ -1,16 +1,16 @@
 package rendering;
 
 import gbemu.core.ppu.PPU;
+import gbemu.settings.SettingsContainer;
 import glwrapper.Framebuffer;
 import glwrapper.Quad;
 import glwrapper.Texture;
 import glwrapper.shader.ShaderProgram;
-import rendering.postprocessing.Filter;
 import rendering.postprocessing.FilterInstance;
 import rendering.postprocessing.Pipeline;
+import rendering.postprocessing.PipelineSerializer;
+
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class Renderer {
@@ -22,13 +22,14 @@ public class Renderer {
     private final ShaderProgram default_shader;
     private final ShaderProgram screen_shader;
 
-    public Renderer(int width, int height) throws Exception {
+    public Renderer(int width, int height, SettingsContainer settingsContainer) throws Exception {
         framebuffer = new Framebuffer(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
         screen_quad = new Quad(width, height);
         default_shader = new ShaderProgram("shaders/vertex.glsl", "shaders/filters/no_filter.glsl");
         screen_shader = new ShaderProgram("shaders/v_flip_vertex.glsl", "shaders/filters/no_filter.glsl");
         input_texture = new Texture(PPU.SCREEN_WIDTH, PPU.SCREEN_HEIGHT);
-        pipeline = new Pipeline(screen_quad);
+        pipeline = new Pipeline(screen_quad, settingsContainer);
+        pipeline.load();
     }
 
     public void render() {
@@ -52,11 +53,23 @@ public class Renderer {
         return pipeline.getSteps();
     }
 
+    public void moveFilter(FilterInstance filter, Direction direction) {
+        pipeline.moveFilter(filter, direction);
+    }
+
     public void delete(FilterInstance filter) {
         pipeline.delete(filter);
     }
 
     public void add(FilterInstance filter) {
         pipeline.add(filter);
+    }
+
+    public void commitFilters() {
+        pipeline.applyFilterOrder();
+    }
+
+    public void savePipeline() {
+        pipeline.save();
     }
 }

@@ -18,6 +18,16 @@ import java.util.*;
 public class Filter {
 
     private static final Map<String, Filter> FILTERS = new HashMap<>();
+    private static final String FILTERS_FILE = "filters.xml";
+    private static final String FILTERS_NODE = "filters";
+    private static final String FILTER_NODE = "filter";
+    private static final String NAME_NODE = "name";
+    private static final String TYPE_NODE = "type";
+    private static final String VERTEX_NODE = "vertex";
+    private static final String FRAGMENT_NODE = "fragment";
+    private static final String DESCRIPTION_NODE = "description";
+    private static final String UNIFORM_NODE = "uniforms";
+    private static final String DEFAULT_ATTRIB = "default";
 
     private final String name;
     final String vertexFile;
@@ -41,6 +51,14 @@ public class Filter {
 
     public static Filter get(String filter_name) {
         return FILTERS.get(filter_name);
+    }
+
+    public static Filter get(String name, String vertexFile, String fragmentFile) {
+        Filter filter = get(name);
+        if (filter.vertexFile.equals(vertexFile) && filter.fragmentFile.equals(fragmentFile)) {
+            return filter;
+        }
+        return null;
     }
 
     public Uniform getUniform(String name) {
@@ -85,72 +103,121 @@ public class Filter {
     public static void init() {
         try {
             DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-            File fileXML = new File("filters.xml");
+            File fileXML = new File(FILTERS_FILE);
             Document xml;
             xml = builder.parse(fileXML);
-            Element filtersList = (Element) xml.getElementsByTagName("filters").item(0);
+            Element filtersList = (Element) xml.getElementsByTagName(FILTERS_NODE).item(0);
             if (filtersList == null)
                 throw new IOException("filters.xml file corrupted (filters node not found)");
-            NodeList filters = filtersList.getElementsByTagName("filter");
+            NodeList filters = filtersList.getElementsByTagName(FILTER_NODE);
 
             for (int i = 0; i < filters.getLength(); i++) {
                 Element filter = (Element) filters.item(i);
-                Element name = (Element)filter.getElementsByTagName("name").item(0);
-                Element vertex = (Element)filter.getElementsByTagName("vertex").item(0);
-                Element fragment = (Element)filter.getElementsByTagName("fragment").item(0);
-                Element desc = (Element)filter.getElementsByTagName("description").item(0);
-                NodeList uniforms = ((Element)filter.getElementsByTagName("uniforms").item(0)).getElementsByTagName("uniform");
-                Uniform[] tmp = new Uniform[uniforms.getLength()];
-                for (int j = 0; j < uniforms.getLength(); j++) {
-                    Element e = (Element) uniforms.item(j);
-                    switch (e.getAttribute("type")) {
-                        case "float" -> tmp[j] = new UniformFloat(e.getAttribute("name").replaceAll(" ", "_"), Float.parseFloat(e.getAttribute("default")));
-                        case "bool" -> tmp[j] = new UniformBoolean(e.getAttribute("name").replaceAll(" ", "_"), Boolean.parseBoolean(e.getAttribute("default")));
-                        case "int" -> tmp[j] = new UniformInteger(e.getAttribute("name").replaceAll(" ", "_"), Integer.parseInt(e.getAttribute("default")));
-                        case "mat2" -> {
-                            String[] defMat2 = e.getAttribute("default").replaceAll(" ", "").split(";");
-                            if (defMat2.length != 4)
-                                throw new Exception("Invalid default value size (mat2 must be 4 float)");
-                            Matrix2f mat2 = new Matrix2f(Integer.parseInt(defMat2[0]), Integer.parseInt(defMat2[1]), Integer.parseInt(defMat2[2]), Integer.parseInt(defMat2[3]));
-                            tmp[j] = new UniformMat2(e.getAttribute("name").replaceAll(" ", "_"), mat2);
+                Element name = (Element)filter.getElementsByTagName(NAME_NODE).item(0);
+                Element vertex = (Element)filter.getElementsByTagName(VERTEX_NODE).item(0);
+                Element fragment = (Element)filter.getElementsByTagName(FRAGMENT_NODE).item(0);
+                Element desc = (Element)filter.getElementsByTagName(DESCRIPTION_NODE).item(0);
+                Uniform[] tmp;
+                if (filter.getElementsByTagName(UNIFORM_NODE).getLength() > 0) {
+                    NodeList uniforms = ((Element) filter.getElementsByTagName(UNIFORM_NODE).item(0)).getElementsByTagName("uniform");
+                    tmp = new Uniform[uniforms.getLength()];
+                    for (int j = 0; j < uniforms.getLength(); j++) {
+                        Element e = (Element) uniforms.item(j);
+                        switch (e.getAttribute(TYPE_NODE)) {
+                            case "float" -> tmp[j] = new UniformFloat(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), Float.parseFloat(e.getAttribute(DEFAULT_ATTRIB)));
+                            case "bool" -> tmp[j] = new UniformBoolean(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), Boolean.parseBoolean(e.getAttribute(DEFAULT_ATTRIB)));
+                            case "int" -> tmp[j] = new UniformInteger(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), Integer.parseInt(e.getAttribute(DEFAULT_ATTRIB)));
+                            case "mat2" -> {
+                                String[] defMat2 = e.getAttribute(DEFAULT_ATTRIB).replaceAll(" ", "").split(";");
+                                if (defMat2.length != 4)
+                                    throw new Exception("Invalid default value size (mat2 must be 4 float)");
+                                Matrix2f mat2 = new Matrix2f(
+                                        Float.parseFloat(defMat2[0]),
+                                        Float.parseFloat(defMat2[1]),
+                                        Float.parseFloat(defMat2[2]),
+                                        Float.parseFloat(defMat2[3])
+                                );
+                                tmp[j] = new UniformMat2(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), mat2);
+                            }
+                            case "mat3" -> {
+                                String[] defMat3 = e.getAttribute(DEFAULT_ATTRIB).replaceAll(" ", "").split(";");
+                                if (defMat3.length != 9)
+                                    throw new Exception("Invalid default value size (mat3 must be 9 float)");
+                                Matrix3f mat3 = new Matrix3f(
+                                        Float.parseFloat(defMat3[0]),
+                                        Float.parseFloat(defMat3[1]),
+                                        Float.parseFloat(defMat3[2]),
+                                        Float.parseFloat(defMat3[3]),
+                                        Float.parseFloat(defMat3[4]),
+                                        Float.parseFloat(defMat3[5]),
+                                        Float.parseFloat(defMat3[6]),
+                                        Float.parseFloat(defMat3[7]),
+                                        Float.parseFloat(defMat3[8])
+                                );
+                                tmp[j] = new UniformMat3(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), mat3);
+                            }
+                            case "mat4" -> {
+                                String[] defMat4 = e.getAttribute(DEFAULT_ATTRIB).replaceAll(" ", "").split(";");
+                                if (defMat4.length != 16)
+                                    throw new Exception("Invalid default value size (mat4 must be 16 float)");
+                                Matrix4f mat4 = new Matrix4f(
+                                        Float.parseFloat(defMat4[0]),
+                                        Float.parseFloat(defMat4[1]),
+                                        Float.parseFloat(defMat4[2]),
+                                        Float.parseFloat(defMat4[3]),
+                                        Float.parseFloat(defMat4[4]),
+                                        Float.parseFloat(defMat4[5]),
+                                        Float.parseFloat(defMat4[6]),
+                                        Float.parseFloat(defMat4[7]),
+                                        Float.parseFloat(defMat4[8]),
+                                        Float.parseFloat(defMat4[9]),
+                                        Float.parseFloat(defMat4[10]),
+                                        Float.parseFloat(defMat4[11]),
+                                        Float.parseFloat(defMat4[12]),
+                                        Float.parseFloat(defMat4[13]),
+                                        Float.parseFloat(defMat4[14]),
+                                        Float.parseFloat(defMat4[15])
+                                );
+                                tmp[j] = new UniformMat4(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), mat4);
+                            }
+                            case "vec2" -> {
+                                String[] defVec2 = e.getAttribute(DEFAULT_ATTRIB).replaceAll(" ", "").split(";");
+                                if (defVec2.length != 2)
+                                    throw new Exception("Invalid default value size (vec2 must be 2 float)");
+                                Vector2f vec2 = new Vector2f(
+                                        Float.parseFloat(defVec2[0]),
+                                        Float.parseFloat(defVec2[1])
+                                );
+                                tmp[j] = new UniformVec2(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), vec2);
+                            }
+                            case "vec3" -> {
+                                String[] defVec3 = e.getAttribute(DEFAULT_ATTRIB).replaceAll(" ", "").split(";");
+                                if (defVec3.length != 3)
+                                    throw new Exception("Invalid default value size (vec3 must be 3 float)");
+                                Vector3f vec3 = new Vector3f(
+                                        Float.parseFloat(defVec3[0]),
+                                        Float.parseFloat(defVec3[1]),
+                                        Float.parseFloat(defVec3[2])
+                                );
+                                tmp[j] = new UniformVec3(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), vec3);
+                            }
+                            case "vec4" -> {
+                                String[] defVec4 = e.getAttribute(DEFAULT_ATTRIB).replaceAll(" ", "").split(";");
+                                if (defVec4.length != 4)
+                                    throw new Exception("Invalid default value size (vec4 must be 4 float)");
+                                Vector4f vec4 = new Vector4f(
+                                        Float.parseFloat(defVec4[0]),
+                                        Float.parseFloat(defVec4[1]),
+                                        Float.parseFloat(defVec4[2]),
+                                        Float.parseFloat(defVec4[3])
+                                );
+                                tmp[j] = new UniformVec4(e.getAttribute(NAME_NODE).replaceAll(" ", "_"), vec4);
+                            }
+                            default -> throw new Exception("Invalid uniform type : " + e.getNodeName());
                         }
-                        case "mat3" -> {
-                            String[] defMat3 = e.getAttribute("default").replaceAll(" ", "").split(";");
-                            if (defMat3.length != 9)
-                                throw new Exception("Invalid default value size (mat3 must be 9 float)");
-                            Matrix3f mat3 = new Matrix3f(Integer.parseInt(defMat3[0]), Integer.parseInt(defMat3[1]), Integer.parseInt(defMat3[2]), Integer.parseInt(defMat3[3]), Integer.parseInt(defMat3[4]), Integer.parseInt(defMat3[5]), Integer.parseInt(defMat3[6]), Integer.parseInt(defMat3[7]), Integer.parseInt(defMat3[8]));
-                            tmp[j] = new UniformMat3(e.getAttribute("name").replaceAll(" ", "_"), mat3);
-                        }
-                        case "mat4" -> {
-                            String[] defMat4 = e.getAttribute("default").replaceAll(" ", "").split(";");
-                            if (defMat4.length != 16)
-                                throw new Exception("Invalid default value size (mat4 must be 16 float)");
-                            Matrix4f mat4 = new Matrix4f(Integer.parseInt(defMat4[0]), Integer.parseInt(defMat4[1]), Integer.parseInt(defMat4[2]), Integer.parseInt(defMat4[3]), Integer.parseInt(defMat4[4]), Integer.parseInt(defMat4[5]), Integer.parseInt(defMat4[6]), Integer.parseInt(defMat4[7]), Integer.parseInt(defMat4[8]), Integer.parseInt(defMat4[9]), Integer.parseInt(defMat4[10]), Integer.parseInt(defMat4[11]), Integer.parseInt(defMat4[12]), Integer.parseInt(defMat4[13]), Integer.parseInt(defMat4[14]), Integer.parseInt(defMat4[15]));
-                            tmp[j] = new UniformMat4(e.getAttribute("name").replaceAll(" ", "_"), mat4);
-                        }
-                        case "vec2" -> {
-                            String[] defVec2 = e.getAttribute("default").replaceAll(" ", "").split(";");
-                            if (defVec2.length != 2)
-                                throw new Exception("Invalid default value size (vec2 must be 2 float)");
-                            Vector2f vec2 = new Vector2f(Integer.parseInt(defVec2[0]), Integer.parseInt(defVec2[1]));
-                            tmp[j] = new UniformVec2(e.getAttribute("name").replaceAll(" ", "_"), vec2);
-                        }
-                        case "vec3" -> {
-                            String[] defVec3 = e.getAttribute("default").replaceAll(" ", "").split(";");
-                            if (defVec3.length != 3)
-                                throw new Exception("Invalid default value size (vec3 must be 3 float)");
-                            Vector3f vec3 = new Vector3f(Integer.parseInt(defVec3[0]), Integer.parseInt(defVec3[1]), Integer.parseInt(defVec3[2]));
-                            tmp[j] = new UniformVec3(e.getAttribute("name").replaceAll(" ", "_"), vec3);
-                        }
-                        case "vec4" -> {
-                            String[] defVec4 = e.getAttribute("default").replaceAll(" ", "").split(";");
-                            if (defVec4.length != 4)
-                                throw new Exception("Invalid default value size (vec4 must be 4 float)");
-                            Vector4f vec4 = new Vector4f(Integer.parseInt(defVec4[0]), Integer.parseInt(defVec4[1]), Integer.parseInt(defVec4[2]), Integer.parseInt(defVec4[3]));
-                            tmp[j] = new UniformVec4(e.getAttribute("name").replaceAll(" ", "_"), vec4);
-                        }
-                        default -> throw new Exception("Invalid uniform type : " + e.getNodeName());
                     }
+                } else {
+                    tmp = new Uniform[0];
                 }
                 register(new Filter(name.getTextContent(), vertex.getTextContent(), fragment.getTextContent(), desc.getTextContent(), tmp));
             }
@@ -162,5 +229,22 @@ public class Filter {
 
     public static boolean register(Filter filter) {
         return FILTERS.put(filter.name, filter) != null;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public boolean hasParameters() {
+        return uniforms.size() > 0;
+    }
+
+    public boolean hasParameter(Parameter<?> param) {
+        for (Map.Entry<String, Uniform> entry : uniforms.entrySet()) {
+            if (param.type.getUniformClass().isInstance(entry.getValue())) {
+                return param.name.equals(entry.getKey());
+            }
+        }
+        return false;
     }
 }
