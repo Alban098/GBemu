@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<pipeline>
+    <filter fragmentFile="shaders/filters/myFragment.glsl" name="Demo Filter" vertexFile="shaders/myVertex.glsl">
+        <parameters>
+            <parameter name="demo_float" type="FLOAT">6.0</parameter>
+            <parameter name="demo_mat" type="MAT3">0.0;1.0;2.0;3.0;4.0;8.0;6.0;7.0;8.0</parameter>
+            <parameter name="demo_int" type="INTEGER">6</parameter>
+            <parameter name="demo_vec" type="VEC3">0.0;1.0;2.0</parameter>
+            <parameter name="demo_bool" type="BOOLEAN">true</parameter>
+        </parameters>
+    </filter>
+    <filter fragmentFile="shaders/filters/no_filter.glsl" name="Horizontal Flip" vertexFile="shaders/h_flip_vertex.glsl"/>
+    <filter fragmentFile="shaders/filters/fish_eye.glsl" name="Fish Eye" vertexFile="shaders/vertex.glsl">
+        <parameters>
+            <parameter name="strength" type="FLOAT">1.5</parameter>
+        </parameters>
+    </filter>
+    <filter fragmentFile="shaders/filters/no_filter.glsl" name="Vertical Flip" vertexFile="shaders/v_flip_vertex.glsl"/>
+    <filter fragmentFile="shaders/filters/gaussian_vertical.glsl" name="Vertical Gaussian Blur" vertexFile="shaders/vertex.glsl"/>
+</pipeline>

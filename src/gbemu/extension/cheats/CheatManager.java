@@ -3,7 +3,15 @@ package gbemu.extension.cheats;
 import console.Console;
 import console.LogLevel;
 import gbemu.core.GameBoy;
+import gbemu.core.apu.APU;
+import gbemu.core.apu.components.Oscillator;
+import gbemu.core.cartridge.mbc.MBC3;
 import gbemu.core.ppu.LCDMode;
+import gbemu.core.ppu.helper.ColorShade;
+import gbemu.settings.Setting;
+import gbemu.settings.SettingIdentifiers;
+import gbemu.settings.SettingsContainerListener;
+import gbemu.settings.wrapper.*;
 import org.w3c.dom.*;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -21,7 +29,7 @@ import java.util.Map;
  * This class is responsible for managing GameShark cheats
  * it can load them from, and save them to a file
  */
-public class CheatManager {
+public class CheatManager implements SettingsContainerListener {
 
     private final Map<String, List<GameSharkCode>> cheats;
     private final GameBoy gameboy;
@@ -169,5 +177,12 @@ public class CheatManager {
      */
     public void removeCheat(String game_id, GameSharkCode cheat) {
         cheats.get(game_id).remove(cheat);
+    }
+
+    @Override
+    public synchronized void propagateSetting(Setting<?> setting) {
+        if (setting.getIdentifier() == SettingIdentifiers.CHEAT_DATABASE) {
+            loadCheats(((StringWrapper) setting.getValue()).unwrap());
+        }
     }
 }

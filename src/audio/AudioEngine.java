@@ -2,6 +2,11 @@ package audio;
 
 import gbemu.core.GameBoy;
 import gbemu.core.GameBoyState;
+import gbemu.settings.Setting;
+import gbemu.settings.SettingIdentifiers;
+import gbemu.settings.SettingsContainer;
+import gbemu.settings.SettingsContainerListener;
+import gbemu.settings.wrapper.FloatWrapper;
 import net.beadsproject.beads.core.AudioContext;
 import net.beadsproject.beads.core.UGen;
 import net.beadsproject.beads.core.io.JavaSoundAudioIO;
@@ -19,7 +24,7 @@ import java.util.List;
  * This class is responsible for handling audio outside the core Game Boy context
  * by fetching the audio samples the Emulator compute one after the other at the right time
  */
-public class AudioEngine {
+public class AudioEngine implements SettingsContainerListener {
 
     private final AudioContext ac;
     private final JavaSoundAudioIO jsa_io;
@@ -32,7 +37,7 @@ public class AudioEngine {
      * Create a new Audio Engine
      * linking it to the currently selected Output if valid
      */
-    public AudioEngine(GameBoy gameboy) {
+    public AudioEngine(GameBoy gameboy, SettingsContainer settingsContainer) {
         this.gameboy = gameboy;
         gameboy.setAudioEngine(this);
         jsa_io = new JavaSoundAudioIO();
@@ -49,6 +54,7 @@ public class AudioEngine {
         }
         ac = null;
         started = false;
+        settingsContainer.addListener(this);
     }
 
     /**
@@ -104,7 +110,7 @@ public class AudioEngine {
      * Set the current volume
      * @param volume the new volume to set
      */
-    public void setVolume(float volume) {
+    private void setVolume(float volume) {
         master_volume = volume;
     }
 
@@ -123,5 +129,12 @@ public class AudioEngine {
         for (UGen input : ac.out.getConnectedInputs())
             input.kill();
         ac.stop();
+    }
+
+    @Override
+    public void propagateSetting(Setting<?> setting) {
+        if (setting.getIdentifier() == SettingIdentifiers.VOLUME) {
+            setVolume(((FloatWrapper) setting.getValue()).unwrap());
+        }
     }
 }

@@ -18,13 +18,14 @@ import gbemu.settings.Setting;
 import gbemu.extension.debug.Debugger;
 import gbemu.extension.debug.DebuggerMode;
 import gbemu.settings.SettingsContainer;
+import gbemu.settings.SettingsContainerListener;
 import gbemu.settings.wrapper.*;
 
 /**
  * This class represent a Game Boy to be emulated by the Emulator
  * it contains every needed components
  */
-public class GameBoy {
+public class GameBoy implements SettingsContainerListener {
 
     public static final double FRAMERATE = 59.727500569606;
 
@@ -63,6 +64,13 @@ public class GameBoy {
         current_state = GameBoyState.RUNNING;
         cheat_manager = new CheatManager(this);
         settings_container = new SettingsContainer(this, configFile);
+        settings_container.addListener(this);
+        settings_container.addListener(memory);
+        settings_container.addListener(cpu);
+        settings_container.addListener(cheat_manager);
+        settings_container.addListener(apu);
+        settings_container.addListener(ppu);
+        settings_container.addListener(this);
     }
 
     /**
@@ -347,22 +355,6 @@ public class GameBoy {
                 speed_factor = ((IntegerWrapper) setting.getValue()).unwrap();
                 mode.CYCLES_PER_SAMPLE = 4194304f / APU.SAMPLE_RATE * speed_factor;
             }
-            case BOOTSTRAP -> cpu.enableBootstrap(((BooleanWrapper) setting.getValue()).unwrap());
-            case DMG_BOOTROM -> memory.loadBootstrap(Mode.DMG, ((StringWrapper)setting.getValue()).unwrap());
-            case CGB_BOOTROM -> memory.loadBootstrap(Mode.CGB, ((StringWrapper)setting.getValue()).unwrap());
-            case CHEAT_DATABASE -> cheat_manager.loadCheats(((StringWrapper)setting.getValue()).unwrap());
-            case DMG_PALETTE_0 -> ColorShade.WHITE.setColor(((ColorWrapper)setting.getValue()).unwrap());
-            case DMG_PALETTE_1 -> ColorShade.LIGHT_GRAY.setColor(((ColorWrapper)setting.getValue()).unwrap());
-            case DMG_PALETTE_2 -> ColorShade.DARK_GRAY.setColor(((ColorWrapper) setting.getValue()).unwrap());
-            case DMG_PALETTE_3 -> ColorShade.BLACK.setColor(((ColorWrapper)setting.getValue()).unwrap());
-            case GAMMA -> ppu.setGamma(((FloatWrapper) setting.getValue()).unwrap());
-            case SQUARE_1_ENABLED -> apu.enableSquare1(((BooleanWrapper) setting.getValue()).unwrap());
-            case SQUARE_2_ENABLED -> apu.enableSquare2(((BooleanWrapper) setting.getValue()).unwrap());
-            case WAVE_ENABLED -> apu.enableWave(((BooleanWrapper) setting.getValue()).unwrap());
-            case NOISE_ENABLED -> apu.enableNoise(((BooleanWrapper) setting.getValue()).unwrap());
-            case PULSE_MODE -> apu.setFilteringMode(((PulseModeWrapper) setting.getValue()).unwrap());
-            case PULSE_HARMONICS -> Oscillator.setHarmonics(((IntegerWrapper)setting.getValue()).unwrap());
-            case VOLUME -> audio_engine.setVolume(((FloatWrapper) setting.getValue()).unwrap());
         }
     }
 

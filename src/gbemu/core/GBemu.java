@@ -18,9 +18,9 @@ public class GBemu {
      * Create a new Instance of the Emulator with a specified config file
      * @param config_file the config file to load settings from
      */
-    public GBemu(String config_file) {
+    public GBemu(String config_file) throws Exception {
         GameBoy gameboy = new GameBoy(config_file);
-        audio_engine = new AudioEngine(gameboy);
+        audio_engine = new AudioEngine(gameboy, gameboy.getSettingsContainer());
         gameboy_thread = new GameBoyThread(gameboy);
         window_thread = new WindowThread(gameboy, gameboy_thread);
         gameboy.loadSettings();

@@ -3,16 +3,24 @@ package gbemu.core.apu;
 import gbemu.core.Flags;
 import gbemu.core.GameBoy;
 import gbemu.core.apu.channels.*;
+import gbemu.core.apu.components.Oscillator;
+import gbemu.core.cartridge.mbc.MBC3;
 import gbemu.core.memory.MMU;
 import gbemu.core.memory.IMMUListener;
 import gbemu.extension.debug.Debugger;
 import gbemu.extension.debug.DebuggerMode;
+import gbemu.settings.Setting;
+import gbemu.settings.SettingsContainerListener;
+import gbemu.settings.wrapper.BooleanWrapper;
+import gbemu.settings.wrapper.FloatWrapper;
+import gbemu.settings.wrapper.IntegerWrapper;
+import gbemu.settings.wrapper.PulseModeWrapper;
 import gui.debug.APULayer;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class APU implements IMMUListener {
+public class APU implements IMMUListener, SettingsContainerListener {
 
     public static final int SAMPLE_RATE = 44100;
     public static final int[][] WAVE_PATTERN = {
@@ -189,24 +197,36 @@ public class APU implements IMMUListener {
         noise.reset();
     }
 
-    public void enableSquare1(boolean enabled) {
+    private void enableSquare1(boolean enabled) {
         square_1_rendered = enabled;
     }
 
-    public void enableSquare2(boolean enabled) {
+    private void enableSquare2(boolean enabled) {
         square_2_rendered = enabled;
     }
 
-    public void enableWave(boolean enabled) {
+    private void enableWave(boolean enabled) {
         wave_rendered = enabled;
     }
 
-    public void enableNoise(boolean enabled) {
+    private void enableNoise(boolean enabled) {
         noise_rendered = enabled;
     }
 
-    public void setFilteringMode(PulseMode pulse_mode) {
+    private void setFilteringMode(PulseMode pulse_mode) {
         square_1.setPulseMode(pulse_mode);
         square_2.setPulseMode(pulse_mode);
+    }
+
+    @Override
+    public void propagateSetting(Setting<?> setting) {
+        switch (setting.getIdentifier()) {
+            case SQUARE_1_ENABLED -> enableSquare1(((BooleanWrapper) setting.getValue()).unwrap());
+            case SQUARE_2_ENABLED -> enableSquare2(((BooleanWrapper) setting.getValue()).unwrap());
+            case WAVE_ENABLED -> enableWave(((BooleanWrapper) setting.getValue()).unwrap());
+            case NOISE_ENABLED -> enableNoise(((BooleanWrapper) setting.getValue()).unwrap());
+            case PULSE_MODE -> setFilteringMode(((PulseModeWrapper) setting.getValue()).unwrap());
+            case PULSE_HARMONICS -> Oscillator.setHarmonics(((IntegerWrapper)setting.getValue()).unwrap());
+        }
     }
 }
