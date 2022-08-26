@@ -1,0 +1,16 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: local
+    hooks:
+      - id: maven-spotless-apply
+        name: java format (mvn spotless:apply)
+        entry: mvn -f pom.xml spotless:apply
+        language: system
+        stages: [commit]
+        pass_filenames: false
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v2.7.1
+    hooks:
+      - id: prettier
+        name: prettier
