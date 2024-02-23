@@ -15,6 +15,8 @@ import glwrapper.shader.ShaderProgram;
 import glwrapper.shader.uniform.*;
 import org.joml.*;
 import rendering.Direction;
+import rendering.postprocessing.parameter.Parameter;
+import rendering.postprocessing.parameter.ParameterVisitor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,8 +37,8 @@ public class Pipeline implements SettingsContainerListener {
     private final Framebuffer fbo1;
     private final Framebuffer fbo2;
     private final SettingsContainer settingsContainer;
-
     private final PipelineSerializer serializer;
+    private final LoadUniformVisitor uniformLoader = new LoadUniformVisitor();
 
     private volatile boolean locked = false;
 
@@ -94,7 +96,7 @@ public class Pipeline implements SettingsContainerListener {
         }
     }
 
-    private void applyFilter(Filter filter, Parameter<?>[] parameters, Texture texture) {
+    private void applyFilter(Filter filter, Parameter[] parameters, Texture texture) {
         Framebuffer src, dst;
         if (shaders.get(filter) != null) {
             if (fbo_latch) {
@@ -108,23 +110,14 @@ public class Pipeline implements SettingsContainerListener {
             shaders.get(filter).bind();
 
             //Preload default value in case parameters are missing
-            for (Uniform u : filter.getAllUniforms())
+            for (Uniform u : filter.getAllUniforms()) {
                 u.loadDefault();
+            }
 
             if (parameters != null) {
-                for (Parameter<?> param : parameters) {
-                    Uniform u = filter.getUniform(param.name);
-                    switch (param.type) {
-                        case BOOLEAN -> { if (u instanceof UniformBoolean) ((UniformBoolean) u).loadBoolean((Boolean) param.value); }
-                        case INTEGER -> { if (u instanceof UniformInteger) ((UniformInteger) u).loadInteger((Integer) param.value); }
-                        case FLOAT -> { if (u instanceof UniformFloat) ((UniformFloat) u).loadFloat((Float) param.value); }
-                        case VEC2 -> { if (u instanceof UniformVec2) ((UniformVec2) u).loadVec2((Vector2f) param.value); }
-                        case VEC3 -> { if (u instanceof UniformVec3) ((UniformVec3) u).loadVec3((Vector3f) param.value); }
-                        case VEC4 -> { if (u instanceof UniformVec4) ((UniformVec4) u).loadVec4((Vector4f) param.value); }
-                        case MAT2 -> { if (u instanceof UniformMat2) ((UniformMat2) u).loadMatrix((Matrix2f) param.value); }
-                        case MAT3 -> { if (u instanceof UniformMat3) ((UniformMat3) u).loadMatrix((Matrix3f) param.value); }
-                        case MAT4 -> { if (u instanceof UniformMat4) ((UniformMat4) u).loadMatrix((Matrix4f) param.value); }
-                    }
+                for (Parameter param : parameters) {
+                    uniformLoader.setValue(param.getValue());
+                    filter.getUniform(param.getName()).accept(uniformLoader);
                 }
             }
             quad.render(texture != null ? texture : src.getTextureTarget(), shaders.get(filter), dst);
@@ -132,7 +125,7 @@ public class Pipeline implements SettingsContainerListener {
     }
 
     /**
-     * Clean up every filters of the pipeline
+     * Clean up every filter of the pipeline
      */
     public void cleanUp() {
         quad.cleanUp();

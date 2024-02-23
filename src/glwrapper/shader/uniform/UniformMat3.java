@@ -17,7 +17,7 @@ public class UniformMat3 extends Uniform{
 	}
 
 	@Override
-	public Object getDefault() {
+	public Matrix3f getDefault() {
 		return defaultValue;
 	}
 
@@ -29,5 +29,10 @@ public class UniformMat3 extends Uniform{
 		matrix.get(matrixBuffer);
 		matrixBuffer.flip();
 		GL20.glUniformMatrix3fv(super.getLocation(), false, matrixBuffer);
+	}
+
+	@Override
+	public void accept(UniformVisitor visitor) {
+		visitor.visit(this);
 	}
 }

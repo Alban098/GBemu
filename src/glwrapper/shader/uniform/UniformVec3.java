@@ -20,7 +20,7 @@ public class UniformVec3 extends Uniform {
 	}
 
 	@Override
-	public Object getDefault() {
+	public Vector3f getDefault() {
 		return defaultValue;
 	}
 
@@ -51,4 +51,8 @@ public class UniformVec3 extends Uniform {
 		}
 	}
 
+	@Override
+	public void accept(UniformVisitor visitor) {
+		visitor.visit(this);
+	}
 }

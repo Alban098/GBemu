@@ -24,7 +24,7 @@ public abstract class Uniform {
 	public void storeUniformLocation(int programID){
 		location = GL20.glGetUniformLocation(programID, name);
 		if(location == NOT_FOUND){
-			System.err.println("Uniform \"" + name + "\" non trouvée pour le shader : "+programID);
+			System.err.println("Uniform \"" + name + "\" not found for shader : "+programID);
 		}
 	}
 
@@ -43,4 +43,6 @@ public abstract class Uniform {
 	public String getName() {
 		return name;
 	}
+
+	public abstract void accept(UniformVisitor visitor);
 }

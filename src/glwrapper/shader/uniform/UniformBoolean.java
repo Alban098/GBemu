@@ -13,12 +13,17 @@ public class UniformBoolean extends Uniform {
 	}
 
 	@Override
-	public Object getDefault() {
+	public Boolean getDefault() {
 		return defaultValue;
 	}
 
 	public void loadDefault() {
 		loadBoolean(defaultValue);
+	}
+
+	@Override
+	public void accept(UniformVisitor visitor) {
+		visitor.visit(this);
 	}
 
 	public void loadBoolean(boolean bool){

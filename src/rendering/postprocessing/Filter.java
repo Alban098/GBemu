@@ -8,6 +8,8 @@ import org.joml.*;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import rendering.postprocessing.parameter.CreateParameterVisitor;
+import rendering.postprocessing.parameter.Parameter;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -73,20 +75,13 @@ public class Filter {
         return description;
     }
 
-    public Parameter<?>[] getDefaultParameters() {
-        Parameter<?>[] parameters = new Parameter<?>[uniforms.size()];
+    public Parameter[] getDefaultParameters() {
+        Parameter[] parameters = new Parameter[uniforms.size()];
         int i = 0;
+        UniformVisitor visitor = new CreateParameterVisitor();
         for (Uniform uniform : uniforms.values()) {
-            if (uniform instanceof UniformBoolean) parameters[i] = new Parameter<>(uniform.getName(), (Boolean) uniform.getDefault(), ParameterType.BOOLEAN);
-            else if (uniform instanceof UniformInteger) parameters[i] = new Parameter<>(uniform.getName(), (Integer) uniform.getDefault(), ParameterType.INTEGER);
-            else if (uniform instanceof UniformFloat) parameters[i] = new Parameter<>(uniform.getName(), (Float) uniform.getDefault(), ParameterType.FLOAT);
-            else if (uniform instanceof UniformVec2) parameters[i] = new Parameter<>(uniform.getName(), (Vector2f) uniform.getDefault(), ParameterType.VEC2);
-            else if (uniform instanceof UniformVec3) parameters[i] = new Parameter<>(uniform.getName(), (Vector3f) uniform.getDefault(), ParameterType.VEC3);
-            else if (uniform instanceof UniformVec4) parameters[i] = new Parameter<>(uniform.getName(), (Vector4f) uniform.getDefault(), ParameterType.VEC4);
-            else if (uniform instanceof UniformMat2) parameters[i] = new Parameter<>(uniform.getName(), (Matrix2f) uniform.getDefault(), ParameterType.MAT2);
-            else if (uniform instanceof UniformMat3) parameters[i] = new Parameter<>(uniform.getName(), (Matrix3f) uniform.getDefault(), ParameterType.MAT3);
-            else if (uniform instanceof UniformMat4) parameters[i] = new Parameter<>(uniform.getName(), (Matrix4f) uniform.getDefault(), ParameterType.MAT4);
-            i++;
+            uniform.accept(visitor);
+            parameters[i++] = visitor.getResult();
         }
         return parameters;
     }
@@ -236,13 +231,13 @@ public class Filter {
     }
 
     public boolean hasParameters() {
-        return uniforms.size() > 0;
+        return !uniforms.isEmpty();
     }
 
-    public boolean hasParameter(Parameter<?> param) {
+    public boolean hasParameter(Parameter param) {
         for (Map.Entry<String, Uniform> entry : uniforms.entrySet()) {
-            if (param.type.getUniformClass().isInstance(entry.getValue())) {
-                return param.name.equals(entry.getKey());
+            if (param.getUniformClass().isInstance(entry.getValue())) {
+                return param.getName().equals(entry.getKey());
             }
         }
         return false;

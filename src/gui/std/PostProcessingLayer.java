@@ -1,16 +1,13 @@
 package gui.std;
 
-import gbemu.settings.Palette;
-import gbemu.settings.SettingIdentifiers;
-import gbemu.settings.SettingsContainer;
-import gui.std.parameter.ParameterView;
 import imgui.ImGui;
 import imgui.type.ImInt;
 import rendering.Direction;
 import rendering.Renderer;
 import rendering.postprocessing.Filter;
 import rendering.postprocessing.FilterInstance;
-import rendering.postprocessing.Parameter;
+import rendering.postprocessing.parameter.Parameter;
+import rendering.postprocessing.parameter.ParameterVisitor;
 
 import java.util.List;
 
@@ -40,7 +37,7 @@ public class PostProcessingLayer extends Layer {
      */
     public void render() {
         ImGui.begin("Post-Processing");
-        ImGui.setWindowSize(350, 310);
+        ImGui.setWindowSize(360, 310);
         if (ImGui.button("Save Effects")) {
             renderer.savePipeline();
         }
@@ -57,10 +54,14 @@ public class PostProcessingLayer extends Layer {
         List<FilterInstance> applied_filters = renderer.getFilters();
         for (int index = 0; index < applied_filters.size(); index++) {
             FilterInstance filter = applied_filters.get(index);
-            if (ImGui.treeNode(filter.toString() + "##" + filter.hashCode())) {
-                for (Parameter<?> parameter : filter.getParameters()) {
-                    ParameterView view = ParameterView.findView(parameter.type);
-                    view.render(parameter);
+            boolean expended = ImGui.treeNode(filter.toString() + "##" + filter.hashCode());
+            if (ImGui.isItemHovered()) {
+                showToolTip(filter);
+            }
+            if (expended) {
+                ParameterVisitor visitor = new RenderParameterVisitor();
+                for (Parameter parameter : filter.getParameters()) {
+                    parameter.accept(visitor);
                 }
                 if (index > 0) {
                     if (ImGui.button("/\\##" + filter.hashCode())) {
@@ -83,5 +84,12 @@ public class PostProcessingLayer extends Layer {
         }
         renderer.commitFilters();
         ImGui.end();
+    }
+
+    private void showToolTip(FilterInstance filter) {
+        ImGui.beginTooltip();
+        ImGui.textColored(255, 0, 255, 255, filter.getFilter().getName());
+        ImGui.text(filter.getFilter().getDescription());
+        ImGui.endTooltip();
     }
 }

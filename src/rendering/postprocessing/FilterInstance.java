@@ -1,18 +1,18 @@
 package rendering.postprocessing;
 
-import glwrapper.shader.uniform.Uniform;
+import rendering.postprocessing.parameter.Parameter;
 
 public class FilterInstance {
 
     private final Filter filter;
-    private final Parameter<?>[] parameters;
+    private final Parameter[] parameters;
 
     public FilterInstance(Filter filter) {
         this.filter = filter;
         this.parameters = filter.getDefaultParameters();
     }
 
-    public FilterInstance(Filter filter, Parameter<?>[] parameters) {
+    public FilterInstance(Filter filter, Parameter[] parameters) {
         this.filter = filter;
         if (parameters != null)
             this.parameters = parameters;
@@ -29,7 +29,7 @@ public class FilterInstance {
         return filter;
     }
 
-    public Parameter<?>[] getParameters() {
+    public Parameter[] getParameters() {
         return parameters;
     }
 

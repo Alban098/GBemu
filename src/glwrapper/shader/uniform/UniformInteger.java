@@ -17,7 +17,7 @@ public class UniformInteger extends Uniform{
 	}
 
 	@Override
-	public Object getDefault() {
+	public Integer getDefault() {
 		return defaultValue;
 	}
 
@@ -32,4 +32,8 @@ public class UniformInteger extends Uniform{
 		}
 	}
 
+	@Override
+	public void accept(UniformVisitor visitor) {
+		visitor.visit(this);
+	}
 }

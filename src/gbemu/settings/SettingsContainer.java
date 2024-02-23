@@ -91,7 +91,7 @@ public class SettingsContainer {
         }));
         settings.put(SettingIdentifiers.DMG_BOOTROM, new Setting<>(SettingIdentifiers.DMG_BOOTROM, new StringWrapper("DMG.bin"), (Setting<StringWrapper> setting) -> {
             ImString tmp = new ImString(setting.getValue().unwrap());
-            ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
+            ImGui.inputText("##" + SettingIdentifiers.DMG_BOOTROM, tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load DMG")) {
                 FileChooser chooser = new FileChooser();
@@ -114,7 +114,7 @@ public class SettingsContainer {
         }));
         settings.put(SettingIdentifiers.CHEAT_DATABASE, new Setting<>(SettingIdentifiers.CHEAT_DATABASE, new StringWrapper("gameshark.cht"), (Setting<StringWrapper> setting) -> {
             ImString tmp = new ImString(setting.getValue().unwrap());
-            ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
+            ImGui.inputText("##" + SettingIdentifiers.CHEAT_DATABASE, tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load")) {
                 FileChooser chooser = new FileChooser();
@@ -135,7 +135,7 @@ public class SettingsContainer {
         }));
         settings.put(SettingIdentifiers.FILTER_SETTINGS, new Setting<>(SettingIdentifiers.FILTER_SETTINGS, new StringWrapper("pipeline.xml"), (Setting<StringWrapper> setting) -> {
             ImString tmp = new ImString(setting.getValue().unwrap());
-            ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
+            ImGui.inputText("##" + SettingIdentifiers.FILTER_SETTINGS, tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load")) {
                 FileChooser chooser = new FileChooser();
@@ -156,7 +156,7 @@ public class SettingsContainer {
         }));
         settings.put(SettingIdentifiers.CGB_BOOTROM, new Setting<>(SettingIdentifiers.CGB_BOOTROM, new StringWrapper("CGB.bin"), (Setting<StringWrapper> setting) -> {
             ImString tmp = new ImString(setting.getValue().unwrap());
-            ImGui.inputText("", tmp, ImGuiInputTextFlags.ReadOnly);
+            ImGui.inputText("##" + SettingIdentifiers.CGB_BOOTROM, tmp, ImGuiInputTextFlags.ReadOnly);
             ImGui.sameLine();
             if (ImGui.button("Load CGB")) {
                 FileChooser chooser = new FileChooser();

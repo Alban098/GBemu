@@ -17,7 +17,7 @@ public class UniformFloat extends Uniform{
 	}
 
 	@Override
-	public Object getDefault() {
+	public Float getDefault() {
 		return defaultValue;
 	}
 
@@ -32,4 +32,8 @@ public class UniformFloat extends Uniform{
 		}
 	}
 
+	@Override
+	public void accept(UniformVisitor visitor) {
+		visitor.visit(this);
+	}
 }
